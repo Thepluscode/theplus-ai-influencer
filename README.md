@@ -1,36 +1,83 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ThePlus.AI Influencer
 
-## Getting Started
+AI influencer SaaS — define a synthetic persona, generate cinematic visuals with Luma, compose platform-targeted posts, and schedule across Instagram / TikTok / YouTube / X via Zenio. Auth + DB by Supabase, billing by Stripe.
 
-First, run the development server:
+## Stack
+
+- **Next.js 16** App Router, React 19, TypeScript strict
+- **Tailwind 4** + Lucide icons
+- **Supabase** (`@supabase/supabase-js`, `@supabase/ssr`) — auth + Postgres + storage
+- **Luma** (`lumaai`) — AI image / video generation
+- **Zenio** (custom HTTP client in `src/lib/zenio.ts`) — multi-platform social scheduling
+- **Stripe** — subscriptions + credit system
+- **Zod**, **react-hook-form** — schema validation + forms
+- **Vitest**, **Testing Library**, **jsdom** — tests
+- **Husky** — pre-push hook (`typecheck` + `lint` + `test`)
+
+## Getting started
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
+# 1. Install deps
+pnpm install
+
+# 2. Copy env template, fill in real keys
+cp .env.example .env.local
+$EDITOR .env.local
+
+# 3. Run dev server (port 3002)
 pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open <http://localhost:3002>.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Env vars
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+See `.env.example`. You'll need accounts on:
 
-## Learn More
+- [Supabase](https://supabase.com) — create a project, copy URL + anon key + service-role key
+- [Luma Labs](https://lumalabs.ai/dream-machine/api) — generate an API key
+- Zenio — sign up and copy the API key + base URL
+- [Stripe](https://dashboard.stripe.com/) — copy publishable + secret + webhook secret
 
-To learn more about Next.js, take a look at the following resources:
+The app boots without any of these but features that need them will throw on first call. Wire them in as you build each surface.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Project structure
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+See `CLAUDE.md` for the full map.
 
-## Deploy on Vercel
+```
+src/
+├── app/
+│   ├── (marketing)/        # public landing
+│   ├── (auth)/             # sign-in, sign-up
+│   └── (app)/              # authenticated dashboard, studio, calendar, ...
+├── components/
+└── lib/                    # env, utils, supabase, luma, zenio, stripe clients
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Scripts
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+| Command | What it does |
+|---|---|
+| `pnpm dev` | Next dev on port 3002 |
+| `pnpm build` | Production build |
+| `pnpm start` | Production server (3002) |
+| `pnpm lint` | ESLint |
+| `pnpm typecheck` | `tsc --noEmit` |
+| `pnpm test` | Vitest run |
+| `pnpm test:watch` | Vitest watch |
+| `pnpm format` / `format:check` | Prettier |
+
+## Pre-push hook
+
+`.husky/pre-push` runs `typecheck` + `lint` + `test`. Fails fast — don't `--no-verify` without a strong reason.
+
+## Roadmap
+
+1. **Studio** — model creator: name / gender / body / skin / hair / vibe + custom prompt → Luma → portrait + full body.
+2. **Create post** — model + platform + format + scene + props + CTA + reference images → Luma → 2 variants.
+3. **Calendar** — month/week view, drag to reschedule, in-line draft promotion.
+4. **Accounts** — Zenio OAuth-style flow per platform.
+5. **Billing** — Stripe checkout + portal + webhooks; credit ledger in Supabase.
+
+Built with [Claude Code](https://claude.ai/code).
