@@ -92,22 +92,11 @@ export function StudioWizard({ saveDisabledReason }: { saveDisabledReason: strin
         </button>
       </form>
 
-      <aside className="flex flex-col gap-4">
-        <Preview
-          label="Portrait"
-          imageUrl={state?.status === 'success' ? state.visuals.portraitUrl : undefined}
-          loading={pending}
-          aspectClass="aspect-[3/4]"
-        />
-        <Preview
-          label="Full body"
-          imageUrl={state?.status === 'success' ? state.visuals.fullBodyUrl : undefined}
-          loading={pending}
-          aspectClass="aspect-[9/16]"
-        />
-
+      <aside className="flex flex-col gap-4 lg:sticky lg:top-6 lg:self-start lg:max-h-[calc(100dvh-3rem)] lg:overflow-y-auto">
+        {/* Save panel is rendered first so it's always visible without
+            scrolling past the (tall) preview tiles. */}
         {state?.status === 'success' ? (
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-2 rounded-md border border-zinc-800 bg-zinc-950 p-3">
             <div className="flex items-center gap-2">
               <form action={saveAction} className="flex flex-1">
                 <input type="hidden" name="input" value={JSON.stringify(state.input)} />
@@ -143,6 +132,7 @@ export function StudioWizard({ saveDisabledReason }: { saveDisabledReason: strin
                 onClick={() => window.location.reload()}
                 className="inline-flex items-center justify-center gap-2 rounded-md border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-zinc-300 transition hover:border-zinc-700 hover:bg-zinc-800"
                 aria-label="Reset wizard"
+                title="Reset wizard"
               >
                 <RefreshCw size={14} />
               </button>
@@ -157,6 +147,19 @@ export function StudioWizard({ saveDisabledReason }: { saveDisabledReason: strin
             ) : null}
           </div>
         ) : null}
+
+        <Preview
+          label="Portrait"
+          imageUrl={state?.status === 'success' ? state.visuals.portraitUrl : undefined}
+          loading={pending}
+          aspectClass="aspect-[3/4]"
+        />
+        <Preview
+          label="Full body"
+          imageUrl={state?.status === 'success' ? state.visuals.fullBodyUrl : undefined}
+          loading={pending}
+          aspectClass="aspect-[9/16]"
+        />
       </aside>
     </div>
   );

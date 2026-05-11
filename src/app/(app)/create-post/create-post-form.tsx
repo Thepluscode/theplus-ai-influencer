@@ -86,15 +86,9 @@ export function CreatePostForm({ models, saveDisabledReason }: Props) {
         </button>
       </form>
 
-      <aside className="flex flex-col gap-4">
-        <VariantPanel
-          variants={state?.status === 'success' ? state.variants : []}
-          selectedIndex={selectedVariant}
-          onSelect={setSelectedVariant}
-          loading={pending}
-          format={state?.status === 'success' ? state.brief.format : 'square'}
-        />
-
+      <aside className="flex flex-col gap-4 lg:sticky lg:top-6 lg:self-start lg:max-h-[calc(100dvh-3rem)] lg:overflow-y-auto">
+        {/* Save panel comes first so it's always reachable without
+            scrolling past the (tall) preview tiles. */}
         {state?.status === 'success' ? (
           <SaveDraftPanel
             brief={state.brief}
@@ -105,6 +99,14 @@ export function CreatePostForm({ models, saveDisabledReason }: Props) {
             saveDisabledReason={saveDisabledReason}
           />
         ) : null}
+
+        <VariantPanel
+          variants={state?.status === 'success' ? state.variants : []}
+          selectedIndex={selectedVariant}
+          onSelect={setSelectedVariant}
+          loading={pending}
+          format={state?.status === 'success' ? state.brief.format : 'square'}
+        />
       </aside>
     </div>
   );
