@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Calendar, Home, ImageIcon, LinkIcon, PlusSquare, Settings } from 'lucide-react';
+import { Calendar, Home, ImageIcon, LinkIcon, LogOut, PlusSquare, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const NAV = [
@@ -14,7 +14,7 @@ const NAV = [
   { href: '/settings', label: 'Settings', icon: Settings },
 ] as const;
 
-export function Sidebar() {
+export function Sidebar({ userEmail }: { userEmail: string | null }) {
   const pathname = usePathname();
 
   return (
@@ -24,6 +24,7 @@ export function Sidebar() {
           ThePlus.AI <span className="text-zinc-500">Influencer</span>
         </Link>
       </div>
+
       <nav className="flex flex-1 flex-col gap-1 px-3">
         {NAV.map(({ href, label, icon: Icon }) => {
           const active = pathname === href || pathname.startsWith(`${href}/`);
@@ -44,8 +45,26 @@ export function Sidebar() {
           );
         })}
       </nav>
-      <div className="border-t border-zinc-800 px-6 py-4 text-xs text-zinc-600">
-        scaffold · sign-out wiring TBD
+
+      <div className="border-t border-zinc-800 px-4 py-4">
+        {userEmail ? (
+          <div className="flex items-center justify-between gap-2">
+            <span className="truncate text-xs text-zinc-400" title={userEmail}>
+              {userEmail}
+            </span>
+            <form action="/auth/sign-out" method="post">
+              <button
+                type="submit"
+                className="rounded-md p-1.5 text-zinc-500 transition hover:bg-zinc-900 hover:text-zinc-200"
+                aria-label="Sign out"
+              >
+                <LogOut size={14} />
+              </button>
+            </form>
+          </div>
+        ) : (
+          <span className="text-xs text-zinc-600">scaffold · not signed in</span>
+        )}
       </div>
     </aside>
   );

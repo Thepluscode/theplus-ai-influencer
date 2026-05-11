@@ -1,5 +1,5 @@
 import { cookies } from 'next/headers';
-import { createServerClient, type CookieOptions } from '@supabase/ssr';
+import { createServerClient } from '@supabase/ssr';
 import { publicEnv } from '@/lib/env';
 
 export async function getSupabaseServerClient() {
@@ -14,14 +14,20 @@ export async function getSupabaseServerClient() {
     publicEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY,
     {
       cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value;
+        getAll() {
+          return cookieStore.getAll();
         },
-        set(name: string, value: string, options: CookieOptions) {
-          cookieStore.set({ name, value, ...options });
-        },
-        remove(name: string, options: CookieOptions) {
-          cookieStore.set({ name, value: '', ...options });
+        setAll(cookiesToSet) {
+          // setAll throws in Server Components (cookies are read-only there).
+          // It's fine to swallow — middleware refreshes the session on the
+          // next request, so the worst case is a one-cycle stale token.
+          try {
+            cookiesToSet.forEach(({ name, value, options }) =>
+              cookieStore.set(name, value, options),
+            );
+          } catch {
+            /* not in a Server Action / Route Handler — middleware will catch up */
+          }
         },
       },
     },
