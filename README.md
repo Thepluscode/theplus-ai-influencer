@@ -41,6 +41,22 @@ See `.env.example`. You'll need accounts on:
 
 The app boots without any of these but features that need them will throw on first call. Wire them in as you build each surface.
 
+## Database setup (Supabase)
+
+After creating your Supabase project, apply the schema:
+
+1. Open the SQL editor in your Supabase dashboard.
+2. Paste the contents of `supabase/migrations/0001_initial_schema.sql` and run.
+
+This creates:
+
+- `public.workspaces` — one per user, auto-created on signup via trigger.
+- `public.ai_models` — saved AI influencer personas with portrait + full-body URLs.
+- Row-level security so each user only sees their own workspace's data.
+- A `handle_new_user`-style trigger on `auth.users` that bootstraps a default workspace.
+
+When the schema grows beyond two tables, switch to the Supabase CLI for proper migration tracking (`supabase migration new <name>` + `supabase db push`).
+
 ## Project structure
 
 See `CLAUDE.md` for the full map.

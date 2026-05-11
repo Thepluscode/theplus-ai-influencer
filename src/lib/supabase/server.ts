@@ -1,6 +1,7 @@
 import { cookies } from 'next/headers';
 import { createServerClient } from '@supabase/ssr';
 import { publicEnv } from '@/lib/env';
+import type { Database } from './types';
 
 export async function getSupabaseServerClient() {
   if (!publicEnv.NEXT_PUBLIC_SUPABASE_URL || !publicEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
@@ -9,7 +10,7 @@ export async function getSupabaseServerClient() {
     );
   }
   const cookieStore = await cookies();
-  return createServerClient(
+  return createServerClient<Database>(
     publicEnv.NEXT_PUBLIC_SUPABASE_URL,
     publicEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY,
     {

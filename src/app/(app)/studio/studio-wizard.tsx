@@ -1,8 +1,13 @@
 'use client';
 
 import { useActionState } from 'react';
-import { Loader2, RefreshCw, Sparkles } from 'lucide-react';
-import { generateInfluencer, type GenerateState } from './actions';
+import { Check, Loader2, RefreshCw, Save, Sparkles } from 'lucide-react';
+import {
+  generateInfluencer,
+  saveGeneratedInfluencer,
+  type GenerateState,
+  type SaveState,
+} from './actions';
 import { cn } from '@/lib/utils';
 
 const FIELDS = {
@@ -13,9 +18,13 @@ const FIELDS = {
   vibe: ['street', 'minimal', 'luxury', 'cinematic', 'editorial'] as const,
 };
 
-export function StudioWizard() {
+export function StudioWizard({ saveDisabledReason }: { saveDisabledReason: string | null }) {
   const [state, formAction, pending] = useActionState<GenerateState | null, FormData>(
     generateInfluencer,
+    null,
+  );
+  const [saveState, saveAction, saving] = useActionState<SaveState | null, FormData>(
+    saveGeneratedInfluencer,
     null,
   );
 
@@ -98,23 +107,54 @@ export function StudioWizard() {
         />
 
         {state?.status === 'success' ? (
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              disabled
-              className="inline-flex flex-1 items-center justify-center gap-2 rounded-md border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-zinc-500"
-              title="Persistence ships next — schema/Supabase wiring coming up."
-            >
-              Save model (TBD — needs DB)
-            </button>
-            <button
-              type="button"
-              onClick={() => window.location.reload()}
-              className="inline-flex items-center justify-center gap-2 rounded-md border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-zinc-300 transition hover:border-zinc-700 hover:bg-zinc-800"
-              aria-label="Reset wizard"
-            >
-              <RefreshCw size={14} />
-            </button>
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-2">
+              <form action={saveAction} className="flex flex-1">
+                <input type="hidden" name="input" value={JSON.stringify(state.input)} />
+                <input type="hidden" name="visuals" value={JSON.stringify(state.visuals)} />
+                <button
+                  type="submit"
+                  disabled={
+                    saving || saveState?.status === 'saved' || Boolean(saveDisabledReason)
+                  }
+                  title={saveDisabledReason ?? undefined}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-zinc-100 px-3 py-2 text-sm font-medium text-zinc-900 transition hover:bg-white disabled:cursor-not-allowed disabled:bg-zinc-900 disabled:text-zinc-500"
+                >
+                  {saving ? (
+                    <>
+                      <Loader2 size={14} className="animate-spin" />
+                      Saving…
+                    </>
+                  ) : saveState?.status === 'saved' ? (
+                    <>
+                      <Check size={14} />
+                      Saved
+                    </>
+                  ) : (
+                    <>
+                      <Save size={14} />
+                      Save model
+                    </>
+                  )}
+                </button>
+              </form>
+              <button
+                type="button"
+                onClick={() => window.location.reload()}
+                className="inline-flex items-center justify-center gap-2 rounded-md border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-zinc-300 transition hover:border-zinc-700 hover:bg-zinc-800"
+                aria-label="Reset wizard"
+              >
+                <RefreshCw size={14} />
+              </button>
+            </div>
+            {saveState?.status === 'error' ? (
+              <p className="text-xs text-red-400" role="alert">
+                {saveState.error}
+              </p>
+            ) : null}
+            {saveDisabledReason ? (
+              <p className="text-xs text-zinc-500">{saveDisabledReason}</p>
+            ) : null}
           </div>
         ) : null}
       </aside>
