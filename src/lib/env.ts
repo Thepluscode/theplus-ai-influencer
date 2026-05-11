@@ -3,6 +3,13 @@ import { z } from 'zod';
 const ServerEnvSchema = z.object({
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1).optional(),
   LUMA_API_KEY: z.string().min(1).optional(),
+  // Set to "1" or "true" to skip real Luma calls and return placeholder
+  // images. Useful for end-to-end UI/Supabase/Zernio testing without
+  // burning credits.
+  LUMA_STUB: z
+    .string()
+    .optional()
+    .transform((v) => v === '1' || v?.toLowerCase() === 'true'),
   ZERNIO_API_KEY: z.string().min(1).optional(),
   ZERNIO_API_BASE_URL: z.string().url().default('https://zernio.com/api/v1'),
   STRIPE_SECRET_KEY: z.string().min(1).optional(),

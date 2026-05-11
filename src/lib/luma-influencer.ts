@@ -1,5 +1,7 @@
 import 'server-only';
+import { serverEnv } from '@/lib/env';
 import { getLumaClient } from '@/lib/luma';
+import { stubInfluencerVisuals } from '@/lib/luma-stub';
 import type { InfluencerVisuals, InfluencerWizardInput } from '@/types/influencer';
 
 const VIBE_DESCRIPTORS: Record<InfluencerWizardInput['vibe'], string> = {
@@ -48,6 +50,10 @@ export function buildInfluencerPrompts(input: InfluencerWizardInput): {
 export async function generateInfluencerVisuals(
   input: InfluencerWizardInput,
 ): Promise<InfluencerVisuals> {
+  if (serverEnv.LUMA_STUB) {
+    return stubInfluencerVisuals(input);
+  }
+
   const client = getLumaClient();
   const prompts = buildInfluencerPrompts(input);
 

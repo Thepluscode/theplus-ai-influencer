@@ -1,5 +1,7 @@
 import 'server-only';
+import { serverEnv } from '@/lib/env';
 import { getLumaClient } from '@/lib/luma';
+import { stubPostVariants } from '@/lib/luma-stub';
 import type { AiModelRow } from '@/lib/supabase/types';
 import type { InfluencerWizardInput } from '@/types/influencer';
 import {
@@ -75,6 +77,10 @@ export async function generatePostVariants(
   model: AiModelRow,
   variantCount = 2,
 ): Promise<PostVariant[]> {
+  if (serverEnv.LUMA_STUB) {
+    return stubPostVariants(input, model.name, variantCount);
+  }
+
   const client = getLumaClient();
   const prompt = buildPostPrompt(input, model);
   const aspect = FORMAT_TO_ASPECT[input.format];

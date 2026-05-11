@@ -1,12 +1,14 @@
 import { listAiModels } from '@/lib/ai-models';
 import { publicEnv, serverEnv } from '@/lib/env';
+import { isLumaStubbed } from '@/lib/luma-stub';
 import { getSupabaseServerClient } from '@/lib/supabase/server';
 import type { AiModelRow } from '@/lib/supabase/types';
 import { getOrCreateCurrentWorkspace } from '@/lib/workspace';
 import { CreatePostForm } from './create-post-form';
 
 export default async function CreatePostPage() {
-  const lumaConfigured = Boolean(serverEnv.LUMA_API_KEY);
+  const stubbed = isLumaStubbed();
+  const lumaConfigured = stubbed || Boolean(serverEnv.LUMA_API_KEY);
   const supabaseConfigured = Boolean(
     publicEnv.NEXT_PUBLIC_SUPABASE_URL && publicEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY,
   );
@@ -47,7 +49,11 @@ export default async function CreatePostPage() {
           stays the same across every post.
         </p>
         <div className="mt-3 flex flex-wrap gap-2 text-xs">
-          {!lumaConfigured ? (
+          {stubbed ? (
+            <span className="rounded-md border border-sky-900/50 bg-sky-950/30 px-3 py-1.5 text-sky-300">
+              LUMA_STUB on — placeholder images, no real generation. Unset to use Luma.
+            </span>
+          ) : !lumaConfigured ? (
             <span className="rounded-md border border-amber-900/50 bg-amber-950/30 px-3 py-1.5 text-amber-300">
               LUMA_API_KEY missing — variant generation will fail.
             </span>
