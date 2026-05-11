@@ -91,6 +91,7 @@ export type Database = {
           variants: PostVariant[];
           caption: string | null;
           scheduled_for: string | null;
+          zernio_post_id: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -106,6 +107,7 @@ export type Database = {
           variants?: PostVariant[];
           caption?: string | null;
           scheduled_for?: string | null;
+          zernio_post_id?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -121,6 +123,7 @@ export type Database = {
           variants?: PostVariant[];
           caption?: string | null;
           scheduled_for?: string | null;
+          zernio_post_id?: string | null;
           created_at?: string;
           updated_at?: string;
         };

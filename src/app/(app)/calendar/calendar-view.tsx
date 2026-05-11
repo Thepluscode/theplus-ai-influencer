@@ -234,7 +234,8 @@ function EditModal({
     ? format(new Date(post.scheduled_for), "yyyy-MM-dd'T'HH:mm")
     : '';
 
-  const saveDisabled = pending || state?.status === 'saved' || Boolean(saveDisabledReason);
+  const settled = state?.status === 'saved' || state?.status === 'partial';
+  const saveDisabled = pending || settled || Boolean(saveDisabledReason);
 
   return (
     <div
@@ -299,6 +300,16 @@ function EditModal({
               {state.error}
             </p>
           ) : null}
+          {state?.status === 'partial' ? (
+            <p className="text-xs text-amber-300" role="status">
+              Saved with caveat: {state.warning}
+            </p>
+          ) : null}
+          {state?.status === 'saved' && state.pushedToZernio ? (
+            <p className="text-xs text-emerald-300" role="status">
+              Pushed to Zernio.
+            </p>
+          ) : null}
           {saveDisabledReason ? (
             <p className="text-xs text-zinc-500">{saveDisabledReason}</p>
           ) : null}
@@ -318,7 +329,7 @@ function EditModal({
               ) : (
                 <>
                   <Save size={14} />
-                  {state?.status === 'saved' ? 'Saved' : 'Save'}
+                  {settled ? 'Saved' : 'Save'}
                 </>
               )}
             </button>

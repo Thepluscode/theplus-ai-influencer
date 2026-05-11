@@ -3,8 +3,8 @@ import { z } from 'zod';
 const ServerEnvSchema = z.object({
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1).optional(),
   LUMA_API_KEY: z.string().min(1).optional(),
-  ZENIO_API_KEY: z.string().min(1).optional(),
-  ZENIO_API_BASE_URL: z.string().url().default('https://api.zenio.example/v1'),
+  ZERNIO_API_KEY: z.string().min(1).optional(),
+  ZERNIO_API_BASE_URL: z.string().url().default('https://zernio.com/api/v1'),
   STRIPE_SECRET_KEY: z.string().min(1).optional(),
   STRIPE_WEBHOOK_SECRET: z.string().min(1).optional(),
 });

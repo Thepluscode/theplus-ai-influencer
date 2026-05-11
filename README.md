@@ -1,6 +1,6 @@
 # ThePlus.AI Influencer
 
-AI influencer SaaS — define a synthetic persona, generate cinematic visuals with Luma, compose platform-targeted posts, and schedule across Instagram / TikTok / YouTube / X via Zenio. Auth + DB by Supabase, billing by Stripe.
+AI influencer SaaS — define a synthetic persona, generate cinematic visuals with Luma, compose platform-targeted posts, and schedule across Instagram / TikTok / YouTube / X via Zernio. Auth + DB by Supabase, billing by Stripe.
 
 ## Stack
 
@@ -8,7 +8,7 @@ AI influencer SaaS — define a synthetic persona, generate cinematic visuals wi
 - **Tailwind 4** + Lucide icons
 - **Supabase** (`@supabase/supabase-js`, `@supabase/ssr`) — auth + Postgres + storage
 - **Luma** (`lumaai`) — AI image / video generation
-- **Zenio** (custom HTTP client in `src/lib/zenio.ts`) — multi-platform social scheduling
+- **Zernio** (custom HTTP client in `src/lib/zernio.ts`) — multi-platform social scheduling
 - **Stripe** — subscriptions + credit system
 - **Zod**, **react-hook-form** — schema validation + forms
 - **Vitest**, **Testing Library**, **jsdom** — tests
@@ -36,7 +36,7 @@ See `.env.example`. You'll need accounts on:
 
 - [Supabase](https://supabase.com) — create a project, copy URL + anon key + service-role key
 - [Luma Labs](https://lumalabs.ai/dream-machine/api) — generate an API key
-- Zenio — sign up and copy the API key + base URL
+- Zernio — sign up and copy the API key + base URL
 - [Stripe](https://dashboard.stripe.com/) — copy publishable + secret + webhook secret
 
 The app boots without any of these but features that need them will throw on first call. Wire them in as you build each surface.
@@ -46,7 +46,10 @@ The app boots without any of these but features that need them will throw on fir
 After creating your Supabase project, apply the schema:
 
 1. Open the SQL editor in your Supabase dashboard.
-2. Paste the contents of `supabase/migrations/0001_initial_schema.sql` and run.
+2. Paste and run each migration in order:
+   - `supabase/migrations/0001_initial_schema.sql`
+   - `supabase/migrations/0002_posts.sql`
+   - `supabase/migrations/0003_zernio_post_id.sql`
 
 This creates:
 
@@ -68,7 +71,7 @@ src/
 │   ├── (auth)/             # sign-in, sign-up
 │   └── (app)/              # authenticated dashboard, studio, calendar, ...
 ├── components/
-└── lib/                    # env, utils, supabase, luma, zenio, stripe clients
+└── lib/                    # env, utils, supabase, luma, zernio, stripe clients
 ```
 
 ## Scripts
@@ -93,7 +96,7 @@ src/
 1. **Studio** — model creator: name / gender / body / skin / hair / vibe + custom prompt → Luma → portrait + full body.
 2. **Create post** — model + platform + format + scene + props + CTA + reference images → Luma → 2 variants.
 3. **Calendar** — month/week view, drag to reschedule, in-line draft promotion.
-4. **Accounts** — Zenio OAuth-style flow per platform.
+4. **Accounts** — Zernio OAuth-style flow per platform.
 5. **Billing** — Stripe checkout + portal + webhooks; credit ledger in Supabase.
 
 Built with [Claude Code](https://claude.ai/code).

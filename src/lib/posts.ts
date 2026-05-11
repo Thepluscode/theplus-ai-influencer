@@ -1,7 +1,9 @@
 import 'server-only';
 import { getSupabaseServerClient } from '@/lib/supabase/server';
-import type { PostRow } from '@/lib/supabase/types';
+import type { Database, PostRow } from '@/lib/supabase/types';
 import type { PostBriefInput, PostVariant } from '@/types/post';
+
+type PostUpdate = Database['public']['Tables']['posts']['Update'];
 
 interface SaveDraftInput {
   workspaceId: string;
@@ -94,25 +96,46 @@ export async function listPostsInRange(
   return { scheduled: scheduled.data ?? [], drafts: drafts.data ?? [] };
 }
 
+interface UpdateScheduleOpts {
+  caption?: string | null;
+  zernioPostId?: string | null;
+}
+
 export async function updatePostSchedule(
   postId: string,
   scheduledFor: Date | null,
-  caption?: string | null,
+  opts: UpdateScheduleOpts = {},
 ): Promise<PostRow> {
   const supabase = await getSupabaseServerClient();
+  const update: PostUpdate = {
+    scheduled_for: scheduledFor ? scheduledFor.toISOString() : null,
+    status: scheduledFor ? 'scheduled' : 'draft',
+  };
+  if (opts.caption !== undefined) update.caption = opts.caption;
+  if (opts.zernioPostId !== undefined) update.zernio_post_id = opts.zernioPostId;
+
   const { data, error } = await supabase
     .from('posts')
-    .update({
-      scheduled_for: scheduledFor ? scheduledFor.toISOString() : null,
-      status: scheduledFor ? 'scheduled' : 'draft',
-      ...(caption !== undefined ? { caption } : {}),
-    })
+    .update(update)
     .eq('id', postId)
     .select('*')
     .single();
 
   if (error || !data) {
     throw new Error(`Failed to update post schedule: ${error?.message ?? 'no row returned'}`);
+  }
+  return data;
+}
+
+export async function getPostById(postId: string): Promise<PostRow | null> {
+  const supabase = await getSupabaseServerClient();
+  const { data, error } = await supabase
+    .from('posts')
+    .select('*')
+    .eq('id', postId)
+    .maybeSingle();
+  if (error) {
+    throw new Error(`Failed to load post: ${error.message}`);
   }
   return data;
 }
