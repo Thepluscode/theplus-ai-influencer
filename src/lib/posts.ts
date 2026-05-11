@@ -53,3 +53,74 @@ export async function listDraftPosts(workspaceId: string, limit = 20): Promise<P
   }
   return data ?? [];
 }
+
+/**
+ * All scheduled posts within an inclusive date range, plus the unscheduled
+ * drafts (returned in a separate field so the UI can surface them in a
+ * "promote a draft" shelf above the calendar grid).
+ */
+export async function listPostsInRange(
+  workspaceId: string,
+  rangeStart: Date,
+  rangeEnd: Date,
+): Promise<{ scheduled: PostRow[]; drafts: PostRow[] }> {
+  const supabase = await getSupabaseServerClient();
+
+  const [scheduled, drafts] = await Promise.all([
+    supabase
+      .from('posts')
+      .select('*')
+      .eq('workspace_id', workspaceId)
+      .not('scheduled_for', 'is', null)
+      .gte('scheduled_for', rangeStart.toISOString())
+      .lte('scheduled_for', rangeEnd.toISOString())
+      .order('scheduled_for', { ascending: true }),
+    supabase
+      .from('posts')
+      .select('*')
+      .eq('workspace_id', workspaceId)
+      .is('scheduled_for', null)
+      .order('created_at', { ascending: false })
+      .limit(20),
+  ]);
+
+  if (scheduled.error) {
+    throw new Error(`Failed to list scheduled posts: ${scheduled.error.message}`);
+  }
+  if (drafts.error) {
+    throw new Error(`Failed to list draft posts: ${drafts.error.message}`);
+  }
+
+  return { scheduled: scheduled.data ?? [], drafts: drafts.data ?? [] };
+}
+
+export async function updatePostSchedule(
+  postId: string,
+  scheduledFor: Date | null,
+  caption?: string | null,
+): Promise<PostRow> {
+  const supabase = await getSupabaseServerClient();
+  const { data, error } = await supabase
+    .from('posts')
+    .update({
+      scheduled_for: scheduledFor ? scheduledFor.toISOString() : null,
+      status: scheduledFor ? 'scheduled' : 'draft',
+      ...(caption !== undefined ? { caption } : {}),
+    })
+    .eq('id', postId)
+    .select('*')
+    .single();
+
+  if (error || !data) {
+    throw new Error(`Failed to update post schedule: ${error?.message ?? 'no row returned'}`);
+  }
+  return data;
+}
+
+export async function deletePost(postId: string): Promise<void> {
+  const supabase = await getSupabaseServerClient();
+  const { error } = await supabase.from('posts').delete().eq('id', postId);
+  if (error) {
+    throw new Error(`Failed to delete post: ${error.message}`);
+  }
+}
