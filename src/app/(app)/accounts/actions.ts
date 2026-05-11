@@ -3,7 +3,7 @@
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
-import { getZernioClient, type ZernioPlatform } from '@/lib/zernio';
+import { getDefaultZernioProfileId, getZernioClient, type ZernioPlatform } from '@/lib/zernio';
 
 const PlatformSchema = z.enum([
   'twitter',
@@ -31,8 +31,10 @@ async function getReturnUrl(): Promise<string> {
  */
 export async function startConnectionAction(formData: FormData) {
   const platform = PlatformSchema.parse(formData.get('platform'));
+  const profileId = await getDefaultZernioProfileId();
   const zernio = getZernioClient();
   const { authUrl } = await zernio.initiateConnection(platform as ZernioPlatform, {
+    profileId,
     redirectUrl: await getReturnUrl(),
   });
   redirect(authUrl);

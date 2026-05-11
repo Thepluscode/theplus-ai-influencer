@@ -1,6 +1,11 @@
 import { Plus } from 'lucide-react';
 import { serverEnv } from '@/lib/env';
-import { getZernioClient, type ZernioAccount, type ZernioPlatform } from '@/lib/zernio';
+import {
+  getDefaultZernioProfileId,
+  getZernioClient,
+  type ZernioAccount,
+  type ZernioPlatform,
+} from '@/lib/zernio';
 import { startConnectionAction } from './actions';
 
 const ALL_PLATFORMS: { id: ZernioPlatform; label: string }[] = [
@@ -22,7 +27,8 @@ export default async function AccountsPage() {
   let loadError: string | null = null;
   if (zernioConfigured) {
     try {
-      accounts = await getZernioClient().listAccounts();
+      const profileId = await getDefaultZernioProfileId();
+      accounts = await getZernioClient().listAccounts(profileId);
     } catch (err) {
       loadError = err instanceof Error ? err.message : 'Unknown Zernio error';
     }

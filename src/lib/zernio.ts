@@ -29,6 +29,14 @@ export type ZernioPlatform =
 
 export type ZernioPostStatus = 'draft' | 'scheduled' | 'published' | 'failed';
 
+export interface ZernioProfile {
+  _id: string;
+  name: string;
+  description?: string;
+  color?: string;
+  isDefault?: boolean;
+}
+
 export interface ZernioAccount {
   _id: string;
   platform: string;
@@ -98,6 +106,27 @@ export class ZernioClient {
     }
     if (res.status === 204) return undefined as T;
     return res.json() as Promise<T>;
+  }
+
+  async listProfiles(): Promise<ZernioProfile[]> {
+    // Be defensive about the response shape — docs hint at { profiles: [...] }
+    // but other endpoints have inconsistent envelopes.
+    const data = await this.request<
+      { profiles?: ZernioProfile[] } | ZernioProfile[]
+    >('/profiles');
+    if (Array.isArray(data)) return data;
+    return data.profiles ?? [];
+  }
+
+  async createProfile(input: {
+    name: string;
+    description?: string;
+    color?: string;
+  }): Promise<ZernioProfile> {
+    return this.request<ZernioProfile>('/profiles', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
   }
 
   async listAccounts(profileId?: string): Promise<ZernioAccount[]> {
@@ -172,6 +201,31 @@ let cached: ZernioClient | null = null;
 export function getZernioClient(): ZernioClient {
   if (!cached) cached = new ZernioClient();
   return cached;
+}
+
+let cachedDefaultProfileId: string | null = null;
+
+/**
+ * Lazy lookup of the workspace's default Zernio profile. Almost every other
+ * endpoint requires a profileId — and getting "Profile ID is required" 400s
+ * is the most common first-time setup failure. Cached at the module level
+ * since the default profile rarely changes within a process lifetime.
+ *
+ * Logic: prefer the profile with isDefault=true, fall back to the first
+ * profile, and if there are none, create a "Default" one.
+ */
+export async function getDefaultZernioProfileId(): Promise<string> {
+  if (cachedDefaultProfileId) return cachedDefaultProfileId;
+  const zernio = getZernioClient();
+  const profiles = await zernio.listProfiles();
+  const chosen = profiles.find((p) => p.isDefault) ?? profiles[0];
+  if (chosen) {
+    cachedDefaultProfileId = chosen._id;
+    return cachedDefaultProfileId;
+  }
+  const created = await zernio.createProfile({ name: 'Default' });
+  cachedDefaultProfileId = created._id;
+  return cachedDefaultProfileId;
 }
 
 /**

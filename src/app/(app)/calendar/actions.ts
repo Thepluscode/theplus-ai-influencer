@@ -6,6 +6,7 @@ import { serverEnv } from '@/lib/env';
 import { deletePost, getPostById, updatePostSchedule } from '@/lib/posts';
 import { getSupabaseServerClient } from '@/lib/supabase/server';
 import {
+  getDefaultZernioProfileId,
   getZernioClient,
   pickAccountsForPlatforms,
   type ZernioPlatformTarget,
@@ -87,8 +88,9 @@ export async function reschedulePostAction(
     // If we're scheduling (not unscheduling) and Zernio is configured, push.
     if (when && zernioReady) {
       try {
+        const profileId = await getDefaultZernioProfileId();
         const zernio = getZernioClient();
-        const accounts = await zernio.listAccounts();
+        const accounts = await zernio.listAccounts(profileId);
         const { resolved, missing } = pickAccountsForPlatforms(accounts, post.platforms);
         if (resolved.length === 0) {
           warning = `No connected Zernio accounts for: ${post.platforms.join(
@@ -99,6 +101,7 @@ export async function reschedulePostAction(
             content: parsed.data.caption ?? post.caption ?? '',
             platforms: resolved as ZernioPlatformTarget[],
             scheduledFor: when,
+            profileId,
             mediaItems: post.variants.slice(0, 1).map((v) => ({
               type: 'image' as const,
               url: v.url,
