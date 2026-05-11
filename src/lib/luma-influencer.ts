@@ -51,7 +51,7 @@ export async function generateInfluencerVisuals(
   input: InfluencerWizardInput,
 ): Promise<InfluencerVisuals> {
   if (serverEnv.LUMA_STUB) {
-    return stubInfluencerVisuals(input);
+    return await stubInfluencerVisuals(input);
   }
 
   const client = getLumaClient();

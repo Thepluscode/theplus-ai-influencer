@@ -4,15 +4,16 @@ import type { InfluencerVisuals, InfluencerWizardInput } from '@/types/influence
 import type { PostBriefInput, PostVariant } from '@/types/post';
 
 /**
- * Deterministic picture URLs that mimic Luma output shape so the whole
- * Studio → Create-post → Calendar flow can run without burning credits.
+ * Deterministic placeholder URLs that mimic Luma's output shape so the
+ * whole Studio → Create-post → Calendar flow can run without burning
+ * credits.
  *
- * Portraits use pravatar.cc (real-looking face avatars, 1–70 pool).
- * Full-body / scene shots use picsum.photos (generic photos, sized to
- * the requested aspect ratio).
- *
- * Same wizard input ⇒ same images, so a saved model still "matches" itself
- * across the gallery + post composer.
+ * Portraits — fetched from randomuser.me, which supports both a `gender`
+ *   filter and a `seed` parameter, so the stub respects the wizard's
+ *   gender selection and stays deterministic across regenerates.
+ * Full-body + post variants — picsum.photos (generic seeded photos at
+ *   the requested aspect ratio). These are intentionally not on-brief;
+ *   the whole reason to swap back to Luma is to get on-brief images.
  */
 
 function hashSeed(input: string): number {
@@ -23,16 +24,55 @@ function hashSeed(input: string): number {
   return Math.abs(h);
 }
 
-function pravatarUrl(seed: string): string {
-  // pravatar.cc has 70 distinct images — wrap into [1, 70].
+function picsumUrl(seed: string, w: number, h: number): string {
+  // Hash the seed so long inputs can't get truncated and collide.
+  const slug = hashSeed(seed).toString(36);
+  return `https://picsum.photos/seed/${slug}/${w}/${h}`;
+}
+
+function pravatarFallback(seed: string): string {
   const idx = (hashSeed(seed) % 70) + 1;
   return `https://i.pravatar.cc/600?img=${idx}`;
 }
 
-function picsumUrl(seed: string, w: number, h: number): string {
-  // Use the seed-hash so long seeds can't get truncated and collide.
-  const slug = hashSeed(seed).toString(36);
-  return `https://picsum.photos/seed/${slug}/${w}/${h}`;
+const GENDER_PARAM: Record<InfluencerWizardInput['gender'], string> = {
+  woman: 'female',
+  man: 'male',
+  'non-binary': '', // no filter — randomuser returns either
+};
+
+async function randomUserPortrait(
+  gender: InfluencerWizardInput['gender'],
+  seed: string,
+): Promise<string> {
+  const params = new URLSearchParams({
+    seed: hashSeed(seed).toString(36),
+    inc: 'picture',
+    nat: 'us,gb,ca,au,fr,de,es,br,nz',
+  });
+  const g = GENDER_PARAM[gender];
+  if (g) params.set('gender', g);
+
+  try {
+    const res = await fetch(`https://randomuser.me/api/?${params.toString()}`, {
+      // No-store: avoid Next.js caching a stub call as if it were a static asset.
+      cache: 'no-store',
+      // Don't let a slow randomuser response hang the wizard.
+      signal: AbortSignal.timeout(4000),
+    });
+    if (!res.ok) throw new Error(`randomuser ${res.status}`);
+    const json = (await res.json()) as {
+      results?: Array<{ picture?: { large?: string } }>;
+    };
+    const url = json.results?.[0]?.picture?.large;
+    if (!url) throw new Error('randomuser returned no picture');
+    return url;
+  } catch {
+    // Network blip / rate-limit / API change: fall back to pravatar so the
+    // stub never crashes the studio. Gender won't match here, but the flow
+    // keeps working.
+    return pravatarFallback(seed);
+  }
 }
 
 const FORMAT_DIMS: Record<PostBriefInput['format'], { w: number; h: number }> = {
@@ -41,10 +81,13 @@ const FORMAT_DIMS: Record<PostBriefInput['format'], { w: number; h: number }> = 
   landscape: { w: 1280, h: 720 },
 };
 
-export function stubInfluencerVisuals(input: InfluencerWizardInput): InfluencerVisuals {
+export async function stubInfluencerVisuals(
+  input: InfluencerWizardInput,
+): Promise<InfluencerVisuals> {
   const seed = `${input.name}|${input.gender}|${input.bodyType}|${input.skinTone}|${input.ageRange}|${input.hair}|${input.vibe}|${input.customPrompt}`;
+  const [portraitUrl] = await Promise.all([randomUserPortrait(input.gender, seed)]);
   return {
-    portraitUrl: pravatarUrl(seed),
+    portraitUrl,
     fullBodyUrl: picsumUrl(`${seed}|fullbody`, 540, 960),
     generationIds: { portrait: `stub_${hashSeed(seed)}_p`, fullBody: `stub_${hashSeed(seed)}_fb` },
   };
@@ -57,7 +100,6 @@ export function stubPostVariants(
 ): PostVariant[] {
   const dims = FORMAT_DIMS[brief.format];
   const baseSeed = `${modelName}|${brief.name}|${brief.brief}|${brief.scene}|${brief.outfit}|${brief.props}|${brief.brandTone}|${brief.cta}|${brief.format}`;
-  // Aware that picsum will only return one photo per seed, so vary per-variant.
   return Array.from({ length: count }, (_, i) => {
     const seed = `${baseSeed}|v${i + 1}`;
     return {
@@ -68,7 +110,6 @@ export function stubPostVariants(
   });
 }
 
-// Used by UI banners to surface "stub mode is on".
 export function isLumaStubbed(): boolean {
   return serverEnv.LUMA_STUB === true;
 }

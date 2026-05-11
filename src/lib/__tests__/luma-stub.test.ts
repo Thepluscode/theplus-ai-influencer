@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { stubInfluencerVisuals, stubPostVariants } from '../luma-stub';
 import type { InfluencerWizardInput } from '@/types/influencer';
 import type { PostBriefInput } from '@/types/post';
@@ -28,25 +28,58 @@ const brief: PostBriefInput = {
 };
 
 describe('stubInfluencerVisuals', () => {
-  it('returns valid HTTPS URLs for both portrait and full body', () => {
-    const v = stubInfluencerVisuals(input);
+  // Stub random+user-API access so tests don't depend on network.
+  const PORTRAIT_URL = 'https://randomuser.me/api/portraits/men/42.jpg';
+  beforeEach(() => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        new Response(JSON.stringify({ results: [{ picture: { large: PORTRAIT_URL } }] }), {
+          status: 200,
+        }),
+      ),
+    );
+  });
+
+  it('returns valid HTTPS URLs for both portrait and full body', async () => {
+    const v = await stubInfluencerVisuals(input);
     expect(v.portraitUrl).toMatch(/^https:\/\//);
     expect(v.fullBodyUrl).toMatch(/^https:\/\//);
     expect(v.generationIds.portrait).toMatch(/^stub_/);
     expect(v.generationIds.fullBody).toMatch(/^stub_/);
   });
 
-  it('is deterministic — same wizard input produces the same URLs', () => {
-    const a = stubInfluencerVisuals(input);
-    const b = stubInfluencerVisuals(input);
-    expect(a.portraitUrl).toBe(b.portraitUrl);
-    expect(a.fullBodyUrl).toBe(b.fullBodyUrl);
+  it('passes the wizard gender as a randomuser filter (man → male)', async () => {
+    const spy = global.fetch as ReturnType<typeof vi.fn>;
+    await stubInfluencerVisuals({ ...input, gender: 'man' });
+    const calledUrl = spy.mock.calls[0]?.[0] as string;
+    expect(calledUrl).toMatch(/gender=male/);
   });
 
-  it('changes portrait when wizard input changes', () => {
-    const a = stubInfluencerVisuals(input);
-    const b = stubInfluencerVisuals({ ...input, hair: 'short blonde pixie' });
-    expect(a.portraitUrl).not.toBe(b.portraitUrl);
+  it('passes the wizard gender as a randomuser filter (woman → female)', async () => {
+    const spy = global.fetch as ReturnType<typeof vi.fn>;
+    await stubInfluencerVisuals({ ...input, gender: 'woman' });
+    const calledUrl = spy.mock.calls[0]?.[0] as string;
+    expect(calledUrl).toMatch(/gender=female/);
+  });
+
+  it('omits the gender filter for non-binary so randomuser can return either', async () => {
+    const spy = global.fetch as ReturnType<typeof vi.fn>;
+    await stubInfluencerVisuals({ ...input, gender: 'non-binary' });
+    const calledUrl = spy.mock.calls[0]?.[0] as string;
+    expect(calledUrl).not.toMatch(/gender=/);
+  });
+
+  it('falls back to pravatar when randomuser fails', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('', { status: 503 })));
+    const v = await stubInfluencerVisuals(input);
+    expect(v.portraitUrl).toMatch(/^https:\/\/i\.pravatar\.cc/);
+  });
+
+  it('full-body URL is deterministic across calls (picsum-seeded by wizard input)', async () => {
+    const a = await stubInfluencerVisuals(input);
+    const b = await stubInfluencerVisuals(input);
+    expect(a.fullBodyUrl).toBe(b.fullBodyUrl);
   });
 });
 
