@@ -1,11 +1,71 @@
-export default function CreatePostPage() {
+import { listAiModels } from '@/lib/ai-models';
+import { publicEnv, serverEnv } from '@/lib/env';
+import { getSupabaseServerClient } from '@/lib/supabase/server';
+import type { AiModelRow } from '@/lib/supabase/types';
+import { getOrCreateCurrentWorkspace } from '@/lib/workspace';
+import { CreatePostForm } from './create-post-form';
+
+export default async function CreatePostPage() {
+  const lumaConfigured = Boolean(serverEnv.LUMA_API_KEY);
+  const supabaseConfigured = Boolean(
+    publicEnv.NEXT_PUBLIC_SUPABASE_URL && publicEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+  );
+
+  let models: AiModelRow[] = [];
+  let saveDisabledReason: string | null = null;
+  let modelsErrorReason: string | null = null;
+
+  if (!supabaseConfigured) {
+    saveDisabledReason = 'Set Supabase env vars in .env.local to enable Save.';
+  } else {
+    try {
+      const supabase = await getSupabaseServerClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) {
+        saveDisabledReason = 'Sign in to save your draft.';
+      } else {
+        const ws = await getOrCreateCurrentWorkspace(user);
+        models = await listAiModels(ws.id);
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unknown Supabase error';
+      modelsErrorReason = message;
+      saveDisabledReason =
+        'Supabase tables not ready — apply supabase/migrations/0001_initial_schema.sql + 0002_posts.sql.';
+    }
+  }
+
   return (
     <div className="px-10 py-10">
-      <h1 className="text-2xl font-semibold tracking-tight">Create post</h1>
-      <p className="mt-2 text-sm text-zinc-400">
-        Pick a model, target platforms, format, scene, outfit, lighting, props, CTA, brand
-        tone, and reference images — Luma generates the variants. Build this surface next.
-      </p>
+      <header className="mb-8 max-w-3xl">
+        <h1 className="text-2xl font-semibold tracking-tight">Create post</h1>
+        <p className="mt-2 text-sm text-zinc-400">
+          Pick a saved AI model, brief Luma on the campaign, and get two visual variants
+          back. The model&apos;s portrait is locked as <code>character_ref</code> so the face
+          stays the same across every post.
+        </p>
+        <div className="mt-3 flex flex-wrap gap-2 text-xs">
+          {!lumaConfigured ? (
+            <span className="rounded-md border border-amber-900/50 bg-amber-950/30 px-3 py-1.5 text-amber-300">
+              LUMA_API_KEY missing — variant generation will fail.
+            </span>
+          ) : null}
+          {!supabaseConfigured ? (
+            <span className="rounded-md border border-amber-900/50 bg-amber-950/30 px-3 py-1.5 text-amber-300">
+              Supabase not configured — model gallery + save disabled.
+            </span>
+          ) : null}
+          {modelsErrorReason ? (
+            <span className="rounded-md border border-red-900/50 bg-red-950/30 px-3 py-1.5 text-red-300">
+              {modelsErrorReason}
+            </span>
+          ) : null}
+        </div>
+      </header>
+
+      <CreatePostForm models={models} saveDisabledReason={saveDisabledReason} />
     </div>
   );
 }

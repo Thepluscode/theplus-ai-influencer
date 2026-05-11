@@ -6,6 +6,7 @@
  */
 
 import type { InfluencerWizardInput } from '@/types/influencer';
+import type { PostBriefInput, PostVariant } from '@/types/post';
 
 export type Database = {
   public: {
@@ -77,6 +78,67 @@ export type Database = {
           },
         ];
       };
+      posts: {
+        Row: {
+          id: string;
+          workspace_id: string;
+          model_id: string | null;
+          name: string;
+          status: 'draft' | 'scheduled' | 'published';
+          platforms: string[];
+          format: 'square' | 'portrait' | 'landscape';
+          prompt_inputs: PostBriefInput;
+          variants: PostVariant[];
+          caption: string | null;
+          scheduled_for: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          workspace_id: string;
+          model_id?: string | null;
+          name: string;
+          status?: 'draft' | 'scheduled' | 'published';
+          platforms?: string[];
+          format: 'square' | 'portrait' | 'landscape';
+          prompt_inputs: PostBriefInput;
+          variants?: PostVariant[];
+          caption?: string | null;
+          scheduled_for?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          workspace_id?: string;
+          model_id?: string | null;
+          name?: string;
+          status?: 'draft' | 'scheduled' | 'published';
+          platforms?: string[];
+          format?: 'square' | 'portrait' | 'landscape';
+          prompt_inputs?: PostBriefInput;
+          variants?: PostVariant[];
+          caption?: string | null;
+          scheduled_for?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'posts_workspace_id_fkey';
+            columns: ['workspace_id'];
+            referencedRelation: 'workspaces';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'posts_model_id_fkey';
+            columns: ['model_id'];
+            referencedRelation: 'ai_models';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
     };
     Views: Record<never, never>;
     Functions: Record<never, never>;
@@ -87,3 +149,4 @@ export type Database = {
 
 export type WorkspaceRow = Database['public']['Tables']['workspaces']['Row'];
 export type AiModelRow = Database['public']['Tables']['ai_models']['Row'];
+export type PostRow = Database['public']['Tables']['posts']['Row'];
