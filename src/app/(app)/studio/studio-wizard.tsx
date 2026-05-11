@@ -29,39 +29,72 @@ export function StudioWizard({ saveDisabledReason }: { saveDisabledReason: strin
   );
 
   const fe = state?.status === 'error' ? state.fieldErrors : undefined;
+  // After a successful generation, prefill the form with the last submitted
+  // values so "Regenerate" actually has something to send. `formKey` forces
+  // React to re-mount the uncontrolled inputs so the new defaults stick.
+  const last = state?.status === 'success' ? state.input : null;
+  const formKey = last ? `s:${last.name}|${last.gender}|${last.bodyType}|${last.hair}` : 'idle';
 
   return (
     <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_420px]">
-      <form action={formAction} className="flex flex-col gap-5">
+      <form key={formKey} action={formAction} className="flex flex-col gap-5">
         <Field
           label="Model name"
           name="name"
           placeholder="e.g. Aria Vance"
           required
+          defaultValue={last?.name}
           error={fe?.name}
         />
-        <Select label="Gender" name="gender" options={FIELDS.gender} error={fe?.gender} />
-        <Select label="Body type" name="bodyType" options={FIELDS.bodyType} error={fe?.bodyType} />
+        <Select
+          label="Gender"
+          name="gender"
+          options={FIELDS.gender}
+          defaultValue={last?.gender}
+          error={fe?.gender}
+        />
+        <Select
+          label="Body type"
+          name="bodyType"
+          options={FIELDS.bodyType}
+          defaultValue={last?.bodyType}
+          error={fe?.bodyType}
+        />
         <Select
           label="Skin tone"
           name="skinTone"
           options={FIELDS.skinTone}
+          defaultValue={last?.skinTone}
           error={fe?.skinTone}
         />
-        <Select label="Age range" name="ageRange" options={FIELDS.ageRange} error={fe?.ageRange} />
+        <Select
+          label="Age range"
+          name="ageRange"
+          options={FIELDS.ageRange}
+          defaultValue={last?.ageRange}
+          error={fe?.ageRange}
+        />
         <Field
           label="Hair"
           name="hair"
           placeholder="e.g. long brown wavy with curtain bangs"
           required
+          defaultValue={last?.hair}
           error={fe?.hair}
         />
-        <Select label="Vibe" name="vibe" options={FIELDS.vibe} error={fe?.vibe} />
+        <Select
+          label="Vibe"
+          name="vibe"
+          options={FIELDS.vibe}
+          defaultValue={last?.vibe}
+          error={fe?.vibe}
+        />
         <Field
           label="Custom prompt (optional)"
           name="customPrompt"
           placeholder="e.g. brown eyes, freckles, holding a takeaway coffee"
           textarea
+          defaultValue={last?.customPrompt}
           error={fe?.customPrompt}
         />
 
@@ -171,6 +204,7 @@ function Field({
   placeholder,
   required,
   textarea,
+  defaultValue,
   error,
 }: {
   label: string;
@@ -178,6 +212,7 @@ function Field({
   placeholder?: string;
   required?: boolean;
   textarea?: boolean;
+  defaultValue?: string;
   error?: string;
 }) {
   const baseClass =
@@ -186,13 +221,19 @@ function Field({
     <label className="flex flex-col gap-1">
       <span className="text-xs uppercase tracking-wide text-zinc-500">{label}</span>
       {textarea ? (
-        <textarea name={name} placeholder={placeholder} className={cn(baseClass, 'min-h-20')} />
+        <textarea
+          name={name}
+          placeholder={placeholder}
+          defaultValue={defaultValue ?? ''}
+          className={cn(baseClass, 'min-h-20')}
+        />
       ) : (
         <input
           name={name}
           type="text"
           placeholder={placeholder}
           required={required}
+          defaultValue={defaultValue ?? ''}
           className={baseClass}
         />
       )}
@@ -205,11 +246,13 @@ function Select<T extends string>({
   label,
   name,
   options,
+  defaultValue,
   error,
 }: {
   label: string;
   name: string;
   options: readonly T[];
+  defaultValue?: string;
   error?: string;
 }) {
   return (
@@ -217,7 +260,7 @@ function Select<T extends string>({
       <span className="text-xs uppercase tracking-wide text-zinc-500">{label}</span>
       <select
         name={name}
-        defaultValue=""
+        defaultValue={defaultValue ?? ''}
         required
         className="w-full rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-zinc-600"
       >
