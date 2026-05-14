@@ -1,5 +1,19 @@
-import { describe, expect, it } from 'vitest';
-import { buildPostPrompt } from '../luma-post';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+// Force the real-API branch of generatePostVariants and route the SDK call
+// to a configurable mock.
+vi.mock('@/lib/env', () => ({
+  serverEnv: { LUMA_STUB: false, LUMA_API_KEY: 'test-key' },
+}));
+const imageCreate = vi.fn();
+vi.mock('@/lib/luma', () => ({
+  getLumaClient: () => ({
+    generations: { image: { create: imageCreate } },
+  }),
+}));
+
+import { buildPostPrompt, generatePostVariants } from '../luma-post';
+import type { AiModelRow } from '@/lib/supabase/types';
 import type { InfluencerWizardInput } from '@/types/influencer';
 import type { PostBriefInput } from '@/types/post';
 
@@ -9,8 +23,8 @@ const model: { wizard_input: InfluencerWizardInput; name: string } = {
     name: 'Aria Vance',
     gender: 'woman',
     bodyType: 'slim',
-    skinTone: 'medium',
-    ageRange: '25-35',
+    skinTone: 'olive',
+    ageRange: '25-34',
     hair: 'long brown wavy',
     vibe: 'editorial',
     customPrompt: '',
@@ -22,6 +36,9 @@ const baseBrief: PostBriefInput = {
   name: 'Energy drink launch',
   platforms: ['instagram', 'tiktok'],
   format: 'square',
+  productRefUrls: [],
+  postGoal: 'launch',
+  lighting: 'golden_hour',
   brief: 'Launching our new citrus energy drink, target Gen-Z fitness creators.',
   scene: 'rooftop at golden hour',
   outfit: 'cropped denim jacket',
@@ -84,5 +101,38 @@ describe('buildPostPrompt', () => {
     expect(buildPostPrompt(baseBrief, model)).toMatch(/square format/);
     expect(buildPostPrompt({ ...baseBrief, format: 'portrait' }, model)).toMatch(/portrait format/);
     expect(buildPostPrompt({ ...baseBrief, format: 'landscape' }, model)).toMatch(/landscape format/);
+  });
+});
+
+describe('generatePostVariants — SDK strictness', () => {
+  // generatePostVariants reads model.name, model.wizard_input.gender, and
+  // model.portrait_url. Tests only need those fields.
+  const fakeModel = {
+    name: 'Aria Vance',
+    portrait_url: 'https://example.com/portrait.png',
+    wizard_input: model.wizard_input,
+  } as unknown as AiModelRow;
+
+  beforeEach(() => imageCreate.mockReset());
+
+  it('returns variants when every result has an image and an id', async () => {
+    imageCreate
+      .mockResolvedValueOnce({ id: 'gen-v1', assets: { image: 'https://example.com/v1.png' } })
+      .mockResolvedValueOnce({ id: 'gen-v2', assets: { image: 'https://example.com/v2.png' } });
+
+    const variants = await generatePostVariants(baseBrief, fakeModel, 2);
+
+    expect(variants).toHaveLength(2);
+    expect(variants[0].url).toBe('https://example.com/v1.png');
+    expect(variants[0].generationId).toBe('gen-v1');
+    expect(variants[1].generationId).toBe('gen-v2');
+  });
+
+  it('throws when any variant has an image but no id (no empty-string fallback)', async () => {
+    imageCreate
+      .mockResolvedValueOnce({ id: 'gen-v1', assets: { image: 'https://example.com/v1.png' } })
+      .mockResolvedValueOnce({ assets: { image: 'https://example.com/v2.png' } }); // missing id
+
+    await expect(generatePostVariants(baseBrief, fakeModel, 2)).rejects.toThrow(/incomplete/i);
   });
 });

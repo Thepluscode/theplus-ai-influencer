@@ -1,3 +1,4 @@
+import 'server-only';
 import LumaAI from 'lumaai';
 import { serverEnv } from '@/lib/env';
 

@@ -8,7 +8,9 @@ import {
   FORMAT_TO_ASPECT,
   type BrandTone,
   type CTA,
+  type LightingStyle,
   type PostBriefInput,
+  type PostGoal,
   type PostVariant,
 } from '@/types/post';
 
@@ -27,6 +29,23 @@ const CTA_HINT: Record<CTA, string> = {
   swipe_up: 'subject mid-action with directional motion suitable for a swipe-up frame',
   dm_me: 'intimate close framing, eye contact with the camera',
   no_cta: 'editorial composition, no implied call to action',
+};
+
+const GOAL_HINT: Record<PostGoal, string> = {
+  awareness: 'wide framing, recognizable silhouette, scroll-stopping color',
+  engagement: 'eye contact, expression that invites a reply',
+  launch: 'product foregrounded, hero composition, anticipation energy',
+  sales: 'product clearly readable, subject actively using or holding it',
+  community: 'warm casual framing, "behind the scenes" feel, low artifice',
+};
+
+const LIGHTING_HINT: Record<LightingStyle, string> = {
+  natural: 'natural daylight, soft shadows',
+  golden_hour: 'golden hour, warm low sun, long shadows, magic-hour glow',
+  studio: 'controlled studio lighting, soft key + fill, neutral background',
+  neon: 'neon-lit, magenta and cyan ambient color, urban night',
+  overcast: 'overcast soft diffuse light, even exposure, cool tones',
+  cinematic: 'cinematic lighting, hard rim light, contrasted key',
 };
 
 const NEGATIVE_TERMS =
@@ -61,6 +80,8 @@ export function buildPostPrompt(
     scene,
     outfit,
     props,
+    `Goal: ${GOAL_HINT[input.postGoal]}.`,
+    `Lighting: ${LIGHTING_HINT[input.lighting]}.`,
     `Mood: ${tone}.`,
     `Composition: ${ctaHint}.`,
     NEGATIVE_TERMS,
@@ -71,6 +92,9 @@ export function buildPostPrompt(
  * Generates N visual variants for a post in parallel, using the saved model's
  * portrait as `character_ref` to lock the face. Each variant is a fresh Luma
  * call — same prompt, different seeds.
+ *
+ * If `input.productRefUrl` is set, it's passed as a second `image_ref` so
+ * the persona composes the real product into the scene (DTC use case).
  */
 export async function generatePostVariants(
   input: PostBriefInput,
@@ -85,6 +109,16 @@ export async function generatePostVariants(
   const prompt = buildPostPrompt(input, model);
   const aspect = FORMAT_TO_ASPECT[input.format];
 
+  // Each reference rides at weight 0.5 — strong enough to bias
+  // composition, weak enough that the persona's character_ref dominates
+  // identity. Multiple refs let the operator stack (e.g. product photo +
+  // scene mood board + outfit reference) without over-constraining any
+  // single one.
+  const imageRef =
+    input.productRefUrls.length > 0
+      ? input.productRefUrls.map((url) => ({ url, weight: 0.5 }))
+      : undefined;
+
   const calls = Array.from({ length: variantCount }, () =>
     client.generations.image.create({
       model: 'photon-1',
@@ -93,6 +127,7 @@ export async function generatePostVariants(
       sync: true,
       sync_timeout: 120,
       character_ref: { identity0: { images: [model.portrait_url] } },
+      ...(imageRef ? { image_ref: imageRef } : {}),
     }),
   );
 
@@ -101,14 +136,14 @@ export async function generatePostVariants(
 
   for (const r of results) {
     const url = r.assets?.image;
-    if (!url) {
+    if (!url || !r.id) {
       throw new Error(
-        `Luma post variant incomplete: ${r.failure_reason ?? 'no image URL returned'}`,
+        `Luma post variant incomplete: ${r.failure_reason ?? 'no image URL or generation id returned'}`,
       );
     }
     variants.push({
       url,
-      generationId: r.id ?? '',
+      generationId: r.id,
       generatedAt: new Date().toISOString(),
     });
   }

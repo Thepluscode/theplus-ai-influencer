@@ -67,10 +67,14 @@ async function randomUserPortrait(
     const url = json.results?.[0]?.picture?.large;
     if (!url) throw new Error('randomuser returned no picture');
     return url;
-  } catch {
+  } catch (err) {
     // Network blip / rate-limit / API change: fall back to pravatar so the
     // stub never crashes the studio. Gender won't match here, but the flow
-    // keeps working.
+    // keeps working. Log so future-dev knows why the stub gender drifted.
+    console.warn(
+      '[luma-stub] randomuser.me lookup failed, falling back to pravatar (gender will not match):',
+      err instanceof Error ? err.message : err,
+    );
     return pravatarFallback(seed);
   }
 }
@@ -112,4 +116,35 @@ export function stubPostVariants(
 
 export function isLumaStubbed(): boolean {
   return serverEnv.LUMA_STUB === true;
+}
+
+/**
+ * Deterministic placeholder image for a single storyboard shot. Used
+ * during local development when LUMA_STUB=1. Seeds the URL with the
+ * model name + shot index so each shot gets a different placeholder.
+ */
+export function stubStoryboardImage(
+  modelName: string,
+  shotIndex: number,
+  totalShots: number,
+): string {
+  const seed = encodeURIComponent(`${modelName}-${shotIndex}-${totalShots}`);
+  return `https://picsum.photos/seed/${seed}/720/1280`;
+}
+
+/**
+ * Placeholder video URL used when LUMA_STUB=1. We point at a known
+ * CORS-friendly sample so the <video> tag actually plays — no need for
+ * the operator to wait for a real Dream Machine render during dev.
+ */
+export function stubStoryboardVideo(shotIndex: number, totalShots: number): string {
+  // Three short public sample clips that cycle by shot index so the
+  // operator sees motion variety across the reel during dev.
+  const samples = [
+    'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
+    'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
+    'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4',
+  ];
+  void totalShots;
+  return samples[shotIndex % samples.length];
 }

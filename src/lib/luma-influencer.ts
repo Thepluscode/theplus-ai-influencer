@@ -5,9 +5,12 @@ import { stubInfluencerVisuals } from '@/lib/luma-stub';
 import type { InfluencerVisuals, InfluencerWizardInput } from '@/types/influencer';
 
 const VIBE_DESCRIPTORS: Record<InfluencerWizardInput['vibe'], string> = {
-  street: 'streetwear styling, urban backdrop, candid composition',
   minimal: 'minimal styling, clean studio backdrop, soft diffused lighting',
+  cyber: 'cyberpunk aesthetic, neon accents, futuristic fashion, holographic textures',
+  retro: 'retro 90s aesthetic, film grain, warm color cast, vintage outfit',
+  street: 'streetwear styling, urban backdrop, candid composition',
   luxury: 'luxury fashion editorial, premium fabrics, refined glamour',
+  'e-girl': 'e-girl aesthetic, layered tops, dyed hair tips, soft makeup, internet-native styling',
   cinematic: 'cinematic color grade, film grain, moody key light',
   editorial: 'high-fashion editorial, magazine cover composition',
 };
@@ -76,10 +79,14 @@ export async function generateInfluencerVisuals(
 
   const portraitUrl = portrait.assets?.image;
   const fullBodyUrl = fullBody.assets?.image;
+  const portraitId = portrait.id;
+  const fullBodyId = fullBody.id;
 
-  if (!portraitUrl || !fullBodyUrl) {
+  if (!portraitUrl || !fullBodyUrl || !portraitId || !fullBodyId) {
     const reason =
-      portrait.failure_reason ?? fullBody.failure_reason ?? 'Luma returned no image URL';
+      portrait.failure_reason ??
+      fullBody.failure_reason ??
+      'Luma returned no image URL or generation id';
     throw new Error(`Luma generation incomplete: ${reason}`);
   }
 
@@ -87,8 +94,8 @@ export async function generateInfluencerVisuals(
     portraitUrl,
     fullBodyUrl,
     generationIds: {
-      portrait: portrait.id ?? '',
-      fullBody: fullBody.id ?? '',
+      portrait: portraitId,
+      fullBody: fullBodyId,
     },
   };
 }
