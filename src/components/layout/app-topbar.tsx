@@ -12,7 +12,7 @@ const ROUTES = [
   { href: '/studio', label: 'Studio', section: 'Persona ops' },
   { href: '/create-post', label: 'Create post', section: 'Production' },
   { href: '/storyboard', label: 'Storyboard', section: 'Review room' },
-  { href: '/series', label: 'Series', section: 'Planning' },
+  { href: '/series', label: 'Content Engine', section: 'Planning' },
   { href: '/trends', label: 'Trends', section: 'Discovery' },
   { href: '/calendar', label: 'Calendar', section: 'Scheduling' },
   { href: '/analytics', label: 'Analytics', section: 'Performance' },

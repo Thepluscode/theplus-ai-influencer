@@ -25,6 +25,12 @@ export async function saveContentPlan(input: {
       seed_inputs: {
         campaign: input.seed.campaign,
         platforms: input.seed.platforms,
+        topics: input.seed.topics,
+        audience: input.seed.audience,
+        brandEntity: input.seed.brandEntity,
+        deliverables: input.seed.deliverables,
+        contentStyles: input.seed.contentStyles,
+        visualMode: input.seed.visualMode,
         summary: input.summary,
       },
       items: input.items,

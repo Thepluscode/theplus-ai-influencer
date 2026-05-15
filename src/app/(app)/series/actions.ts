@@ -4,12 +4,13 @@ import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { listAiModels } from '@/lib/ai-models';
-import {
-  deleteContentPlan as removePlan,
-  saveContentPlan,
-} from '@/lib/content-plans';
+import { deleteContentPlan as removePlan, saveContentPlan } from '@/lib/content-plans';
 import { consumeCredits, COSTS, refundCredits } from '@/lib/credits';
 import {
+  BRAND_ENTITIES,
+  CAMPAIGN_VISUAL_MODES,
+  CONTENT_DELIVERABLES,
+  CONTENT_STYLES,
   generateSeriesPlan,
   type PlanInput,
 } from '@/lib/series-planner';
@@ -26,6 +27,12 @@ const PlanFormSchema = z.object({
   modelId: z.string().uuid('Pick a saved influencer'),
   name: z.string().min(1, 'Plan name required').max(120),
   campaign: z.string().min(1, 'Describe the campaign').max(800),
+  topics: z.array(z.string().min(1).max(120)).min(1, 'Add at least one topic').max(12),
+  audience: z.string().min(1, 'Describe the target audience').max(240),
+  brandEntity: z.enum(BRAND_ENTITIES),
+  deliverables: z.array(z.enum(CONTENT_DELIVERABLES)).min(1, 'Pick at least one output'),
+  contentStyles: z.array(z.enum(CONTENT_STYLES)).min(1, 'Pick at least one style'),
+  visualMode: z.enum(CAMPAIGN_VISUAL_MODES),
   goal: z.enum(POST_GOALS),
   durationDays: z.coerce.number().int().min(3).max(60),
   cadencePerWeek: z.coerce.number().int().min(1).max(14),
@@ -34,10 +41,20 @@ const PlanFormSchema = z.object({
 });
 
 function readForm(formData: FormData): Record<string, unknown> {
+  const rawTopics = String(formData.get('topics') ?? '');
   return {
     modelId: formData.get('modelId'),
     name: formData.get('name'),
     campaign: formData.get('campaign'),
+    topics: rawTopics
+      .split(/[\n,]/)
+      .map((item) => item.trim())
+      .filter(Boolean),
+    audience: formData.get('audience'),
+    brandEntity: formData.get('brandEntity') ?? 'individual',
+    deliverables: formData.getAll('deliverables'),
+    contentStyles: formData.getAll('contentStyles'),
+    visualMode: formData.get('visualMode') ?? 'face_carousel',
     goal: formData.get('goal'),
     durationDays: formData.get('durationDays'),
     cadencePerWeek: formData.get('cadencePerWeek'),
@@ -106,6 +123,12 @@ export async function generateSeriesPlanAction(
       cadencePerWeek: parsed.data.cadencePerWeek,
       startDate: parsed.data.startDate,
       platforms: parsed.data.platforms as Platform[],
+      topics: parsed.data.topics,
+      audience: parsed.data.audience,
+      brandEntity: parsed.data.brandEntity,
+      deliverables: parsed.data.deliverables,
+      contentStyles: parsed.data.contentStyles,
+      visualMode: parsed.data.visualMode,
     };
 
     let result;
@@ -152,7 +175,9 @@ export async function deleteContentPlanAction(formData: FormData): Promise<void>
     revalidatePath('/series');
   } catch (err) {
     // Surface via redirect so the list page can flash an error if needed.
-    redirect(`/series?error=${encodeURIComponent(err instanceof Error ? err.message : 'delete failed')}`);
+    redirect(
+      `/series?error=${encodeURIComponent(err instanceof Error ? err.message : 'delete failed')}`,
+    );
   }
   redirect('/series');
 }

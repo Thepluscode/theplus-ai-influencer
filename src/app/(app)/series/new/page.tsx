@@ -38,17 +38,18 @@ export default async function NewSeriesPlanPage() {
             className="mb-4 inline-flex items-center gap-1.5 text-[12px] text-ink-muted transition hover:text-ink"
           >
             <ArrowLeft size={12} />
-            Back to Series
+            Back to Content Engine
           </Link>
-          <p className="framer-eyebrow">New Series</p>
+          <p className="framer-eyebrow">New Campaign</p>
           <h1 className="mt-2 text-[28px] font-medium leading-[1.05] tracking-normal text-balance sm:text-[32px]">
-            Brief the arc.
+            Brief the topics.
             <br />
-            Generate the calendar.
+            Generate the campaign.
           </h1>
           <p className="mt-3 max-w-2xl text-[13px] leading-[1.5] text-ink-muted">
-            10 credits per plan. The output is a calendar of per-day briefs you can one-click into
-            the Create Post wizard.
+            10 credits per campaign. The output includes social posts, face-led carousel briefs,
+            filming scripts, LinkedIn posts, email copy, SEO/AEO blog drafts, and scheduled go-live
+            times.
           </p>
           {loadError ? (
             <p className="mt-4 inline-flex items-center gap-2 rounded-full border border-[#ff5577]/40 bg-[#ff5577]/[0.07] px-3 py-1.5 text-[12px] text-[#ff5577]">

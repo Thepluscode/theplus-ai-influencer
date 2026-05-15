@@ -2,9 +2,28 @@
 
 import { useActionState, useMemo, useState } from 'react';
 import { format } from 'date-fns';
-import { Check, Loader2, Sparkles } from 'lucide-react';
+import {
+  Building2,
+  Check,
+  FileText,
+  Images,
+  Loader2,
+  Mail,
+  Palette,
+  Sparkles,
+  UserRound,
+  Video,
+  Wand2,
+  type LucideIcon,
+} from 'lucide-react';
 import { generateSeriesPlanAction, type SeriesPlanState } from '../actions';
 import { InsufficientCreditsBanner } from '@/components/credits/insufficient-credits-banner';
+import type {
+  BrandEntity,
+  CampaignVisualMode,
+  ContentDeliverable,
+  ContentStyle,
+} from '@/lib/series-planner';
 import type { AiModelRow } from '@/lib/supabase/types';
 import { PLATFORMS, POST_GOALS, type Platform, type PostGoal } from '@/types/post';
 import { cn } from '@/lib/utils';
@@ -30,6 +49,39 @@ const GOAL_EMOJI: Record<PostGoal, string> = {
   community: '🤝',
 };
 
+const DELIVERABLE_OPTIONS: Array<{
+  value: ContentDeliverable;
+  label: string;
+  icon: LucideIcon;
+}> = [
+  { value: 'carousel', label: 'Carousel', icon: Images },
+  { value: 'short_video', label: 'Short video', icon: Video },
+  { value: 'filming_script', label: 'Filming script', icon: FileText },
+  { value: 'linkedin_post', label: 'LinkedIn', icon: FileText },
+  { value: 'email', label: 'Email', icon: Mail },
+  { value: 'blog', label: 'SEO/AEO blog', icon: FileText },
+];
+
+const STYLE_OPTIONS: Array<{ value: ContentStyle; label: string }> = [
+  { value: 'cinematic', label: 'Cinematic' },
+  { value: 'educational', label: 'Educational' },
+  { value: 'founder_led', label: 'Founder-led' },
+  { value: 'luxury', label: 'Luxury' },
+  { value: 'direct_response', label: 'Direct response' },
+  { value: 'editorial', label: 'Editorial' },
+];
+
+const BRAND_ENTITY_OPTIONS: Array<{ value: BrandEntity; label: string; icon: LucideIcon }> = [
+  { value: 'individual', label: 'Personal brand', icon: UserRound },
+  { value: 'company', label: 'Corporation', icon: Building2 },
+];
+
+const VISUAL_MODE_OPTIONS: Array<{ value: CampaignVisualMode; label: string }> = [
+  { value: 'face_carousel', label: 'Face in carousels' },
+  { value: 'product_only', label: 'Product-led images' },
+  { value: 'text_first', label: 'Text-first assets' },
+];
+
 export function SeriesPlanForm({ models }: { models: AiModelRow[] }) {
   const [state, formAction, pending] = useActionState<SeriesPlanState | null, FormData>(
     generateSeriesPlanAction,
@@ -39,10 +91,22 @@ export function SeriesPlanForm({ models }: { models: AiModelRow[] }) {
   const [modelId, setModelId] = useState(models[0]?.id ?? '');
   const [name, setName] = useState('');
   const [campaign, setCampaign] = useState('');
+  const [topics, setTopics] = useState('');
+  const [audience, setAudience] = useState('');
+  const [brandEntity, setBrandEntity] = useState<BrandEntity>('individual');
+  const [deliverables, setDeliverables] = useState<Set<ContentDeliverable>>(
+    new Set(['carousel', 'short_video', 'filming_script']),
+  );
+  const [contentStyles, setContentStyles] = useState<Set<ContentStyle>>(
+    new Set(['cinematic', 'educational']),
+  );
+  const [visualMode, setVisualMode] = useState<CampaignVisualMode>('face_carousel');
   const [goal, setGoal] = useState<PostGoal>('engagement');
   const [durationDays, setDurationDays] = useState(14);
   const [cadencePerWeek, setCadencePerWeek] = useState(4);
-  const [platforms, setPlatforms] = useState<Set<Platform>>(new Set(['instagram']));
+  const [platforms, setPlatforms] = useState<Set<Platform>>(
+    new Set(['instagram', 'tiktok', 'facebook']),
+  );
   const defaultStart = useMemo(() => format(new Date(), 'yyyy-MM-dd'), []);
   const [startDate, setStartDate] = useState(defaultStart);
 
@@ -56,13 +120,27 @@ export function SeriesPlanForm({ models }: { models: AiModelRow[] }) {
     setPlatforms(next);
   }
 
+  function toggleDeliverable(value: ContentDeliverable) {
+    const next = new Set(deliverables);
+    if (next.has(value)) next.delete(value);
+    else next.add(value);
+    setDeliverables(next);
+  }
+
+  function toggleStyle(value: ContentStyle) {
+    const next = new Set(contentStyles);
+    if (next.has(value)) next.delete(value);
+    else next.add(value);
+    setContentStyles(next);
+  }
+
   if (models.length === 0) {
     return (
       <div className="rounded-[16px] border border-[#ff7a3d]/40 bg-[#ff7a3d]/[0.07] p-5">
         <p className="text-[14px] font-medium text-ink">No influencers yet</p>
         <p className="mt-1 text-[13px] text-ink-muted">
-          Cast at least one persona in Studio before generating a plan — the planner needs a
-          voice to write against.
+          Cast at least one persona in Studio before generating a plan — the planner needs a voice
+          to write against.
         </p>
         <a
           href="/studio/new"
@@ -78,12 +156,7 @@ export function SeriesPlanForm({ models }: { models: AiModelRow[] }) {
     <form action={formAction} className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
       <div className="flex flex-col gap-5">
         <Panel label="Influencer">
-          <ModelRail
-            models={models}
-            value={modelId}
-            onChange={setModelId}
-            error={fe?.modelId}
-          />
+          <ModelRail models={models} value={modelId} onChange={setModelId} error={fe?.modelId} />
         </Panel>
 
         <Panel label="Plan">
@@ -92,7 +165,7 @@ export function SeriesPlanForm({ models }: { models: AiModelRow[] }) {
             name="name"
             value={name}
             onChange={setName}
-            placeholder="e.g. October citrus drink push"
+            placeholder="e.g. Founder authority sprint"
             error={fe?.name}
             required
           />
@@ -106,13 +179,109 @@ export function SeriesPlanForm({ models }: { models: AiModelRow[] }) {
               onChange={(e) => setCampaign(e.target.value)}
               required
               rows={4}
-              placeholder="What's the arc about? e.g. Launch the citrus drink to Gen-Z fitness creators across IG + TikTok."
+              placeholder="What's the campaign about? e.g. Turn AI compliance into founder-led trust content for B2B buyers."
               className="w-full rounded-[10px] border border-[#262626] bg-surface-2 px-3 py-2 text-[14px] text-ink outline-none focus:border-[#0099ff] focus:shadow-[0_0_0_1px_rgba(0,153,255,0.25)]"
             />
             {fe?.campaign ? (
               <span className="text-[12px] text-[#ff5577]">{fe.campaign}</span>
             ) : null}
           </label>
+          <label className="flex flex-col gap-1.5">
+            <span className="text-[11px] font-medium uppercase tracking-[0.12em] text-ink-muted">
+              Topics
+            </span>
+            <textarea
+              name="topics"
+              value={topics}
+              onChange={(e) => setTopics(e.target.value)}
+              required
+              rows={3}
+              placeholder="One per line or comma separated: AI compliance, creative agents, cybersecurity trust"
+              className="w-full rounded-[10px] border border-[#262626] bg-surface-2 px-3 py-2 text-[14px] text-ink outline-none placeholder:text-[#666] focus:border-[#0099ff] focus:shadow-[0_0_0_1px_rgba(0,153,255,0.25)]"
+            />
+            {fe?.topics ? <span className="text-[12px] text-[#ff5577]">{fe.topics}</span> : null}
+          </label>
+          <Field
+            label="Audience"
+            name="audience"
+            value={audience}
+            onChange={setAudience}
+            placeholder="e.g. founders, CMOs, creator-led brands, security buyers"
+            error={fe?.audience}
+            required
+          />
+          <ChipGrid cols={2}>
+            {BRAND_ENTITY_OPTIONS.map((option) => (
+              <IconChip
+                key={option.value}
+                active={brandEntity === option.value}
+                onClick={() => setBrandEntity(option.value)}
+                icon={option.icon}
+              >
+                {option.label}
+              </IconChip>
+            ))}
+          </ChipGrid>
+        </Panel>
+
+        <Panel label="Outputs">
+          <div>
+            <p className="mb-2 text-[11px] font-medium uppercase tracking-[0.12em] text-ink-muted">
+              Deliverables
+            </p>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              {DELIVERABLE_OPTIONS.map((option) => (
+                <IconChip
+                  key={option.value}
+                  active={deliverables.has(option.value)}
+                  onClick={() => toggleDeliverable(option.value)}
+                  icon={option.icon}
+                >
+                  {option.label}
+                </IconChip>
+              ))}
+            </div>
+            {fe?.deliverables ? (
+              <span className="mt-1.5 block text-[12px] text-[#ff5577]">{fe.deliverables}</span>
+            ) : null}
+          </div>
+          <div>
+            <p className="mb-2 text-[11px] font-medium uppercase tracking-[0.12em] text-ink-muted">
+              Content style
+            </p>
+            <ChipGrid cols={3}>
+              {STYLE_OPTIONS.map((option) => (
+                <Chip
+                  key={option.value}
+                  active={contentStyles.has(option.value)}
+                  onClick={() => toggleStyle(option.value)}
+                  icon={<Palette size={13} />}
+                >
+                  {option.label}
+                </Chip>
+              ))}
+            </ChipGrid>
+            {fe?.contentStyles ? (
+              <span className="mt-1.5 block text-[12px] text-[#ff5577]">{fe.contentStyles}</span>
+            ) : null}
+          </div>
+          <div>
+            <p className="mb-2 text-[11px] font-medium uppercase tracking-[0.12em] text-ink-muted">
+              Visual control
+            </p>
+            <ChipGrid cols={3}>
+              {VISUAL_MODE_OPTIONS.map((option) => (
+                <Chip
+                  key={option.value}
+                  active={visualMode === option.value}
+                  onClick={() => setVisualMode(option.value)}
+                  icon={<Wand2 size={13} />}
+                >
+                  {option.label}
+                </Chip>
+              ))}
+            </ChipGrid>
+          </div>
         </Panel>
 
         <Panel label="Goal">
@@ -161,8 +330,8 @@ export function SeriesPlanForm({ models }: { models: AiModelRow[] }) {
             </label>
           </div>
           <p className="text-[11px] text-[#666]">
-            Estimated ≈ <span className="tabular-nums text-ink">{estimatedPostCount}</span>{' '}
-            posts across {durationDays} days.
+            Estimated ≈ <span className="tabular-nums text-ink">{estimatedPostCount}</span> posts
+            across {durationDays} days.
           </p>
         </Panel>
 
@@ -186,21 +355,25 @@ export function SeriesPlanForm({ models }: { models: AiModelRow[] }) {
                   aria-hidden
                 />
                 <span className="absolute inset-0 bg-black/40" />
-                <span className="relative text-[11px] font-medium capitalize text-white">
-                  {p}
-                </span>
+                <span className="relative text-[11px] font-medium capitalize text-white">{p}</span>
               </button>
             ))}
           </div>
-          {fe?.platforms ? (
-            <p className="text-[12px] text-[#ff5577]">{fe.platforms}</p>
-          ) : null}
+          {fe?.platforms ? <p className="text-[12px] text-[#ff5577]">{fe.platforms}</p> : null}
         </Panel>
 
         <input type="hidden" name="modelId" value={modelId} />
         <input type="hidden" name="goal" value={goal} />
+        <input type="hidden" name="brandEntity" value={brandEntity} />
+        <input type="hidden" name="visualMode" value={visualMode} />
         <input type="hidden" name="durationDays" value={durationDays} />
         <input type="hidden" name="cadencePerWeek" value={cadencePerWeek} />
+        {Array.from(deliverables).map((deliverable) => (
+          <input key={deliverable} type="hidden" name="deliverables" value={deliverable} />
+        ))}
+        {Array.from(contentStyles).map((style) => (
+          <input key={style} type="hidden" name="contentStyles" value={style} />
+        ))}
         {Array.from(platforms).map((p) => (
           <input key={p} type="hidden" name="platforms" value={p} />
         ))}
@@ -230,12 +403,12 @@ export function SeriesPlanForm({ models }: { models: AiModelRow[] }) {
           {pending ? (
             <>
               <Loader2 size={15} className="animate-spin" />
-              Generating plan…
+              Generating campaign…
             </>
           ) : (
             <>
               <Sparkles size={15} />
-              Generate plan (10 credits)
+              Generate campaign (10 credits)
             </>
           )}
         </button>
@@ -244,20 +417,20 @@ export function SeriesPlanForm({ models }: { models: AiModelRow[] }) {
       {/* Side rail */}
       <aside className="rounded-[16px] border border-[#262626] bg-surface-1 p-5 xl:sticky xl:top-0 xl:self-start">
         <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-ink-muted">
-          How this works
+          Content engine
         </p>
         <ol className="mt-3 grid gap-3 text-[13px] leading-[1.5] text-ink-muted">
           <SideStep n={1} title="Pick the persona">
             The plan inherits the persona&apos;s vibe — voice, aesthetic, age bracket.
           </SideStep>
-          <SideStep n={2} title="Frame the campaign">
-            One paragraph the LLM uses to build the narrative arc.
+          <SideStep n={2} title="Set topics + audience">
+            Each topic becomes a multi-format campaign angle personalized to the brand.
           </SideStep>
-          <SideStep n={3} title="Set cadence">
-            Choose duration + posts/week. The planner spreads posts evenly across the window.
+          <SideStep n={3} title="Choose outputs">
+            Generate carousels, scripts, LinkedIn posts, emails, and SEO/AEO blog drafts together.
           </SideStep>
-          <SideStep n={4} title="Brief the keepers">
-            Each plan item one-clicks into Create Post with the fields pre-filled.
+          <SideStep n={4} title="Schedule the arc">
+            The engine sets exact go-live times and keeps each item ready for Create Post.
           </SideStep>
         </ol>
       </aside>
@@ -279,7 +452,12 @@ function Panel({ label, children }: { label: string; children: React.ReactNode }
 }
 
 function ChipGrid({ cols, children }: { cols: number; children: React.ReactNode }) {
-  const c: Record<number, string> = { 2: 'grid-cols-2', 3: 'grid-cols-3', 4: 'grid-cols-4', 5: 'grid-cols-5' };
+  const c: Record<number, string> = {
+    2: 'grid-cols-1 sm:grid-cols-2',
+    3: 'grid-cols-1 sm:grid-cols-3',
+    4: 'grid-cols-2 sm:grid-cols-4',
+    5: 'grid-cols-2 sm:grid-cols-5',
+  };
   return <div className={cn('grid gap-2', c[cols] ?? 'grid-cols-3')}>{children}</div>;
 }
 
@@ -310,6 +488,40 @@ function Chip({
       <span className="flex-1 truncate">{children}</span>
       {active ? (
         <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-[#0099ff] text-white">
+          <Check size={10} strokeWidth={3} />
+        </span>
+      ) : null}
+    </button>
+  );
+}
+
+function IconChip({
+  active,
+  onClick,
+  icon: Icon,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  icon: LucideIcon;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={cn(
+        'flex min-h-11 items-center gap-2 rounded-[10px] border bg-surface-2 px-3 py-2 text-left text-[12px] font-medium transition',
+        active
+          ? 'border-[#0099ff] text-ink shadow-[0_0_0_1px_rgba(0,153,255,0.25)]'
+          : 'border-[#262626] text-ink-muted hover:border-[#444] hover:text-ink',
+      )}
+    >
+      <Icon size={14} className={active ? 'text-[#79cfff]' : 'text-[#666]'} />
+      <span className="min-w-0 flex-1">{children}</span>
+      {active ? (
+        <span className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-[#0099ff] text-white">
           <Check size={10} strokeWidth={3} />
         </span>
       ) : null}
@@ -416,7 +628,11 @@ function ModelRail({
                 )}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={m.portrait_url} alt={m.name} className="aspect-[3/4] w-full object-cover" />
+                <img
+                  src={m.portrait_url}
+                  alt={m.name}
+                  className="aspect-[3/4] w-full object-cover"
+                />
                 <span className="pointer-events-none absolute inset-x-0 bottom-0 h-14 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
                 <span className="absolute inset-x-0 bottom-0 truncate px-2 py-1 text-left text-[11px] font-medium text-white">
                   {m.name}
@@ -436,15 +652,7 @@ function ModelRail({
   );
 }
 
-function SideStep({
-  n,
-  title,
-  children,
-}: {
-  n: number;
-  title: string;
-  children: React.ReactNode;
-}) {
+function SideStep({ n, title, children }: { n: number; title: string; children: React.ReactNode }) {
   return (
     <li className="flex gap-3">
       <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#0099ff]/15 text-[11px] font-medium text-[#0099ff] ring-1 ring-[#0099ff]/30">

@@ -37,16 +37,16 @@ export default async function SeriesIndexPage() {
       <div className="px-5 py-5 lg:px-6 lg:py-6">
         <header className="mb-6 flex flex-wrap items-end justify-between gap-4 border-b border-[#1b1b1b] pb-5">
           <div className="max-w-2xl">
-            <p className="framer-eyebrow">Series Planner</p>
+            <p className="framer-eyebrow">Content Engine</p>
             <h1 className="mt-2 text-[28px] font-medium leading-[1.05] tracking-normal text-balance sm:text-[32px]">
-              A month of posts.
+              Campaigns, scripts,
               <br />
-              Generated in one shot.
+              carousels, and SEO.
             </h1>
             <p className="mt-3 max-w-2xl text-[13px] leading-[1.5] text-ink-muted">
-              Pick a persona, brief the campaign, and the planner returns a full content arc —
-              themes, scenes, hooks, formats, and posting times. Each item one-clicks into Create
-              Post.
+              Pick a persona, brief the topics, and generate a full multi-format campaign: face-led
+              carousels, short-video scripts, LinkedIn posts, emails, SEO/AEO blogs, and exact
+              go-live times.
             </p>
             {loadError ? (
               <p className="mt-4 inline-flex items-center gap-2 rounded-full border border-[#ff5577]/40 bg-[#ff5577]/[0.07] px-3 py-1.5 text-[12px] text-[#ff5577]">
@@ -60,7 +60,7 @@ export default async function SeriesIndexPage() {
             className="inline-flex h-11 items-center gap-2 rounded-[12px] bg-[#0099ff] px-4 text-[14px] font-medium text-white shadow-[0_8px_24px_-6px_rgba(0,153,255,0.45)] transition hover:bg-[#1aa6ff] active:scale-[0.99]"
           >
             <Plus size={14} />
-            New plan
+            New campaign
           </Link>
         </header>
 
@@ -72,9 +72,11 @@ export default async function SeriesIndexPage() {
             <span className="mx-auto mb-3 inline-flex h-10 w-10 items-center justify-center rounded-full bg-[#0099ff]/15 text-[#0099ff] ring-1 ring-[#0099ff]/30">
               <Sparkles size={16} />
             </span>
-            <p className="text-[15px] font-medium text-ink">No plans yet — generate your first</p>
+            <p className="text-[15px] font-medium text-ink">
+              No campaigns yet — generate your first
+            </p>
             <p className="mt-1 text-[13px] text-ink-muted">
-              10 credits per plan · runs against any saved persona
+              10 credits per campaign · runs against any saved persona
             </p>
           </Link>
         ) : (
@@ -91,6 +93,7 @@ export default async function SeriesIndexPage() {
 
 function PlanCard({ plan }: { plan: ContentPlanRow }) {
   const items = Array.isArray(plan.items) ? plan.items : [];
+  const seed = (plan.seed_inputs ?? {}) as { deliverables?: string[] };
   return (
     <li className="relative">
       <Link
@@ -116,6 +119,11 @@ function PlanCard({ plan }: { plan: ContentPlanRow }) {
               {format(new Date(plan.start_date), 'MMM d')} · created{' '}
               {format(new Date(plan.created_at), 'MMM d')}
             </p>
+            {seed.deliverables?.length ? (
+              <p className="mt-2 text-[11px] text-[#666]">
+                Outputs: {seed.deliverables.map((item) => item.replace(/_/g, ' ')).join(', ')}
+              </p>
+            ) : null}
           </div>
           <ArrowUpRight size={16} className="shrink-0 text-ink-muted group-hover:text-ink" />
         </div>

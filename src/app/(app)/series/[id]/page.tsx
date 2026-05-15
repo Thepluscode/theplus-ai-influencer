@@ -1,14 +1,28 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { format } from 'date-fns';
-import { ArrowLeft, ArrowUpRight, CalendarRange, Clock, Hash, Send } from 'lucide-react';
+import {
+  ArrowLeft,
+  ArrowUpRight,
+  CalendarRange,
+  Clock,
+  FileText,
+  Hash,
+  Images,
+  Mail,
+  SearchCheck,
+  Send,
+  Sparkles,
+  Video,
+  type LucideIcon,
+} from 'lucide-react';
 import { getContentPlan } from '@/lib/content-plans';
 import { publicEnv } from '@/lib/env';
 import { listAiModels } from '@/lib/ai-models';
 import { getSupabaseServerClient } from '@/lib/supabase/server';
 import type { AiModelRow } from '@/lib/supabase/types';
 import { getOrCreateCurrentWorkspace } from '@/lib/workspace';
-import type { PlanItem } from '@/lib/series-planner';
+import type { CarouselSlide, ContentPackage, PlanItem } from '@/lib/series-planner';
 import { cn } from '@/lib/utils';
 
 interface Props {
@@ -33,7 +47,13 @@ export default async function SeriesPlanDetailPage({ params }: Props) {
   if (!plan || plan.workspace_id !== ws.id) notFound();
 
   const items = (Array.isArray(plan.items) ? plan.items : []) as PlanItem[];
-  const seed = (plan.seed_inputs ?? {}) as { campaign?: string; summary?: string };
+  const seed = (plan.seed_inputs ?? {}) as {
+    campaign?: string;
+    summary?: string;
+    topics?: string[];
+    audience?: string;
+    deliverables?: string[];
+  };
   const models = await listAiModels(ws.id);
   const model: AiModelRow | undefined = plan.model_id
     ? models.find((m) => m.id === plan.model_id)
@@ -48,11 +68,11 @@ export default async function SeriesPlanDetailPage({ params }: Props) {
             className="mb-4 inline-flex items-center gap-1.5 text-[12px] text-ink-muted transition hover:text-ink"
           >
             <ArrowLeft size={12} />
-            Back to Series
+            Back to Content Engine
           </Link>
           <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_280px] lg:items-end">
             <div className="max-w-2xl">
-              <p className="framer-eyebrow">{plan.goal} · series</p>
+              <p className="framer-eyebrow">{plan.goal} · content engine</p>
               <h1 className="mt-2 text-[28px] font-medium leading-[1.05] tracking-normal text-balance sm:text-[32px]">
                 {plan.name}
               </h1>
@@ -74,6 +94,12 @@ export default async function SeriesPlanDetailPage({ params }: Props) {
                   <Hash size={11} />
                   {items.length} posts
                 </Pill>
+                {seed.deliverables?.length ? (
+                  <Pill>
+                    <Sparkles size={11} />
+                    {seed.deliverables.length} output types
+                  </Pill>
+                ) : null}
                 {model ? (
                   <span className="inline-flex h-7 items-center gap-1.5 rounded-full bg-[#0099ff]/10 px-3 text-[12px] font-medium text-[#0099ff] ring-1 ring-[#0099ff]/30">
                     {model.name}
@@ -100,7 +126,13 @@ export default async function SeriesPlanDetailPage({ params }: Props) {
 
         <ul className="grid gap-3">
           {items.map((item, idx) => (
-            <PlanItemCard key={idx} item={item} planId={plan.id} modelId={plan.model_id ?? ''} />
+            <PlanItemCard
+              key={idx}
+              item={item}
+              planId={plan.id}
+              modelId={plan.model_id ?? ''}
+              model={model}
+            />
           ))}
         </ul>
       </div>
@@ -120,12 +152,15 @@ function PlanItemCard({
   item,
   planId,
   modelId,
+  model,
 }: {
   item: PlanItem;
   planId: string;
   modelId: string;
+  model: AiModelRow | undefined;
 }) {
   const date = new Date(item.scheduledAt);
+  const pkg = item.contentPackage as ContentPackage | undefined;
   const briefParams = new URLSearchParams({
     planId,
     day: String(item.day),
@@ -148,6 +183,7 @@ function PlanItemCard({
               {format(date, 'MMM')}
             </span>
           </div>
+          <span className="text-[11px] tabular-nums text-[#666]">{format(date, 'HH:mm')}</span>
           <span
             className={cn(
               'inline-flex h-6 items-center rounded-full px-2 text-[10px] font-medium uppercase tracking-wider',
@@ -170,11 +206,13 @@ function PlanItemCard({
             {item.props ? <DetailRow label="Props" value={item.props} /> : null}
             {item.hook ? <DetailRow label="Hook" value={item.hook} /> : null}
           </div>
+          {pkg ? <ContentPackagePreview pkg={pkg} model={model} /> : null}
           <div className="mt-3 flex flex-wrap items-center gap-1.5 text-[10px] uppercase tracking-wider">
             <Tag>{item.format}</Tag>
             <Tag>{item.brandTone}</Tag>
             <Tag>{item.lighting.replace(/_/g, ' ')}</Tag>
             <Tag>{item.cta.replace(/_/g, ' ')}</Tag>
+            {pkg?.style ? <Tag>{pkg.style.replace(/_/g, ' ')}</Tag> : null}
             {item.platforms.map((p) => (
               <Tag key={p}>{p}</Tag>
             ))}
@@ -191,12 +229,125 @@ function PlanItemCard({
             )}
           >
             <Send size={11} />
-            Brief campaign
+            Create social post
             <ArrowUpRight size={11} />
           </Link>
         </div>
       </div>
     </li>
+  );
+}
+
+function ContentPackagePreview({
+  pkg,
+  model,
+}: {
+  pkg: ContentPackage;
+  model: AiModelRow | undefined;
+}) {
+  return (
+    <div className="mt-4 grid items-start gap-3 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
+      <section className="self-start rounded-[12px] border border-[#262626] bg-[#090909] p-3">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <p className="inline-flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-[0.12em] text-ink-muted">
+            <Images size={12} />
+            Carousel
+          </p>
+          <span className="text-[10px] uppercase tracking-wider text-[#666]">
+            {pkg.visualMode.replace(/_/g, ' ')}
+          </span>
+        </div>
+        <div className="grid gap-2 sm:grid-cols-3">
+          {pkg.carouselSlides.slice(0, 3).map((slide, index) => (
+            <CarouselSlidePreview key={`${slide.title}-${index}`} slide={slide} model={model} />
+          ))}
+        </div>
+      </section>
+
+      <section className="grid gap-3">
+        <MiniOutput icon={Video} label="Filming script">
+          <p className="text-[12px] font-medium text-ink">{pkg.filmingScript.hook}</p>
+          <ul className="mt-2 grid gap-1 text-[11px] leading-[1.4] text-ink-muted">
+            {pkg.filmingScript.beats.slice(0, 3).map((beat) => (
+              <li key={beat}>- {beat}</li>
+            ))}
+          </ul>
+        </MiniOutput>
+        <MiniOutput icon={FileText} label="LinkedIn">
+          <p className="line-clamp-4 whitespace-pre-wrap text-[11px] leading-[1.45] text-ink-muted">
+            {pkg.linkedinPost}
+          </p>
+        </MiniOutput>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <MiniOutput icon={Mail} label="Email">
+            <p className="text-[12px] font-medium text-ink">{pkg.email.subject}</p>
+            <p className="mt-1 line-clamp-2 text-[11px] text-ink-muted">{pkg.email.preview}</p>
+          </MiniOutput>
+          <MiniOutput icon={SearchCheck} label="SEO / AEO">
+            <p className="text-[12px] font-medium text-ink">{pkg.blog.title}</p>
+            <p className="mt-1 line-clamp-2 text-[11px] text-ink-muted">
+              {pkg.blog.metaDescription}
+            </p>
+          </MiniOutput>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function CarouselSlidePreview({
+  slide,
+  model,
+}: {
+  slide: CarouselSlide;
+  model: AiModelRow | undefined;
+}) {
+  const showFace = model && slide.facePlacement !== 'none';
+  return (
+    <article className="relative min-h-[172px] overflow-hidden rounded-[10px] border border-[#262626] bg-surface-2 p-3">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_75%_15%,rgba(0,153,255,0.24),transparent_34%)]" />
+      {showFace ? (
+        <>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={model.portrait_url}
+            alt=""
+            className={cn(
+              'absolute bottom-0 h-[74%] w-[46%] object-cover opacity-85',
+              slide.facePlacement === 'hero' ? 'right-0' : '-right-4',
+            )}
+          />
+          <span className="absolute inset-y-0 right-0 w-1/2 bg-gradient-to-l from-transparent via-black/10 to-[#101010]" />
+        </>
+      ) : null}
+      <div className={cn('relative', showFace ? 'max-w-[62%]' : 'max-w-full')}>
+        <span className="text-[10px] font-medium uppercase tracking-wider text-[#79cfff]">
+          {slide.facePlacement}
+        </span>
+        <h4 className="mt-2 text-[13px] font-medium leading-tight text-ink">{slide.title}</h4>
+        <p className="mt-2 line-clamp-4 text-[11px] leading-[1.4] text-ink-muted">{slide.copy}</p>
+      </div>
+    </article>
+  );
+}
+
+function MiniOutput({
+  icon: Icon,
+  label,
+  children,
+}: {
+  icon: LucideIcon;
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-[12px] border border-[#262626] bg-[#090909] p-3">
+      <p className="mb-2 inline-flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-[0.12em] text-ink-muted">
+        <Icon size={12} />
+        {label}
+      </p>
+      {children}
+    </div>
   );
 }
 

@@ -104,7 +104,7 @@ export default async function CreatePostPage({ searchParams }: PageProps) {
           }
         }
 
-        // Hand-off from Series Planner: load the plan item and turn it
+        // Hand-off from Content Engine: load the plan item and turn it
         // into a form pre-fill. Validate ownership via the workspace id
         // so a stale URL can't leak across workspaces.
         if (planId && day !== undefined) {

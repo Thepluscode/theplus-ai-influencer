@@ -36,7 +36,7 @@ const NAV_GROUPS = [
   {
     label: 'Plan',
     items: [
-      { href: '/series', label: 'Series', icon: CalendarRange },
+      { href: '/series', label: 'Content Engine', icon: CalendarRange },
       { href: '/trends', label: 'Trends', icon: TrendingUp },
       { href: '/calendar', label: 'Calendar', icon: Calendar },
       { href: '/analytics', label: 'Analytics', icon: BarChart3 },
