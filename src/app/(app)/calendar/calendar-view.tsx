@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   addMonths,
   eachDayOfInterval,
@@ -13,14 +13,11 @@ import {
   startOfWeek,
   subMonths,
 } from 'date-fns';
-import { ChevronLeft, ChevronRight, Loader2, Save, Trash2 } from 'lucide-react';
+import { Camera, ChevronLeft, ChevronRight, Plus, X } from 'lucide-react';
 import Link from 'next/link';
-import {
-  deletePostAction,
-  reschedulePostAction,
-  type ReschedState,
-} from './actions';
+import { PostDetailsModal } from '@/components/posts/post-details-modal';
 import type { PostRow } from '@/lib/supabase/types';
+import type { Platform } from '@/types/post';
 import { cn } from '@/lib/utils';
 
 interface Props {
@@ -28,14 +25,24 @@ interface Props {
   scheduled: PostRow[];
   drafts: PostRow[];
   saveDisabledReason: string | null;
+  connectedPlatforms: Platform[];
+  modelNamesById: Record<string, string>;
 }
 
-export function CalendarView({ monthStart, scheduled, drafts, saveDisabledReason }: Props) {
+export function CalendarView({
+  monthStart,
+  scheduled,
+  drafts,
+  saveDisabledReason,
+  connectedPlatforms,
+  modelNamesById,
+}: Props) {
   const [editing, setEditing] = useState<PostRow | null>(null);
+  const [picker, setPicker] = useState<{ date: Date } | null>(null);
 
   const days = useMemo(() => {
-    const start = startOfWeek(startOfMonth(monthStart), { weekStartsOn: 1 });
-    const end = endOfWeek(endOfMonth(monthStart), { weekStartsOn: 1 });
+    const start = startOfWeek(startOfMonth(monthStart), { weekStartsOn: 0 });
+    const end = endOfWeek(endOfMonth(monthStart), { weekStartsOn: 0 });
     return eachDayOfInterval({ start, end });
   }, [monthStart]);
 
@@ -56,83 +63,100 @@ export function CalendarView({ monthStart, scheduled, drafts, saveDisabledReason
 
   return (
     <>
-      <Toolbar monthStart={monthStart} prevMonth={prevMonth} nextMonth={nextMonth} />
+      <Toolbar
+        monthStart={monthStart}
+        prevMonth={prevMonth}
+        nextMonth={nextMonth}
+        scheduledCount={scheduled.length}
+        draftCount={drafts.length}
+      />
 
+      <div className="overflow-hidden rounded-2xl border border-[#262626] bg-surface-1 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.03)] backdrop-blur">
+        {/* Day-name header row */}
+        <div className="grid grid-cols-7 border-b border-[#1a1a1a]">
+          {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d) => (
+            <div
+              key={d}
+              className="px-4 py-3 text-[10px] font-semibold uppercase tracking-[0.22em] text-ink-muted"
+            >
+              {d}
+            </div>
+          ))}
+        </div>
+
+        {/* Day grid */}
+        <div className="grid grid-cols-7">
+          {days.map((day, i) => {
+            const inMonth = isSameMonth(day, monthStart);
+            const dayKey = format(day, 'yyyy-MM-dd');
+            const posts = byDay.get(dayKey) ?? [];
+            const today = isSameDay(day, new Date());
+            return (
+              <div
+                key={dayKey + i}
+                className={cn(
+                  'group/cell relative min-h-[132px] border-b border-r border-[#1a1a1a] px-3 py-2.5 transition-colors',
+                  !inMonth && 'opacity-40',
+                  'hover:bg-white/[0.015]',
+                )}
+              >
+                {/* Day number — big, top-left. Today is cyan. */}
+                <div
+                  className={cn(
+                    'mb-2 text-[15px] font-medium tabular-nums leading-none',
+                    today ? 'text-[#0099ff]' : 'text-ink-muted group-hover/cell:text-ink',
+                  )}
+                >
+                  {format(day, 'd')}
+                </div>
+
+                {/* Hover-only "+" — opens a picker keyed to this date */}
+                {inMonth && drafts.length > 0 ? (
+                  <button
+                    type="button"
+                    onClick={() => setPicker({ date: day })}
+                    className="absolute right-2 top-2 inline-flex h-7 w-7 items-center justify-center rounded-full bg-[#0099ff] text-white opacity-0 shadow-[0_4px_18px_-6px_rgba(0,153,255,0.7)] transition group-hover/cell:opacity-100 hover:bg-[#1aa6ff]"
+                    aria-label={`Add post to ${format(day, 'MMM d')}`}
+                  >
+                    <Plus size={14} strokeWidth={2.5} />
+                  </button>
+                ) : null}
+
+                {/* Event chips */}
+                <div className="flex flex-col gap-1.5">
+                  {posts.map((p) => (
+                    <EventPill key={p.id} post={p} onClick={() => setEditing(p)} />
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Drafts strip lives below the grid so the canvas above stays clean,
+          matching the reference's quiet layout. */}
       {drafts.length > 0 ? (
         <DraftsShelf drafts={drafts} onPick={(p) => setEditing(p)} />
       ) : null}
 
-      <div className="grid grid-cols-7 overflow-hidden rounded-lg border border-zinc-800 bg-zinc-950">
-        {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((d) => (
-          <div
-            key={d}
-            className="border-b border-zinc-800 px-2 py-2 text-xs uppercase tracking-wide text-zinc-500"
-          >
-            {d}
-          </div>
-        ))}
+      <PostDetailsModal
+        post={editing}
+        connectedPlatforms={connectedPlatforms}
+        modelName={editing?.model_id ? modelNamesById[editing.model_id] : null}
+        saveDisabledReason={saveDisabledReason}
+        onClose={() => setEditing(null)}
+      />
 
-        {days.map((day, i) => {
-          const inMonth = isSameMonth(day, monthStart);
-          const dayKey = format(day, 'yyyy-MM-dd');
-          const posts = byDay.get(dayKey) ?? [];
-          const today = isSameDay(day, new Date());
-          return (
-            <div
-              key={dayKey + i}
-              className={cn(
-                'min-h-32 border-b border-r border-zinc-800 p-2 text-xs',
-                !inMonth && 'bg-zinc-950/50 text-zinc-700',
-                inMonth && 'text-zinc-300',
-              )}
-            >
-              <div
-                className={cn(
-                  'mb-1 flex items-center gap-1 text-[11px]',
-                  today && inMonth && 'font-semibold text-zinc-100',
-                )}
-              >
-                <span>{format(day, 'd')}</span>
-                {today && inMonth ? (
-                  <span className="rounded-full bg-zinc-100 px-1.5 text-[10px] text-zinc-900">
-                    today
-                  </span>
-                ) : null}
-              </div>
-              <div className="flex flex-col gap-1">
-                {posts.map((p) => (
-                  <button
-                    key={p.id}
-                    type="button"
-                    onClick={() => setEditing(p)}
-                    className="flex items-center gap-2 overflow-hidden rounded-md border border-zinc-800 bg-zinc-900 px-1.5 py-1 text-left transition hover:border-zinc-700"
-                  >
-                    {p.variants[0]?.url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={p.variants[0].url}
-                        alt=""
-                        className="h-6 w-6 shrink-0 rounded object-cover"
-                      />
-                    ) : (
-                      <span className="h-6 w-6 shrink-0 rounded bg-zinc-800" />
-                    )}
-                    <span className="truncate text-[11px] text-zinc-200" title={p.name}>
-                      {p.name}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {editing ? (
-        <EditModal
-          post={editing}
-          onClose={() => setEditing(null)}
-          saveDisabledReason={saveDisabledReason}
+      {picker ? (
+        <DraftPicker
+          date={picker.date}
+          drafts={drafts}
+          onPick={(p) => {
+            setPicker(null);
+            setEditing(p);
+          }}
+          onClose={() => setPicker(null)}
         />
       ) : null}
     </>
@@ -143,68 +167,139 @@ function Toolbar({
   monthStart,
   prevMonth,
   nextMonth,
+  scheduledCount,
+  draftCount,
 }: {
   monthStart: Date;
   prevMonth: Date;
   nextMonth: Date;
+  scheduledCount: number;
+  draftCount: number;
 }) {
   return (
-    <div className="mb-4 flex items-center justify-between">
-      <div className="flex items-center gap-2">
-        <Link
-          href={`/calendar?month=${format(prevMonth, 'yyyy-MM')}`}
-          className="rounded-md border border-zinc-800 bg-zinc-950 p-2 text-zinc-300 transition hover:border-zinc-700 hover:bg-zinc-900"
-          aria-label="Previous month"
-        >
-          <ChevronLeft size={16} />
-        </Link>
-        <Link
-          href="/calendar"
-          className="rounded-md border border-zinc-800 bg-zinc-950 px-3 py-1.5 text-xs uppercase tracking-wide text-zinc-300 transition hover:border-zinc-700 hover:bg-zinc-900"
-        >
-          Today
-        </Link>
-        <Link
-          href={`/calendar?month=${format(nextMonth, 'yyyy-MM')}`}
-          className="rounded-md border border-zinc-800 bg-zinc-950 p-2 text-zinc-300 transition hover:border-zinc-700 hover:bg-zinc-900"
-          aria-label="Next month"
-        >
-          <ChevronRight size={16} />
-        </Link>
+    <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+      <div className="flex items-center gap-3">
+        <h2 className="text-xl font-semibold tracking-tight text-ink">
+          {format(monthStart, 'MMMM yyyy')}
+        </h2>
+        <div className="flex items-center gap-1">
+          <Link
+            href={`/calendar?month=${format(prevMonth, 'yyyy-MM')}`}
+            className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-[#262626] bg-surface-1 text-ink-muted transition hover:border-[#444] hover:text-ink"
+            aria-label="Previous month"
+          >
+            <ChevronLeft size={14} />
+          </Link>
+          <Link
+            href={`/calendar?month=${format(nextMonth, 'yyyy-MM')}`}
+            className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-[#262626] bg-surface-1 text-ink-muted transition hover:border-[#444] hover:text-ink"
+            aria-label="Next month"
+          >
+            <ChevronRight size={14} />
+          </Link>
+          <Link
+            href="/calendar"
+            className="ml-1 inline-flex h-7 items-center rounded-md border border-[#262626] bg-surface-1 px-2.5 text-[11px] font-medium uppercase tracking-wider text-ink transition hover:border-[#444] hover:text-ink"
+          >
+            Today
+          </Link>
+        </div>
       </div>
-      <h2 className="text-lg font-semibold tracking-tight text-zinc-100">
-        {format(monthStart, 'MMMM yyyy')}
-      </h2>
+
+      <div className="flex items-center gap-2 text-[11px]">
+        <CountPill tone="sky" label="scheduled" value={scheduledCount} />
+        <CountPill tone="muted" label="drafts" value={draftCount} />
+      </div>
     </div>
+  );
+}
+
+function CountPill({
+  tone,
+  label,
+  value,
+}: {
+  tone: 'sky' | 'muted';
+  label: string;
+  value: number;
+}) {
+  const dot = tone === 'sky' ? 'bg-[#0099ff]' : 'bg-ink-muted';
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-md border border-[#262626] bg-surface-1 px-2.5 py-1 text-ink-muted">
+      <span className={cn('h-1.5 w-1.5 rounded-full', dot)} />
+      <span className="font-semibold tabular-nums text-ink">{value}</span>
+      <span className="uppercase tracking-wider">{label}</span>
+    </span>
+  );
+}
+
+function EventPill({ post, onClick }: { post: PostRow; onClick: () => void }) {
+  const thumb = post.variants[0]?.url;
+  const time = post.scheduled_for ? format(new Date(post.scheduled_for), 'h:mm a') : null;
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="group/pill flex w-full items-center gap-2 overflow-hidden rounded-full border border-[#262626] bg-surface-2 py-1.5 pl-1.5 pr-3 text-left transition hover:border-[#444] hover:bg-[#222]"
+      title={post.name}
+    >
+      {thumb ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={thumb}
+          alt=""
+          className="h-7 w-7 shrink-0 rounded-full object-cover ring-1 ring-white/10"
+        />
+      ) : (
+        <span className="h-7 w-7 shrink-0 rounded-full bg-surface-2" />
+      )}
+      <span className="flex min-w-0 flex-1 flex-col leading-tight">
+        <span className="flex items-center gap-1 text-[12px] font-medium text-ink">
+          <Camera size={11} className="shrink-0 text-ink-muted" />
+          <span className="truncate">{post.name}</span>
+        </span>
+        {time ? <span className="text-[10px] text-ink-muted">{time}</span> : null}
+      </span>
+    </button>
   );
 }
 
 function DraftsShelf({ drafts, onPick }: { drafts: PostRow[]; onPick: (p: PostRow) => void }) {
   return (
-    <section className="mb-6">
-      <header className="mb-2 flex items-baseline justify-between gap-2">
-        <h3 className="text-xs uppercase tracking-wide text-zinc-500">Drafts</h3>
-        <span className="text-[11px] text-zinc-600">click to schedule</span>
+    <section className="mt-6 rounded-xl border border-[#262626] bg-surface-1 p-4 backdrop-blur">
+      <header className="mb-3 flex items-baseline justify-between gap-2">
+        <div>
+          <h3 className="text-[10px] font-semibold uppercase tracking-[0.22em] text-ink-muted">
+            Drafts shelf
+          </h3>
+          <p className="mt-0.5 text-[11px] text-ink-muted">
+            Click any draft to schedule it.
+          </p>
+        </div>
+        <span className="rounded-md border border-[#262626] bg-surface-2/80 px-2 py-0.5 text-[10px] uppercase tracking-wider text-ink-muted">
+          {drafts.length} pending
+        </span>
       </header>
-      <ul className="flex gap-3 overflow-x-auto pb-1">
+      <ul className="-mx-1 flex snap-x snap-mandatory gap-3 overflow-x-auto px-1 pb-1">
         {drafts.map((p) => (
           <li key={p.id}>
             <button
               type="button"
               onClick={() => onPick(p)}
-              className="flex w-32 shrink-0 flex-col gap-1 overflow-hidden rounded-md border border-zinc-800 bg-zinc-950 p-1.5 text-left transition hover:border-zinc-700"
+              className="group relative block w-[148px] shrink-0 snap-start overflow-hidden rounded-xl ring-1 ring-[#262626] transition hover:ring-[#0099ff]/50"
             >
               {p.variants[0]?.url ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={p.variants[0].url}
                   alt=""
-                  className="aspect-square w-full rounded object-cover"
+                  className="aspect-square w-full object-cover transition duration-500 group-hover:scale-[1.04]"
                 />
               ) : (
-                <span className="aspect-square w-full rounded bg-zinc-900" />
+                <span className="block aspect-square w-full bg-surface-2" />
               )}
-              <span className="truncate text-[11px] text-zinc-200" title={p.name}>
+              <span className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
+              <span className="absolute inset-x-0 bottom-0 truncate px-2 py-1.5 text-left text-[11px] font-medium text-white">
                 {p.name}
               </span>
             </button>
@@ -215,157 +310,78 @@ function DraftsShelf({ drafts, onPick }: { drafts: PostRow[]; onPick: (p: PostRo
   );
 }
 
-function EditModal({
-  post,
+function DraftPicker({
+  date,
+  drafts,
+  onPick,
   onClose,
-  saveDisabledReason,
 }: {
-  post: PostRow;
+  date: Date;
+  drafts: PostRow[];
+  onPick: (p: PostRow) => void;
   onClose: () => void;
-  saveDisabledReason: string | null;
 }) {
-  const [state, formAction, pending] = useActionState<ReschedState | null, FormData>(
-    reschedulePostAction,
-    null,
-  );
-
-  // datetime-local needs "YYYY-MM-DDTHH:mm" in *local* time.
-  const initialWhen = post.scheduled_for
-    ? format(new Date(post.scheduled_for), "yyyy-MM-dd'T'HH:mm")
-    : '';
-
-  const settled = state?.status === 'saved' || state?.status === 'partial';
-  const saveDisabled = pending || settled || Boolean(saveDisabledReason);
-
   return (
     <div
-      className="fixed inset-0 z-40 flex items-center justify-center bg-black/70 p-4"
+      className="fixed inset-0 z-40 grid place-items-center bg-black/70 p-4 backdrop-blur-sm"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="w-full max-w-md overflow-hidden rounded-lg border border-zinc-800 bg-zinc-950">
-        <header className="border-b border-zinc-800 px-4 py-3">
-          <h3 className="truncate text-sm font-semibold text-zinc-100" title={post.name}>
-            {post.name}
-          </h3>
-          <p className="mt-0.5 text-xs text-zinc-500">
-            {post.platforms.length > 0
-              ? post.platforms.map((p) => p[0].toUpperCase() + p.slice(1)).join(' · ')
-              : 'no platforms'}{' '}
-            · {post.format} · {post.status}
-          </p>
-        </header>
-
-        {post.variants[0]?.url ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={post.variants[0].url}
-            alt=""
-            className={cn(
-              'w-full object-cover',
-              post.format === 'square' && 'aspect-square',
-              post.format === 'portrait' && 'aspect-[9/16]',
-              post.format === 'landscape' && 'aspect-[16/9]',
-            )}
-          />
-        ) : null}
-
-        <form action={formAction} className="flex flex-col gap-3 p-4">
-          <input type="hidden" name="postId" value={post.id} />
-          <label className="flex flex-col gap-1">
-            <span className="text-xs uppercase tracking-wide text-zinc-500">Scheduled for</span>
-            <input
-              name="scheduledFor"
-              type="datetime-local"
-              defaultValue={initialWhen}
-              className="w-full rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-zinc-600"
-            />
-            <span className="text-[11px] text-zinc-600">
-              Leave blank to move back to drafts.
-            </span>
-          </label>
-          <label className="flex flex-col gap-1">
-            <span className="text-xs uppercase tracking-wide text-zinc-500">Caption</span>
-            <textarea
-              name="caption"
-              defaultValue={post.caption ?? ''}
-              rows={3}
-              className="w-full rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-zinc-600"
-            />
-          </label>
-
-          {state?.status === 'error' ? (
-            <p className="text-xs text-red-400" role="alert">
-              {state.error}
+      <div className="w-full max-w-md overflow-hidden rounded-2xl border border-[#262626] bg-surface-1 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.7)]">
+        <header className="flex items-center justify-between border-b border-[#1a1a1a] px-4 py-3">
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[#0099ff]">
+              Schedule on
             </p>
-          ) : null}
-          {state?.status === 'partial' ? (
-            <p className="text-xs text-amber-300" role="status">
-              Saved with caveat: {state.warning}
-            </p>
-          ) : null}
-          {state?.status === 'saved' && state.pushedToZernio ? (
-            <p className="text-xs text-emerald-300" role="status">
-              Pushed to Zernio.
-            </p>
-          ) : null}
-          {saveDisabledReason ? (
-            <p className="text-xs text-zinc-500">{saveDisabledReason}</p>
-          ) : null}
-
-          <div className="flex items-center gap-2 pt-1">
-            <button
-              type="submit"
-              disabled={saveDisabled}
-              title={saveDisabledReason ?? undefined}
-              className="inline-flex flex-1 items-center justify-center gap-2 rounded-md bg-zinc-100 px-3 py-2 text-sm font-medium text-zinc-900 transition hover:bg-white disabled:cursor-not-allowed disabled:bg-zinc-900 disabled:text-zinc-500"
-            >
-              {pending ? (
-                <>
-                  <Loader2 size={14} className="animate-spin" />
-                  Saving…
-                </>
-              ) : (
-                <>
-                  <Save size={14} />
-                  {settled ? 'Saved' : 'Save'}
-                </>
-              )}
-            </button>
-            <DeleteButton postId={post.id} onDeleted={onClose} />
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-zinc-300 transition hover:border-zinc-700 hover:bg-zinc-900"
-            >
-              Close
-            </button>
+            <h3 className="mt-0.5 text-sm font-semibold text-ink">
+              {format(date, 'EEEE, MMM d')}
+            </h3>
           </div>
-        </form>
+          <button
+            type="button"
+            onClick={onClose}
+            className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-[#262626] bg-surface-2 text-ink-muted transition hover:border-[#444] hover:text-ink"
+            aria-label="Close"
+          >
+            <X size={12} />
+          </button>
+        </header>
+        <div className="max-h-[60vh] overflow-y-auto p-3">
+          {drafts.length === 0 ? (
+            <p className="px-3 py-6 text-center text-xs text-ink-muted">
+              No drafts available. Create one in <strong>/create-post</strong>.
+            </p>
+          ) : (
+            <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              {drafts.map((p) => (
+                <li key={p.id}>
+                  <button
+                    type="button"
+                    onClick={() => onPick(p)}
+                    className="group relative block w-full overflow-hidden rounded-lg ring-1 ring-[#262626] transition hover:ring-[#0099ff]/50"
+                  >
+                    {p.variants[0]?.url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={p.variants[0].url}
+                        alt=""
+                        className="aspect-square w-full object-cover"
+                      />
+                    ) : (
+                      <span className="block aspect-square w-full bg-surface-2" />
+                    )}
+                    <span className="pointer-events-none absolute inset-x-0 bottom-0 h-14 bg-gradient-to-t from-black/85 to-transparent" />
+                    <span className="absolute inset-x-0 bottom-0 truncate px-2 py-1 text-left text-[11px] font-medium text-white">
+                      {p.name}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </div>
     </div>
-  );
-}
-
-function DeleteButton({ postId, onDeleted }: { postId: string; onDeleted: () => void }) {
-  return (
-    <form
-      action={async (fd) => {
-        if (!confirm('Delete this post? This cannot be undone.')) return;
-        await deletePostAction(fd);
-        onDeleted();
-      }}
-    >
-      <input type="hidden" name="postId" value={postId} />
-      <button
-        type="submit"
-        className="rounded-md border border-zinc-800 bg-zinc-950 p-2 text-zinc-400 transition hover:border-red-900/60 hover:bg-red-950/20 hover:text-red-300"
-        aria-label="Delete post"
-        title="Delete post"
-      >
-        <Trash2 size={14} />
-      </button>
-    </form>
   );
 }

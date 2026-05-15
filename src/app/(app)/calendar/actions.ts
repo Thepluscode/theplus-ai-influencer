@@ -3,7 +3,13 @@
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { serverEnv } from '@/lib/env';
-import { deletePost, getPostById, updatePostSchedule } from '@/lib/posts';
+import {
+  deletePost,
+  disablePostSharing,
+  enablePostSharing,
+  getPostById,
+  updatePostSchedule,
+} from '@/lib/posts';
 import { getSupabaseServerClient } from '@/lib/supabase/server';
 import {
   getDefaultZernioProfileId,
@@ -158,4 +164,35 @@ export async function deletePostAction(formData: FormData): Promise<void> {
 
   await deletePost(postId);
   revalidatePath('/calendar');
+}
+
+export type ShareLinkState =
+  | { status: 'idle' }
+  | { status: 'enabled'; token: string }
+  | { status: 'disabled' }
+  | { status: 'error'; error: string };
+
+export async function toggleShareLinkAction(
+  _prev: ShareLinkState | null,
+  formData: FormData,
+): Promise<ShareLinkState> {
+  const postId = formData.get('postId');
+  const intent = formData.get('intent');
+  if (typeof postId !== 'string' || !postId) {
+    return { status: 'error', error: 'postId required' };
+  }
+  try {
+    await requireUser();
+    if (intent === 'disable') {
+      await disablePostSharing(postId);
+      revalidatePath('/calendar');
+      return { status: 'disabled' };
+    }
+    const token = await enablePostSharing(postId);
+    revalidatePath('/calendar');
+    return { status: 'enabled', token };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Could not toggle share link';
+    return { status: 'error', error: message };
+  }
 }
