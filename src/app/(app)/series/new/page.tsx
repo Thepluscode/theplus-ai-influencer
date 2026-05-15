@@ -1,0 +1,65 @@
+import Link from 'next/link';
+import { ArrowLeft } from 'lucide-react';
+import { listAiModels } from '@/lib/ai-models';
+import { publicEnv } from '@/lib/env';
+import { getSupabaseServerClient } from '@/lib/supabase/server';
+import type { AiModelRow } from '@/lib/supabase/types';
+import { getOrCreateCurrentWorkspace } from '@/lib/workspace';
+import { SeriesPlanForm } from './series-plan-form';
+
+export default async function NewSeriesPlanPage() {
+  const supabaseConfigured = Boolean(
+    publicEnv.NEXT_PUBLIC_SUPABASE_URL && publicEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+  );
+
+  let models: AiModelRow[] = [];
+  let loadError: string | null = null;
+  if (supabaseConfigured) {
+    try {
+      const supabase = await getSupabaseServerClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (user) {
+        const ws = await getOrCreateCurrentWorkspace(user);
+        models = await listAiModels(ws.id);
+      }
+    } catch (err) {
+      loadError = err instanceof Error ? err.message : 'Could not load roster';
+    }
+  }
+
+  return (
+    <div className="min-h-full bg-[#070707] text-ink">
+      <div className="px-5 py-5 lg:px-6 lg:py-6">
+        <header className="mb-6 border-b border-[#1b1b1b] pb-5">
+          <Link
+            href="/series"
+            className="mb-4 inline-flex items-center gap-1.5 text-[12px] text-ink-muted transition hover:text-ink"
+          >
+            <ArrowLeft size={12} />
+            Back to Series
+          </Link>
+          <p className="framer-eyebrow">New Series</p>
+          <h1 className="mt-2 text-[28px] font-medium leading-[1.05] tracking-normal text-balance sm:text-[32px]">
+            Brief the arc.
+            <br />
+            Generate the calendar.
+          </h1>
+          <p className="mt-3 max-w-2xl text-[13px] leading-[1.5] text-ink-muted">
+            10 credits per plan. The output is a calendar of per-day briefs you can one-click into
+            the Create Post wizard.
+          </p>
+          {loadError ? (
+            <p className="mt-4 inline-flex items-center gap-2 rounded-full border border-[#ff5577]/40 bg-[#ff5577]/[0.07] px-3 py-1.5 text-[12px] text-[#ff5577]">
+              <span className="h-1.5 w-1.5 rounded-full bg-[#ff5577]" />
+              {loadError}
+            </p>
+          ) : null}
+        </header>
+
+        <SeriesPlanForm models={models} />
+      </div>
+    </div>
+  );
+}
