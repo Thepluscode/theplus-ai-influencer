@@ -64,6 +64,61 @@ export interface ZernioPost {
   platforms?: Array<{ platform: string; accountId: string; status?: string }>;
 }
 
+export interface ZernioPostMetrics {
+  views: number;
+  likes: number;
+  comments: number;
+  saves: number;
+  /** Last time Zernio refreshed the metrics for this post, if surfaced. */
+  fetchedAt: string;
+}
+
+/**
+ * Coerce Zernio's loosely-typed analytics response into our internal
+ * shape. Zernio's response shape varies across platforms (Instagram
+ * "saves" vs Twitter "bookmarks", etc.), so we read multiple aliases.
+ */
+function normalizeZernioMetrics(raw: Record<string, unknown>): ZernioPostMetrics | null {
+  // Some endpoints nest metrics inside `analytics` or `metrics`.
+  const buckets: unknown[] = [
+    raw,
+    (raw as { analytics?: unknown }).analytics,
+    (raw as { metrics?: unknown }).metrics,
+    (raw as { engagement?: unknown }).engagement,
+  ];
+  const num = (v: unknown): number =>
+    typeof v === 'number' && Number.isFinite(v) ? v : 0;
+
+  let found = false;
+  let views = 0;
+  let likes = 0;
+  let comments = 0;
+  let saves = 0;
+  for (const b of buckets) {
+    if (!b || typeof b !== 'object') continue;
+    const r = b as Record<string, unknown>;
+    const v = num(r.views ?? r.impressions ?? r.plays ?? r.video_views);
+    const l = num(r.likes ?? r.reactions ?? r.favorites);
+    const c = num(r.comments ?? r.replies);
+    const s = num(r.saves ?? r.bookmarks ?? r.shares ?? r.reposts);
+    if (v || l || c || s) {
+      found = true;
+      views = Math.max(views, v);
+      likes = Math.max(likes, l);
+      comments = Math.max(comments, c);
+      saves = Math.max(saves, s);
+    }
+  }
+  if (!found) return null;
+  return {
+    views,
+    likes,
+    comments,
+    saves,
+    fetchedAt: new Date().toISOString(),
+  };
+}
+
 export interface CreatePostInput {
   content: string;
   platforms: ZernioPlatformTarget[];
@@ -166,6 +221,33 @@ export class ZernioClient {
       method: 'POST',
       body: JSON.stringify(body),
     });
+  }
+
+  /**
+   * Best-effort fetch of engagement metrics for a single Zernio post id.
+   * Zernio's response shape isn't formally documented for analytics yet,
+   * so we accept multiple field name conventions (views/impressions,
+   * likes/reactions, comments, saves/shares) and surface whatever lands.
+   * Returns null on any non-OK response so callers can fall back to a
+   * placeholder without try/catch noise.
+   */
+  async getPostAnalytics(zernioPostId: string): Promise<ZernioPostMetrics | null> {
+    // Try the dedicated analytics endpoint first, fall back to the
+    // post-detail endpoint which may embed metrics inline.
+    const endpoints = [
+      `/posts/${encodeURIComponent(zernioPostId)}/analytics`,
+      `/posts/${encodeURIComponent(zernioPostId)}`,
+    ];
+    for (const path of endpoints) {
+      try {
+        const data = await this.request<Record<string, unknown>>(path);
+        const m = normalizeZernioMetrics(data);
+        if (m) return m;
+      } catch {
+        // try next endpoint
+      }
+    }
+    return null;
   }
 
   async listPosts(opts: {
