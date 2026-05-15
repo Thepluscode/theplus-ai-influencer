@@ -14,6 +14,26 @@ const ServerEnvSchema = z.object({
   ZERNIO_API_BASE_URL: z.string().url().default('https://zernio.com/api/v1'),
   STRIPE_SECRET_KEY: z.string().min(1).optional(),
   STRIPE_WEBHOOK_SECRET: z.string().min(1).optional(),
+  // Stripe Price IDs — one per paid plan + the credit topup SKU.
+  // Create these in Stripe dashboard and paste the price_xxx ids here.
+  STRIPE_PRICE_PRO: z.string().min(1).optional(),
+  STRIPE_PRICE_STUDIO: z.string().min(1).optional(),
+  STRIPE_PRICE_AGENCY: z.string().min(1).optional(),
+  STRIPE_PRICE_TOPUP: z.string().min(1).optional(),
+  // Caption Writer / Cross-Platform Reformatter — uses OpenAI Chat
+  // Completions. OPENAI_STUB=1 returns canned outputs so dev can iterate on
+  // the UI without burning credits.
+  OPENAI_API_KEY: z.string().min(1).optional(),
+  OPENAI_CAPTION_MODEL: z.string().default('gpt-4o-mini'),
+  OPENAI_STUB: z
+    .string()
+    .optional()
+    .transform((v) => v === '1' || v?.toLowerCase() === 'true'),
+  // Shared secret used to authenticate cron-driven worker invocations of
+  // /api/jobs/storyboard-animate. Required for production; if absent in
+  // dev, the route still accepts SUPABASE_SERVICE_ROLE_KEY as a bearer
+  // token so you can curl it locally.
+  CRON_SECRET: z.string().min(16).optional(),
 });
 
 const PublicEnvSchema = z.object({
