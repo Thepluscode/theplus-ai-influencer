@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   BarChart3,
+  Bot,
   Calendar,
   CalendarRange,
   Film,
@@ -26,6 +27,7 @@ const NAV_GROUPS = [
     label: 'Operate',
     items: [
       { href: '/dashboard', label: 'Dashboard', icon: Home },
+      { href: '/agents', label: 'Agents', icon: Bot },
       { href: '/studio', label: 'Studio', icon: ImageIcon },
       { href: '/create-post', label: 'Create post', icon: PlusSquare },
       { href: '/storyboard', label: 'Storyboard', icon: Film },

@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils';
 
 const ROUTES = [
   { href: '/dashboard', label: 'Dashboard', section: 'Command' },
+  { href: '/agents', label: 'Creative Agents', section: 'Orchestration' },
   { href: '/studio', label: 'Studio', section: 'Persona ops' },
   { href: '/create-post', label: 'Create post', section: 'Production' },
   { href: '/storyboard', label: 'Storyboard', section: 'Review room' },

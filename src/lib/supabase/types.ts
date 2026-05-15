@@ -689,6 +689,198 @@ export type Database = {
           },
         ];
       };
+      creative_agent_runs: {
+        Row: {
+          id: string;
+          workspace_id: string;
+          storyboard_id: string | null;
+          prompt: string;
+          campaign_title: string;
+          concept_line: string;
+          brand_defaults: unknown;
+          agent_status: 'saved' | 'sent_to_storyboard';
+          asset_count: number;
+          fixed_issue_count: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          workspace_id: string;
+          storyboard_id?: string | null;
+          prompt: string;
+          campaign_title: string;
+          concept_line: string;
+          brand_defaults?: unknown;
+          agent_status?: 'saved' | 'sent_to_storyboard';
+          asset_count?: number;
+          fixed_issue_count?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          workspace_id?: string;
+          storyboard_id?: string | null;
+          prompt?: string;
+          campaign_title?: string;
+          concept_line?: string;
+          brand_defaults?: unknown;
+          agent_status?: 'saved' | 'sent_to_storyboard';
+          asset_count?: number;
+          fixed_issue_count?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'creative_agent_runs_workspace_id_fkey';
+            columns: ['workspace_id'];
+            referencedRelation: 'workspaces';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'creative_agent_runs_storyboard_id_fkey';
+            columns: ['storyboard_id'];
+            referencedRelation: 'storyboards';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      creative_agent_assets: {
+        Row: {
+          id: string;
+          run_id: string;
+          workspace_id: string;
+          kind:
+            | 'concept'
+            | 'script'
+            | 'voiceover'
+            | 'music'
+            | 'sound_design'
+            | 'brand_identity'
+            | 'shot'
+            | 'compose_note';
+          title: string;
+          body: string;
+          metadata: unknown;
+          position: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          run_id: string;
+          workspace_id: string;
+          kind:
+            | 'concept'
+            | 'script'
+            | 'voiceover'
+            | 'music'
+            | 'sound_design'
+            | 'brand_identity'
+            | 'shot'
+            | 'compose_note';
+          title: string;
+          body: string;
+          metadata?: unknown;
+          position?: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          run_id?: string;
+          workspace_id?: string;
+          kind?:
+            | 'concept'
+            | 'script'
+            | 'voiceover'
+            | 'music'
+            | 'sound_design'
+            | 'brand_identity'
+            | 'shot'
+            | 'compose_note';
+          title?: string;
+          body?: string;
+          metadata?: unknown;
+          position?: number;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'creative_agent_assets_run_id_workspace_id_fkey';
+            columns: ['run_id', 'workspace_id'];
+            referencedRelation: 'creative_agent_runs';
+            referencedColumns: ['id', 'workspace_id'];
+          },
+          {
+            foreignKeyName: 'creative_agent_assets_workspace_id_fkey';
+            columns: ['workspace_id'];
+            referencedRelation: 'workspaces';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      creative_agent_review_issues: {
+        Row: {
+          id: string;
+          run_id: string;
+          workspace_id: string;
+          external_id: string;
+          asset_label: string;
+          severity: 'fixing' | 'clear';
+          label: string;
+          before: string;
+          fix: string;
+          status: 'open' | 'fixed' | 'clear';
+          fixed_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          run_id: string;
+          workspace_id: string;
+          external_id: string;
+          asset_label: string;
+          severity: 'fixing' | 'clear';
+          label: string;
+          before: string;
+          fix: string;
+          status?: 'open' | 'fixed' | 'clear';
+          fixed_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          run_id?: string;
+          workspace_id?: string;
+          external_id?: string;
+          asset_label?: string;
+          severity?: 'fixing' | 'clear';
+          label?: string;
+          before?: string;
+          fix?: string;
+          status?: 'open' | 'fixed' | 'clear';
+          fixed_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'creative_agent_review_issues_run_id_workspace_id_fkey';
+            columns: ['run_id', 'workspace_id'];
+            referencedRelation: 'creative_agent_runs';
+            referencedColumns: ['id', 'workspace_id'];
+          },
+          {
+            foreignKeyName: 'creative_agent_review_issues_workspace_id_fkey';
+            columns: ['workspace_id'];
+            referencedRelation: 'workspaces';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       storyboard_render_jobs: {
         Row: {
           id: string;
@@ -802,6 +994,10 @@ export type StoryboardRow = Database['public']['Tables']['storyboards']['Row'];
 export type CommentRow = Database['public']['Tables']['comments']['Row'];
 export type ReviewCommentRow = Database['public']['Tables']['review_comments']['Row'];
 export type ReviewDecisionRow = Database['public']['Tables']['review_decisions']['Row'];
+export type CreativeAgentRunRow = Database['public']['Tables']['creative_agent_runs']['Row'];
+export type CreativeAgentAssetRow = Database['public']['Tables']['creative_agent_assets']['Row'];
+export type CreativeAgentReviewIssueRow =
+  Database['public']['Tables']['creative_agent_review_issues']['Row'];
 export type DmThreadRow = Database['public']['Tables']['dm_threads']['Row'];
 export type SafetyAuditRow = Database['public']['Tables']['safety_audits']['Row'];
 export type StoryboardRenderJobRow = Database['public']['Tables']['storyboard_render_jobs']['Row'];
