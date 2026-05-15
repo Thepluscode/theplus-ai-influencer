@@ -1,41 +1,112 @@
 import Link from 'next/link';
+import { ArrowUpRight, Sparkles } from 'lucide-react';
 
 export default function LandingPage() {
   return (
-    <main className="flex min-h-dvh flex-col items-center justify-center bg-zinc-950 px-6 text-zinc-100">
-      <div className="flex max-w-2xl flex-col items-center gap-8 text-center">
-        <span className="rounded-full border border-zinc-800 bg-zinc-900 px-3 py-1 text-xs font-medium uppercase tracking-wide text-zinc-400">
-          Coming soon
-        </span>
-        <h1 className="text-balance text-4xl font-semibold leading-tight tracking-tight sm:text-5xl">
-          Build, brief, and ship AI influencers — at scale.
-        </h1>
-        <p className="text-balance text-lg text-zinc-400">
-          Create a synthetic persona, generate cinematic visuals with Luma, and
-          schedule cross-platform content via Zenio. One dashboard, every channel.
-        </p>
-        <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+    <main className="min-h-dvh bg-[#070707] text-ink">
+      <nav className="sticky top-0 z-30 border-b border-[#171717] bg-[#070707]/92 px-6 py-3 backdrop-blur-xl lg:px-8">
+        <Link
+          href="/"
+          className="inline-flex items-center gap-2 text-[14px] font-medium tracking-tight text-ink"
+        >
+          <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-white text-black">
+            <Sparkles size={13} />
+          </span>
+          theplus.ai
+        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/sign-in"
+            className="inline-flex h-9 items-center rounded-full px-3.5 text-[12px] font-medium text-ink-muted transition hover:text-ink"
+          >
+            Sign in
+          </Link>
           <Link
             href="/sign-up"
-            className="rounded-md bg-zinc-100 px-5 py-2.5 text-sm font-medium text-zinc-900 transition hover:bg-white"
+            className="inline-flex h-9 items-center gap-1.5 rounded-full bg-white px-4 text-[12px] font-medium text-black transition hover:bg-white/90"
           >
             Get started
-          </Link>
-          <Link
-            href="/dashboard"
-            className="rounded-md border border-zinc-800 bg-zinc-900 px-5 py-2.5 text-sm font-medium text-zinc-100 transition hover:border-zinc-700 hover:bg-zinc-800"
-          >
-            Open dashboard
+            <ArrowUpRight size={11} />
           </Link>
         </div>
-        <p className="pt-4 text-xs text-zinc-600">
-          theplus-ai-influencer · scaffold ready · wire your Supabase, Luma,
-          Zenio, and Stripe keys in{' '}
-          <code className="rounded bg-zinc-900 px-1.5 py-0.5 text-zinc-400">
-            .env.local
-          </code>
+      </nav>
+
+      <section className="relative isolate min-h-[calc(100dvh-62px)] overflow-hidden">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=1800&q=80"
+          alt=""
+          className="absolute inset-0 -z-20 h-full w-full object-cover object-[center_8%]"
+        />
+        <div className="absolute inset-0 -z-10 bg-[linear-gradient(90deg,rgba(7,7,7,0.96)_0%,rgba(7,7,7,0.72)_46%,rgba(7,7,7,0.30)_100%),linear-gradient(180deg,rgba(7,7,7,0.10)_0%,#070707_100%)]" />
+
+        <div className="flex min-h-[calc(100dvh-62px)] flex-col justify-end px-6 pb-12 pt-16 lg:px-10">
+          <div className="max-w-3xl">
+            <span className="inline-flex items-center gap-2 rounded-full border border-[#262626] bg-black/55 px-3 py-1 text-[10px] font-medium uppercase tracking-[0.2em] text-ink-muted backdrop-blur">
+              <Sparkles size={11} className="text-[#0099ff]" />
+              AI influencer platform
+            </span>
+            <h1 className="mt-6 max-w-3xl text-[58px] font-medium leading-[0.96] tracking-normal text-ink sm:text-[76px] lg:text-[92px]">
+              ThePlus.AI Influencer
+            </h1>
+            <p className="mt-5 max-w-xl text-[16px] leading-[1.5] text-ink-muted">
+              Cast a synthetic persona, generate cinematic visuals with Luma, plan a 30-day content
+              arc, and schedule cross-platform content via Zernio. One dashboard, every channel.
+            </p>
+            <div className="mt-7 flex flex-wrap items-center gap-3">
+              <Link
+                href="/sign-up"
+                className="inline-flex h-12 items-center gap-2 rounded-[12px] bg-[#0099ff] px-6 text-[14px] font-medium text-white shadow-[0_8px_24px_-6px_rgba(0,153,255,0.45)] transition hover:bg-[#1aa6ff] active:scale-[0.99]"
+              >
+                Get started
+                <ArrowUpRight size={14} />
+              </Link>
+              <Link
+                href="/dashboard"
+                className="inline-flex h-12 items-center rounded-[12px] border border-[#262626] bg-surface-1 px-6 text-[14px] font-medium text-ink transition hover:border-[#444]"
+              >
+                Open dashboard
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="mx-auto grid w-full max-w-6xl gap-3 px-6 py-10 sm:grid-cols-2 lg:grid-cols-3 lg:px-10">
+        <Feature
+          title="Studio"
+          body="Cast personas with face-locked portrait + full-body rendering."
+        />
+        <Feature
+          title="Series Planner"
+          body="LLM-generated 30-day content arcs, one click into Create Post."
+        />
+        <Feature title="Storyboard" body="Brief → 3-6 shot reel with face-locked Luma renders." />
+        <Feature
+          title="Captions + Cross-platform"
+          body="Per-platform native rewrites in the persona's voice."
+        />
+        <Feature
+          title="Calendar + Zernio"
+          body="Schedule + push to every connected platform from one place."
+        />
+        <Feature title="Analytics" body="Live engagement metrics flowing back from Zernio." />
+      </section>
+
+      <footer className="mx-auto w-full max-w-6xl px-6 pb-8 pt-2 text-center lg:px-10">
+        <p className="text-[11px] text-[#666]">
+          theplus.ai · review-grade creative operations for AI influencer campaigns
         </p>
-      </div>
+      </footer>
     </main>
+  );
+}
+
+function Feature({ title, body }: { title: string; body: string }) {
+  return (
+    <div className="rounded-[12px] border border-[#262626] bg-surface-1 p-4">
+      <p className="text-[13px] font-medium text-ink">{title}</p>
+      <p className="mt-1 text-[12px] leading-[1.4] text-ink-muted">{body}</p>
+    </div>
   );
 }

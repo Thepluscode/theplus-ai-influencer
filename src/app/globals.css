@@ -1,26 +1,127 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
+/*
+ * Tokens are sourced from /DESIGN.md (Framer system).
+ * Two anchor surfaces (canvas / inverse-canvas) + 4 surface lifts +
+ * a single signal blue. Gradients live on CARDS, never on section
+ * backgrounds. Letter-spacing on display sizes is intentional — do
+ * not soften "for readability"; reduce size instead.
+ */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --canvas: #070707;
+  --surface-1: #101010;
+  --surface-2: #181818;
+  --hairline: #262626;
+  --hairline-soft: #171717;
+  --ink: #ffffff;
+  --ink-muted: #999999;
+  --accent-blue: #0099ff;
+  --gradient-magenta: #d44df0;
+  --gradient-violet: #6a4cf5;
+  --gradient-orange: #ff7a3d;
+  --gradient-coral: #ff5577;
+
+  /* Legacy tokens still referenced by Tailwind theme bridge */
+  --background: var(--canvas);
+  --foreground: var(--ink);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-canvas: var(--canvas);
+  --color-surface-1: var(--surface-1);
+  --color-surface-2: var(--surface-2);
+  --color-hairline: var(--hairline);
+  --color-hairline-soft: var(--hairline-soft);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-accent-blue: var(--accent-blue);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+body {
+  background: var(--canvas);
+  color: var(--ink);
+  font-family:
+    var(--font-geist-sans),
+    'Inter Variable',
+    'Inter',
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    Segoe UI,
+    Roboto,
+    Helvetica,
+    Arial,
+    sans-serif;
+  /* Inter / Geist character variants that approximate Framer's body voice. */
+  font-feature-settings: 'cv01', 'cv05', 'cv09', 'cv11', 'ss01', 'ss03';
+  font-optical-sizing: auto;
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+::selection {
+  background: rgba(0, 153, 255, 0.35);
+  color: #ffffff;
+}
+
+* {
+  scrollbar-color: #333333 #0a0a0a;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0a0a0a;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #303030;
+  border: 2px solid #0a0a0a;
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #444444;
+}
+
+/*
+ * Framer's display tier — tight negative tracking is THE brand signature.
+ * Reduce size on small viewports, never the tracking percentage.
+ */
+.framer-display-xxl {
+  font-size: clamp(56px, 9vw, 110px);
+  font-weight: 500;
+  line-height: 0.88;
+  letter-spacing: 0;
+}
+.framer-display-xl {
+  font-size: clamp(44px, 7vw, 85px);
+  font-weight: 500;
+  line-height: 0.95;
+  letter-spacing: 0;
+}
+.framer-display-lg {
+  font-size: clamp(36px, 5.5vw, 62px);
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: 0;
+}
+.framer-display-md {
+  font-size: clamp(26px, 3vw, 32px);
+  font-weight: 500;
+  line-height: 1.13;
+  letter-spacing: 0;
+}
+.framer-eyebrow {
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #666666;
 }

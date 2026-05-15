@@ -3,7 +3,7 @@
 import { headers } from 'next/headers';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
-import { CREDIT_TOPUP, getPlan, stripePriceForPlan, type PlanId } from '@/lib/billing/plans';
+import { CREDIT_TOPUP, stripePriceForPlan, type PlanId } from '@/lib/billing/plans';
 import { getStripeClient, isStripeConfigured } from '@/lib/billing/stripe';
 import { publicEnv } from '@/lib/env';
 import { getSupabaseServerClient } from '@/lib/supabase/server';
@@ -348,7 +348,4 @@ export async function deleteWebhookAction(formData: FormData) {
   settingsRedirect('Webhook endpoint removed.');
 }
 
-// Re-export the type so callers can typecheck a planId selection without
-// having to know where the catalog lives.
 export type { PlanId } from '@/lib/billing/plans';
-export { getPlan };
