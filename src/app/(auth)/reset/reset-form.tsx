@@ -1,39 +1,18 @@
 'use client';
 
 import { useActionState } from 'react';
-import { signUpWithPassword, type AuthResult } from '../actions';
+import { updatePasswordAction, type AuthResult } from '../actions';
 
-export function SignUpForm() {
+export function ResetForm() {
   const [state, formAction, pending] = useActionState<AuthResult | null, FormData>(
-    signUpWithPassword,
+    updatePasswordAction,
     null,
   );
-
-  if (state?.ok) {
-    return (
-      <div
-        role="status"
-        className="rounded-[12px] border border-[#22c55e]/30 bg-[#22c55e]/10 px-3 py-3 text-[13px] text-[#86efac]"
-      >
-        Account created. Check your inbox for a confirmation link, then sign in.
-      </div>
-    );
-  }
 
   return (
     <form action={formAction} className="flex flex-col gap-3 text-[13px]">
       <label className="flex flex-col gap-1.5">
-        <span className="text-ink-muted">Email</span>
-        <input
-          name="email"
-          type="email"
-          autoComplete="email"
-          required
-          className="h-10 rounded-[10px] border border-[#262626] bg-surface-2 px-3 text-ink outline-none transition focus:border-[#0099ff]"
-        />
-      </label>
-      <label className="flex flex-col gap-1.5">
-        <span className="text-ink-muted">Password</span>
+        <span className="text-ink-muted">New password</span>
         <input
           name="password"
           type="password"
@@ -57,7 +36,7 @@ export function SignUpForm() {
         disabled={pending}
         className="h-10 rounded-[10px] bg-white px-3 font-medium text-black transition hover:bg-white/90 disabled:opacity-60"
       >
-        {pending ? 'Creating account…' : 'Create account'}
+        {pending ? 'Updating…' : 'Set new password'}
       </button>
     </form>
   );
