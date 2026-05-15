@@ -8,19 +8,29 @@ import {
 } from '@/lib/zernio';
 import { startConnectionAction } from './actions';
 
-const ALL_PLATFORMS: { id: ZernioPlatform; label: string }[] = [
-  { id: 'instagram', label: 'Instagram' },
-  { id: 'tiktok', label: 'TikTok' },
-  { id: 'twitter', label: 'X / Twitter' },
-  { id: 'youtube', label: 'YouTube' },
-  { id: 'facebook', label: 'Facebook' },
-  { id: 'threads', label: 'Threads' },
-  { id: 'linkedin', label: 'LinkedIn' },
-  { id: 'pinterest', label: 'Pinterest' },
-  { id: 'reddit', label: 'Reddit' },
+const ALL_PLATFORMS: { id: ZernioPlatform; label: string; icon: string }[] = [
+  { id: 'instagram', label: 'Instagram', icon: 'IG' },
+  { id: 'tiktok', label: 'TikTok', icon: 'TT' },
+  { id: 'twitter', label: 'X / Twitter', icon: 'X' },
+  { id: 'youtube', label: 'YouTube', icon: 'YT' },
+  { id: 'facebook', label: 'Facebook', icon: 'FB' },
+  { id: 'threads', label: 'Threads', icon: 'TH' },
+  { id: 'linkedin', label: 'LinkedIn', icon: 'IN' },
+  { id: 'pinterest', label: 'Pinterest', icon: 'PI' },
+  { id: 'reddit', label: 'Reddit', icon: 'RD' },
 ];
 
-export default async function AccountsPage() {
+interface AccountsPageProps {
+  searchParams: Promise<{
+    error?: string;
+    errorPlatform?: string;
+    errorCode?: string;
+    billingUrl?: string;
+  }>;
+}
+
+export default async function AccountsPage({ searchParams }: AccountsPageProps) {
+  const { error: connectError, errorPlatform, errorCode, billingUrl } = await searchParams;
   const zernioConfigured = Boolean(serverEnv.ZERNIO_API_KEY);
 
   let accounts: ZernioAccount[] = [];
@@ -41,90 +51,207 @@ export default async function AccountsPage() {
     accountsByPlatform.set(a.platform.toLowerCase(), list);
   }
 
-  return (
-    <div className="px-10 py-10">
-      <header className="mb-8 max-w-3xl">
-        <h1 className="text-2xl font-semibold tracking-tight">Accounts</h1>
-        <p className="mt-2 text-sm text-zinc-400">
-          Connected social accounts via{' '}
-          <a
-            href="https://zernio.com"
-            target="_blank"
-            rel="noreferrer"
-            className="text-zinc-200 underline-offset-2 hover:underline"
-          >
-            Zernio
-          </a>
-          . The Calendar uses these to push scheduled posts to the actual platform.
-        </p>
-        <div className="mt-3 flex flex-wrap gap-2 text-xs">
-          {!zernioConfigured ? (
-            <span className="rounded-md border border-amber-900/50 bg-amber-950/30 px-3 py-1.5 text-amber-300">
-              ZERNIO_API_KEY missing — set it in <code>.env.local</code> to connect accounts.
-            </span>
-          ) : null}
-          {loadError ? (
-            <span className="rounded-md border border-red-900/50 bg-red-950/30 px-3 py-1.5 text-red-300">
-              {loadError}
-            </span>
-          ) : null}
-        </div>
-      </header>
+  const totalConnected = accounts.length;
 
-      <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {ALL_PLATFORMS.map(({ id, label }) => {
-          const connected = accountsByPlatform.get(id) ?? [];
-          return (
-            <li
-              key={id}
-              className="rounded-lg border border-zinc-800 bg-zinc-950 p-4"
+  return (
+    <div className="min-h-full bg-[#070707] text-ink">
+      <div className="px-5 py-5 lg:px-6 lg:py-6">
+        <header className="mb-6 border-b border-[#1b1b1b] pb-5">
+          <p className="framer-eyebrow">Accounts</p>
+          <h1 className="mt-2 text-[28px] font-medium leading-[1.05] tracking-normal text-balance sm:text-[32px]">
+            One workspace.
+            <br />
+            Every platform.
+          </h1>
+          <p className="mt-3 max-w-2xl text-[13px] leading-[1.5] text-ink-muted">
+            Connected social accounts via{' '}
+            <a
+              href="https://zernio.com"
+              target="_blank"
+              rel="noreferrer"
+              className="text-[#0099ff] underline-offset-2 hover:underline"
             >
-              <div className="mb-3 flex items-baseline justify-between gap-2">
-                <h3 className="text-sm font-medium text-zinc-100">{label}</h3>
-                <span className="text-[11px] uppercase tracking-wide text-zinc-500">
-                  {connected.length === 0
-                    ? 'not connected'
-                    : `${connected.length} account${connected.length === 1 ? '' : 's'}`}
-                </span>
-              </div>
-              {connected.length > 0 ? (
-                <ul className="mb-3 flex flex-col gap-1.5">
-                  {connected.map((a) => (
-                    <li key={a._id} className="flex items-center justify-between text-sm">
-                      <span className="truncate text-zinc-200" title={a.username ?? a._id}>
-                        {a.displayName ?? a.username ?? a._id}
-                      </span>
-                      <span
-                        className={
-                          a.isActive ?? true
-                            ? 'shrink-0 rounded-full bg-emerald-950/50 px-2 py-0.5 text-[10px] uppercase tracking-wide text-emerald-300'
-                            : 'shrink-0 rounded-full bg-zinc-900 px-2 py-0.5 text-[10px] uppercase tracking-wide text-zinc-500'
-                        }
+              Zernio
+            </a>
+            . The Calendar uses these to push scheduled posts to the actual platform.
+          </p>
+          <div className="mt-5 flex flex-wrap gap-2">
+            {totalConnected > 0 ? (
+              <StatusPill tone="ok">
+                <span className="font-medium text-ink">{totalConnected}</span> connected
+              </StatusPill>
+            ) : null}
+            {!zernioConfigured ? (
+              <StatusPill tone="warn">
+                ZERNIO_API_KEY missing · set in <code>.env.local</code>
+              </StatusPill>
+            ) : null}
+            {loadError ? (
+              <StatusPill tone="err" title={loadError}>
+                Zernio fetch failed
+              </StatusPill>
+            ) : null}
+          </div>
+        </header>
+
+        {connectError ? (
+          <ConnectErrorBanner
+            platform={errorPlatform ?? 'platform'}
+            message={connectError}
+            code={errorCode}
+            billingUrl={billingUrl}
+          />
+        ) : null}
+
+        <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {ALL_PLATFORMS.map(({ id, label, icon }) => {
+            const connected = accountsByPlatform.get(id) ?? [];
+            const isConnected = connected.length > 0;
+            return (
+              <li key={id} className="rounded-[16px] border border-[#262626] bg-surface-1 p-4">
+                <div className="mb-3 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2.5">
+                    <span className="flex h-9 w-9 items-center justify-center rounded-full bg-surface-2 text-[10px] font-semibold uppercase tracking-wider text-ink ring-1 ring-[#262626]">
+                      {icon}
+                    </span>
+                    <h3 className="text-[14px] font-medium text-ink">{label}</h3>
+                  </div>
+                  {isConnected ? (
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-[#0099ff]/10 px-2.5 py-1 text-[11px] font-medium text-[#0099ff] ring-1 ring-[#0099ff]/30">
+                      <span className="h-1.5 w-1.5 rounded-full bg-[#0099ff]" />
+                      {connected.length} {connected.length === 1 ? 'account' : 'accounts'}
+                    </span>
+                  ) : (
+                    <span className="text-[11px] uppercase tracking-wider text-[#666]">
+                      not connected
+                    </span>
+                  )}
+                </div>
+
+                {isConnected ? (
+                  <ul className="mb-3 flex flex-col gap-1.5">
+                    {connected.map((a) => (
+                      <li
+                        key={a._id}
+                        className="flex items-center justify-between gap-2 rounded-[10px] bg-surface-2 px-3 py-2"
                       >
-                        {a.isActive ?? true ? 'active' : 'inactive'}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              ) : null}
-              <form action={startConnectionAction}>
-                <input type="hidden" name="platform" value={id} />
-                <button
-                  type="submit"
-                  disabled={!zernioConfigured}
-                  title={
-                    zernioConfigured ? `Connect a new ${label} account via Zernio` : 'Set ZERNIO_API_KEY first.'
-                  }
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-md border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-zinc-200 transition hover:border-zinc-700 hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  <Plus size={14} />
-                  Connect {connected.length > 0 ? 'another' : label}
-                </button>
-              </form>
-            </li>
-          );
-        })}
-      </ul>
+                        <span className="truncate text-[13px] text-ink" title={a.username ?? a._id}>
+                          {a.displayName ?? a.username ?? a._id}
+                        </span>
+                        <span
+                          className={
+                            (a.isActive ?? true)
+                              ? 'shrink-0 rounded-full bg-[#22c55e]/10 px-2 py-0.5 text-[10px] uppercase tracking-wider text-[#22c55e] ring-1 ring-[#22c55e]/30'
+                              : 'shrink-0 rounded-full bg-surface-2 px-2 py-0.5 text-[10px] uppercase tracking-wider text-ink-muted'
+                          }
+                        >
+                          {(a.isActive ?? true) ? 'active' : 'inactive'}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+
+                <form action={startConnectionAction}>
+                  <input type="hidden" name="platform" value={id} />
+                  <button
+                    type="submit"
+                    disabled={!zernioConfigured}
+                    title={
+                      zernioConfigured
+                        ? `Connect a new ${label} account via Zernio`
+                        : 'Set ZERNIO_API_KEY first.'
+                    }
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-[12px] border border-[#262626] bg-surface-2 px-3 py-2.5 text-[13px] font-medium text-ink transition hover:border-[#0099ff]/50 hover:bg-[#222] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-[#262626] disabled:hover:bg-surface-2"
+                  >
+                    <Plus size={14} />
+                    Connect {isConnected ? 'another' : label}
+                  </button>
+                </form>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
     </div>
+  );
+}
+
+function ConnectErrorBanner({
+  platform,
+  message,
+  code,
+  billingUrl,
+}: {
+  platform: string;
+  message: string;
+  code?: string;
+  billingUrl?: string;
+}) {
+  // X/Twitter requires Zernio billing because the X API charges Zernio
+  // per-call. Surface this explicitly so the operator knows it's not our
+  // app's failure — and link straight to Zernio's billing page.
+  const isPaymentRequired = code === 'PAYMENT_REQUIRED';
+  return (
+    <div
+      className="mb-6 rounded-[16px] border border-[#ff7a3d]/40 bg-[#ff7a3d]/[0.06] p-4"
+      role="alert"
+    >
+      <div className="flex items-start gap-3">
+        <span className="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#ff7a3d]/15 text-[#ff7a3d] ring-1 ring-[#ff7a3d]/30">
+          !
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-[14px] font-medium text-ink">
+            Couldn&apos;t start the <span className="capitalize">{platform}</span> connection
+          </p>
+          <p className="mt-1 text-[13px] leading-[1.5] text-ink-muted">{message}</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {isPaymentRequired && billingUrl ? (
+              <a
+                href={billingUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex h-9 items-center gap-1.5 rounded-full bg-[#0099ff] px-3.5 text-[12px] font-medium text-white transition hover:bg-[#1aa6ff]"
+              >
+                Set up Zernio billing
+              </a>
+            ) : null}
+            <a
+              href="/accounts"
+              className="inline-flex h-9 items-center gap-1.5 rounded-full border border-[#262626] bg-surface-2 px-3.5 text-[12px] font-medium text-ink transition hover:border-[#444]"
+            >
+              Dismiss
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StatusPill({
+  tone,
+  title,
+  children,
+}: {
+  tone: 'info' | 'warn' | 'err' | 'ok';
+  title?: string;
+  children: React.ReactNode;
+}) {
+  const dot = {
+    info: 'bg-[#0099ff]',
+    warn: 'bg-[#ff7a3d]',
+    err: 'bg-[#ff5577]',
+    ok: 'bg-[#22c55e]',
+  }[tone];
+  return (
+    <span
+      title={title}
+      className="inline-flex items-center gap-2 rounded-full bg-surface-1 px-3 py-1.5 text-[12px] text-ink"
+    >
+      <span className={`h-1.5 w-1.5 rounded-full ${dot}`} />
+      {children}
+    </span>
   );
 }
