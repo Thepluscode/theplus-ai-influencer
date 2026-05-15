@@ -147,3 +147,70 @@ export async function deletePost(postId: string): Promise<void> {
     throw new Error(`Failed to delete post: ${error.message}`);
   }
 }
+
+// -----------------------------------------------------------------------------
+// Public share links
+// -----------------------------------------------------------------------------
+
+/**
+ * Generate (or return existing) share token for a post the caller owns.
+ * RLS on UPDATE already restricts this to the workspace owner.
+ */
+export async function enablePostSharing(postId: string): Promise<string> {
+  const supabase = await getSupabaseServerClient();
+
+  const existing = await supabase
+    .from('posts')
+    .select('share_token')
+    .eq('id', postId)
+    .maybeSingle();
+  if (existing.error) {
+    throw new Error(`Failed to load post for share: ${existing.error.message}`);
+  }
+  if (!existing.data) {
+    throw new Error('Post not found.');
+  }
+  if (existing.data.share_token) {
+    return existing.data.share_token;
+  }
+
+  const token = crypto.randomUUID();
+  const { error } = await supabase
+    .from('posts')
+    .update({ share_token: token })
+    .eq('id', postId);
+
+  if (error) {
+    throw new Error(`Failed to enable sharing: ${error.message}`);
+  }
+  return token;
+}
+
+export async function disablePostSharing(postId: string): Promise<void> {
+  const supabase = await getSupabaseServerClient();
+  const { error } = await supabase
+    .from('posts')
+    .update({ share_token: null })
+    .eq('id', postId);
+  if (error) {
+    throw new Error(`Failed to disable sharing: ${error.message}`);
+  }
+}
+
+/**
+ * Public-facing read by share token. Relies on the
+ * "anyone can read shared posts" RLS policy added in 0004_post_share_token.sql
+ * — the anon client cannot see non-shared rows even with this query.
+ */
+export async function getPostByShareToken(token: string): Promise<PostRow | null> {
+  const supabase = await getSupabaseServerClient();
+  const { data, error } = await supabase
+    .from('posts')
+    .select('*')
+    .eq('share_token', token)
+    .maybeSingle();
+  if (error) {
+    throw new Error(`Failed to load shared post: ${error.message}`);
+  }
+  return data;
+}
