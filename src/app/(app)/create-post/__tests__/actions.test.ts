@@ -37,6 +37,11 @@ vi.mock('@/lib/workspace', () => ({
   getOrCreateCurrentWorkspace: vi.fn(async () => ({ id: 'ws-1' })),
 }));
 
+const dispatchWorkspaceWebhookEvent = vi.fn();
+vi.mock('@/lib/workspace-webhooks', () => ({
+  dispatchWorkspaceWebhookEvent: (...args: unknown[]) => dispatchWorkspaceWebhookEvent(...args),
+}));
+
 vi.mock('@/lib/supabase/server', () => ({
   getSupabaseServerClient: vi.fn(async () => ({
     auth: {
@@ -103,9 +108,44 @@ beforeEach(() => {
   createPost.mockReset();
   deletePost.mockReset();
   pickAccountsForPlatforms.mockReset();
+  dispatchWorkspaceWebhookEvent.mockReset();
+  dispatchWorkspaceWebhookEvent.mockResolvedValue({ attempted: 0, delivered: 0, failed: 0 });
 });
 
 describe('scheduleAndPublishAction — rollback on DB failure after Zernio succeeds', () => {
+  it('dispatches scheduled and published webhooks when schedule-now reaches Zernio', async () => {
+    saveDraftPost.mockResolvedValue({ id: 'post-1', zernio_post_id: null });
+    updatePostSchedule
+      .mockResolvedValueOnce({ id: 'post-1' })
+      .mockResolvedValueOnce({ id: 'post-1', zernio_post_id: 'zern-remote-1' });
+
+    getDefaultZernioProfileId.mockResolvedValue('profile-1');
+    listAccounts.mockResolvedValue([{ _id: 'a1', platform: 'instagram', isActive: true }]);
+    pickAccountsForPlatforms.mockReturnValue({
+      resolved: [{ _id: 'a1', platform: 'instagram' }],
+      missing: [],
+    });
+    createPost.mockResolvedValue({ _id: 'zern-remote-1' });
+
+    const result = await scheduleAndPublishAction(null, makeFormData());
+
+    expect(result.status).toBe('scheduled');
+    expect(dispatchWorkspaceWebhookEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        workspaceId: 'ws-1',
+        event: 'post.scheduled',
+        payload: expect.objectContaining({ postId: 'post-1' }),
+      }),
+    );
+    expect(dispatchWorkspaceWebhookEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        workspaceId: 'ws-1',
+        event: 'post.published',
+        payload: expect.objectContaining({ postId: 'post-1' }),
+      }),
+    );
+  });
+
   it('calls zernio.deletePost when the zernio_post_id write fails, returns partial', async () => {
     saveDraftPost.mockResolvedValue({ id: 'post-1', zernio_post_id: null });
     updatePostSchedule
@@ -126,6 +166,13 @@ describe('scheduleAndPublishAction — rollback on DB failure after Zernio succe
     expect(createPost).toHaveBeenCalledTimes(1);
     expect(deletePost).toHaveBeenCalledTimes(1);
     expect(deletePost).toHaveBeenCalledWith('zern-remote-1');
+    expect(dispatchWorkspaceWebhookEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        workspaceId: 'ws-1',
+        event: 'post.scheduled',
+        payload: expect.objectContaining({ postId: 'post-1' }),
+      }),
+    );
     expect(result.status).toBe('partial');
     if (result.status === 'partial') {
       expect(result.postId).toBe('post-1');
@@ -170,16 +217,14 @@ describe('scheduleAndPublishAction — idempotency via retry postId', () => {
       scheduled_for: '2026-01-01T12:00:00.000Z',
     });
 
-    const result = await scheduleAndPublishAction(
-      null,
-      makeFormData({ postId: 'post-existing' }),
-    );
+    const result = await scheduleAndPublishAction(null, makeFormData({ postId: 'post-existing' }));
 
     expect(getPostById).toHaveBeenCalledWith('post-existing');
     expect(saveDraftPost).not.toHaveBeenCalled();
     expect(updatePostSchedule).not.toHaveBeenCalled();
     expect(createPost).not.toHaveBeenCalled();
     expect(deletePost).not.toHaveBeenCalled();
+    expect(dispatchWorkspaceWebhookEvent).not.toHaveBeenCalled();
     expect(result.status).toBe('scheduled');
     if (result.status === 'scheduled') {
       expect(result.postId).toBe('post-existing');
@@ -191,10 +236,7 @@ describe('scheduleAndPublishAction — idempotency via retry postId', () => {
   it('returns an error if the retry postId points to a missing row', async () => {
     getPostById.mockResolvedValue(null);
 
-    const result = await scheduleAndPublishAction(
-      null,
-      makeFormData({ postId: 'post-missing' }),
-    );
+    const result = await scheduleAndPublishAction(null, makeFormData({ postId: 'post-missing' }));
 
     expect(saveDraftPost).not.toHaveBeenCalled();
     expect(createPost).not.toHaveBeenCalled();

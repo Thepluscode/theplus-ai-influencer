@@ -70,6 +70,10 @@ export function buildPostPrompt(
   const scene = input.scene.trim() ? `Scene: ${input.scene.trim()}.` : '';
   const outfit = input.outfit.trim() ? `Outfit: ${input.outfit.trim()}.` : '';
   const props = input.props.trim() ? `Props: ${input.props.trim()}.` : '';
+  const brandVibe = input.brandVibe?.trim() ? `Brand vibe: ${input.brandVibe.trim()}.` : '';
+  const brandPalette = input.brandPalette?.trim()
+    ? `Color palette: ${input.brandPalette.trim()}.`
+    : '';
   const tone = TONE_DESCRIPTORS[input.brandTone];
   const ctaHint = CTA_HINT[input.cta];
   const brief = input.brief.trim();
@@ -80,6 +84,8 @@ export function buildPostPrompt(
     scene,
     outfit,
     props,
+    brandVibe,
+    brandPalette,
     `Goal: ${GOAL_HINT[input.postGoal]}.`,
     `Lighting: ${LIGHTING_HINT[input.lighting]}.`,
     `Mood: ${tone}.`,

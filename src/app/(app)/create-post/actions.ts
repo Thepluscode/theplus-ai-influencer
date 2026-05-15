@@ -14,6 +14,7 @@ import { getPostById, saveDraftPost, updatePostSchedule } from '@/lib/posts';
 import type { PostRow } from '@/lib/supabase/types';
 import { getSupabaseServerClient } from '@/lib/supabase/server';
 import { getOrCreateCurrentWorkspace } from '@/lib/workspace';
+import { dispatchWorkspaceWebhookEvent } from '@/lib/workspace-webhooks';
 import { serverEnv } from '@/lib/env';
 import {
   getDefaultZernioProfileId,
@@ -51,6 +52,8 @@ function readBrief(formData: FormData): Record<string, unknown> {
     outfit: formData.get('outfit') ?? '',
     props: formData.get('props') ?? '',
     brandTone: formData.get('brandTone'),
+    brandVibe: formData.get('brandVibe'),
+    brandPalette: formData.get('brandPalette'),
     cta: formData.get('cta'),
     uploadedImageUrl: formData.get('uploadedImageUrl') ?? '',
     productRefUrls,
@@ -303,7 +306,8 @@ export async function reformatCaptionAction(
   if (typeof hashtagsJson === 'string' && hashtagsJson) {
     try {
       const parsed = JSON.parse(hashtagsJson);
-      if (Array.isArray(parsed)) hashtags = parsed.filter((h): h is string => typeof h === 'string');
+      if (Array.isArray(parsed))
+        hashtags = parsed.filter((h): h is string => typeof h === 'string');
     } catch {
       // hashtags are optional — ignore parse failures
     }
@@ -413,8 +417,7 @@ export async function scheduleAndPublishAction(
       return { status: 'error', error: 'Not signed in.' };
     }
     const ws = await getOrCreateCurrentWorkspace(user);
-    const caption =
-      typeof captionRaw === 'string' && captionRaw.trim() ? captionRaw.trim() : null;
+    const caption = typeof captionRaw === 'string' && captionRaw.trim() ? captionRaw.trim() : null;
 
     // 1. Always persist locally first so the operator's draft survives any
     //    Zernio outage. On retry (postId present in formData) we reuse the
@@ -430,8 +433,7 @@ export async function scheduleAndPublishAction(
         return {
           status: 'scheduled',
           postId: existing.id,
-          scheduledFor:
-            existing.scheduled_for ?? (scheduledFor ?? new Date()).toISOString(),
+          scheduledFor: existing.scheduled_for ?? (scheduledFor ?? new Date()).toISOString(),
           pushedToZernio: true,
         };
       }
@@ -515,13 +517,54 @@ export async function scheduleAndPublishAction(
     }
 
     revalidatePath('/calendar');
+    const scheduledIso = (scheduledFor as Date).toISOString();
+    const webhookSummary = await dispatchWorkspaceWebhookEvent({
+      workspaceId: ws.id,
+      event: 'post.scheduled',
+      payload: {
+        postId: saved.id,
+        campaignName: brief.name,
+        scheduledFor: scheduledIso,
+        platforms: brief.platforms,
+        pushedToZernio,
+      },
+    });
+    if (webhookSummary.failed > 0) {
+      console.error('One or more workspace webhooks failed for post.scheduled', {
+        workspaceId: ws.id,
+        postId: saved.id,
+        attempted: webhookSummary.attempted,
+        failed: webhookSummary.failed,
+      });
+    }
+    if (mode === 'now' && pushedToZernio) {
+      const publishWebhookSummary = await dispatchWorkspaceWebhookEvent({
+        workspaceId: ws.id,
+        event: 'post.published',
+        payload: {
+          postId: saved.id,
+          campaignName: brief.name,
+          publishedAt: scheduledIso,
+          platforms: brief.platforms,
+        },
+      });
+      if (publishWebhookSummary.failed > 0) {
+        console.error('One or more workspace webhooks failed for post.published', {
+          workspaceId: ws.id,
+          postId: saved.id,
+          attempted: publishWebhookSummary.attempted,
+          failed: publishWebhookSummary.failed,
+        });
+      }
+    }
+
     if (warning) {
       return { status: 'partial', postId: saved.id, warning };
     }
     return {
       status: 'scheduled',
       postId: saved.id,
-      scheduledFor: (scheduledFor as Date).toISOString(),
+      scheduledFor: scheduledIso,
       pushedToZernio,
     };
   } catch (err) {

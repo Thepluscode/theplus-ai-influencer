@@ -84,6 +84,19 @@ describe('buildPostPrompt', () => {
     expect(playful).not.toBe(luxe);
   });
 
+  it('includes workspace brand vibe and palette when supplied', () => {
+    const prompt = buildPostPrompt(
+      {
+        ...baseBrief,
+        brandVibe: 'cinematic creator-led trust',
+        brandPalette: 'electric blue, signal green, studio black',
+      },
+      model,
+    );
+    expect(prompt).toContain('Brand vibe: cinematic creator-led trust');
+    expect(prompt).toContain('Color palette: electric blue, signal green, studio black');
+  });
+
   it('translates the CTA into a composition hint', () => {
     const shop = buildPostPrompt(baseBrief, model);
     const dm = buildPostPrompt({ ...baseBrief, cta: 'dm_me' }, model);
@@ -100,7 +113,9 @@ describe('buildPostPrompt', () => {
   it('includes the chosen format in the opening line', () => {
     expect(buildPostPrompt(baseBrief, model)).toMatch(/square format/);
     expect(buildPostPrompt({ ...baseBrief, format: 'portrait' }, model)).toMatch(/portrait format/);
-    expect(buildPostPrompt({ ...baseBrief, format: 'landscape' }, model)).toMatch(/landscape format/);
+    expect(buildPostPrompt({ ...baseBrief, format: 'landscape' }, model)).toMatch(
+      /landscape format/,
+    );
   });
 });
 
