@@ -38,9 +38,9 @@ export default async function StudioNewPage() {
   }
 
   return (
-    <div className="min-h-full bg-[#070707] text-ink">
-      <div className="px-5 py-5 lg:px-6 lg:py-6">
-        <header className="mb-6 border-b border-[#1b1b1b] pb-5">
+    <div className="app-page text-ink">
+      <div className="app-page-inner">
+        <header className="app-page-header">
           <Link
             href="/studio"
             className="mb-4 inline-flex items-center gap-1.5 text-[12px] text-ink-muted transition hover:text-ink"

@@ -8,8 +8,10 @@ import {
   type CaptionsResult,
   type PlatformVariant,
 } from '@/lib/captions';
+import { type SafetyIssue } from '@/lib/brand-safety';
 import { consumeCredits, COSTS, refundCredits } from '@/lib/credits';
 import { generatePostVariants } from '@/lib/luma-post';
+import { runPublishBrandSafetyGate } from '@/lib/publish-safety';
 import { getPostById, saveDraftPost, updatePostSchedule } from '@/lib/posts';
 import type { PostRow } from '@/lib/supabase/types';
 import { getSupabaseServerClient } from '@/lib/supabase/server';
@@ -349,8 +351,16 @@ export async function reformatCaptionAction(
 export type SchedulePostState =
   | { status: 'idle' }
   | { status: 'error'; error: string }
+  | { status: 'insufficient_credits'; postId: string; balance: number; required: number }
+  | { status: 'blocked'; postId: string; summary: string; issues: SafetyIssue[] }
   | { status: 'partial'; postId: string; warning: string }
-  | { status: 'scheduled'; postId: string; scheduledFor: string; pushedToZernio: boolean }
+  | {
+      status: 'scheduled';
+      postId: string;
+      scheduledFor: string;
+      pushedToZernio: boolean;
+      safetyNote?: string;
+    }
   | { status: 'saved_draft'; postId: string };
 
 export async function scheduleAndPublishAction(
@@ -465,6 +475,9 @@ export async function scheduleAndPublishAction(
     //    schedule went through but the cross-poster needs attention.
     let pushedToZernio = false;
     let warning: string | null = null;
+    // Set when the brand-safety auditor returns a non-blocking "warn" so the
+    // operator still sees it on an otherwise-successful publish.
+    let safetyNote: string | null = null;
     if (!serverEnv.ZERNIO_API_KEY) {
       warning = 'ZERNIO_API_KEY not configured — saved locally, but no cross-platform push.';
     } else if (brief.platforms.length === 0) {
@@ -478,6 +491,37 @@ export async function scheduleAndPublishAction(
         if (resolved.length === 0) {
           warning = `None of the selected platforms are connected (${missing.join(', ')}). Connect them in /accounts to publish.`;
         } else {
+          // Brand-safety gate — audit before anything reaches a platform.
+          // Fail-closed: a check error OR a "block" verdict stops the publish.
+          // The local draft is already saved, so the operator can fix the
+          // caption and retry from the same row.
+          const gate = await runPublishBrandSafetyGate({
+            workspaceId: ws.id,
+            postId: saved.id,
+            caption,
+            imageUrl: variants[0]?.url ?? null,
+            platforms: brief.platforms,
+            personaVibe: brief.brandVibe,
+          });
+          if (!gate.ok) {
+            if (gate.reason === 'insufficient_credits') {
+              return {
+                status: 'insufficient_credits',
+                postId: saved.id,
+                balance: gate.balance,
+                required: gate.required,
+              };
+            }
+            if (gate.reason === 'blocked') {
+              return { status: 'blocked', postId: saved.id, summary: gate.summary, issues: gate.issues };
+            }
+            return {
+              status: 'error',
+              error: `Brand-safety check failed, so nothing was published: ${gate.error}`,
+            };
+          }
+          if (gate.note) safetyNote = gate.note;
+
           const zernioPost = await zernio.createPost({
             content: caption ?? '',
             platforms: resolved as ZernioPlatformTarget[],
@@ -559,13 +603,15 @@ export async function scheduleAndPublishAction(
     }
 
     if (warning) {
-      return { status: 'partial', postId: saved.id, warning };
+      const combined = safetyNote ? `${warning} · Brand safety: ${safetyNote}` : warning;
+      return { status: 'partial', postId: saved.id, warning: combined };
     }
     return {
       status: 'scheduled',
       postId: saved.id,
       scheduledFor: scheduledIso,
       pushedToZernio,
+      safetyNote: safetyNote ?? undefined,
     };
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Schedule failed';

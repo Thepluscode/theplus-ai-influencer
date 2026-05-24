@@ -130,7 +130,9 @@ export function LivePreview({
                 ) : (
                   <p className="mt-1 text-[12px] text-ink-muted">
                     <span className="font-semibold text-ink">{username}</span>{' '}
-                    <span className="italic">Caption will appear here once you generate / pick one.</span>
+                    <span className="italic">
+                      Caption will appear here once you generate / pick one.
+                    </span>
                   </p>
                 )}
                 <p className="mt-1 text-[10px] uppercase tracking-wider text-ink-muted">

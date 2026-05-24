@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { format } from 'date-fns';
-import { ArrowUpRight, Film, Plus, Trash2 } from 'lucide-react';
+import { ArrowUpRight, Film, Plus } from 'lucide-react';
 import { publicEnv } from '@/lib/env';
 import { listStoryboards } from '@/lib/storyboards';
 import { getSupabaseServerClient } from '@/lib/supabase/server';
@@ -8,7 +8,7 @@ import type { StoryboardRow } from '@/lib/supabase/types';
 import { getOrCreateCurrentWorkspace } from '@/lib/workspace';
 import type { RenderedShot } from '@/lib/storyboard';
 import { cn } from '@/lib/utils';
-import { deleteStoryboardAction } from './actions';
+import { DeleteStoryboardButton } from './delete-storyboard-button';
 
 export default async function StoryboardIndexPage() {
   const supabaseConfigured = Boolean(
@@ -34,9 +34,9 @@ export default async function StoryboardIndexPage() {
   }
 
   return (
-    <div className="min-h-full bg-[#070707] text-ink">
-      <div className="px-5 py-5 lg:px-6 lg:py-6">
-        <header className="mb-6 flex flex-wrap items-end justify-between gap-4 border-b border-[#1b1b1b] pb-5">
+    <div className="app-page text-ink">
+      <div className="app-page-inner">
+        <header className="app-page-header flex flex-wrap items-end justify-between gap-4">
           <div className="max-w-2xl">
             <p className="framer-eyebrow">Storyboard</p>
             <h1 className="mt-2 text-[28px] font-medium leading-[1.05] tracking-normal text-balance sm:text-[32px]">
@@ -134,22 +134,7 @@ function StoryboardCard({ sb }: { sb: StoryboardRow }) {
           <ArrowUpRight size={14} className="shrink-0 text-ink-muted group-hover:text-ink" />
         </div>
       </Link>
-      <form action={deleteStoryboardAction} className="absolute right-2 top-2 z-10">
-        <input type="hidden" name="storyboardId" value={sb.id} />
-        <button
-          type="submit"
-          onClick={(e) => {
-            if (typeof window !== 'undefined' && !window.confirm('Delete this storyboard?')) {
-              e.preventDefault();
-            }
-          }}
-          className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-[#262626] bg-surface-2 text-ink-muted opacity-0 transition group-hover:opacity-100 hover:border-[#ff5577]/40 hover:bg-[#ff5577]/10 hover:text-[#ff5577]"
-          aria-label="Delete storyboard"
-          title="Delete storyboard"
-        >
-          <Trash2 size={11} />
-        </button>
-      </form>
+      <DeleteStoryboardButton storyboardId={sb.id} />
     </li>
   );
 }

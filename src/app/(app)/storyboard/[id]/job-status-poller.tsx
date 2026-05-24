@@ -24,12 +24,7 @@ import { Loader2, AlertTriangle, CheckCircle2, Film } from 'lucide-react';
  */
 
 interface JobStatus {
-  status:
-    | 'none'
-    | 'pending'
-    | 'processing'
-    | 'completed'
-    | 'failed';
+  status: 'none' | 'pending' | 'processing' | 'completed' | 'failed';
   shotsCompleted?: number;
   shotsTotal?: number;
   lastError?: string | null;
@@ -82,10 +77,7 @@ export function JobStatusPoller({
         // Terminal transition → refresh once more so the page re-renders
         // with the AnimateButton in its final state and the badge in the
         // header recomputes.
-        if (
-          !TERMINAL.includes(state.status) &&
-          TERMINAL.includes(next.status)
-        ) {
+        if (!TERMINAL.includes(state.status) && TERMINAL.includes(next.status)) {
           router.refresh();
         }
         setState(next);
@@ -119,9 +111,7 @@ export function JobStatusPoller({
         <div className="flex-1">
           <p className="font-medium">Animation failed</p>
           {state.lastError ? (
-            <p className="mt-1 text-[12px] leading-[1.45] text-[#fca5a5]/80">
-              {state.lastError}
-            </p>
+            <p className="mt-1 text-[12px] leading-[1.45] text-[#fca5a5]/80">{state.lastError}</p>
           ) : null}
           <p className="mt-1 text-[11px] text-[#fca5a5]/70">
             Credits for unrendered shots have been refunded. Try again when ready.
@@ -138,7 +128,9 @@ export function JobStatusPoller({
       <div className="flex items-center gap-3">
         <Loader2 size={16} className="animate-spin text-[#a855f7]" />
         <p className="flex-1 text-[13px] font-medium text-[#e9d5ff]">
-          {isPending ? 'Queued — waiting for worker tick…' : `Animating shot ${completed + 1} of ${total}`}
+          {isPending
+            ? 'Queued — waiting for worker tick…'
+            : `Animating shot ${completed + 1} of ${total}`}
         </p>
         <span className="inline-flex items-center gap-1 text-[11px] uppercase tracking-wider text-[#e9d5ff]/80">
           <Film size={11} />
@@ -152,7 +144,8 @@ export function JobStatusPoller({
         />
       </div>
       <p className="text-[11px] leading-[1.4] text-[#e9d5ff]/70">
-        Each shot ≈ 60–90s via Luma Dream Machine. Completed shots appear in the reel above as they render.
+        Each shot ≈ 60–90s via Luma Dream Machine. Completed shots appear in the reel above as they
+        render.
       </p>
     </div>
   );

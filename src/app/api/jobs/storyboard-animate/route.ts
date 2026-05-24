@@ -59,10 +59,7 @@ export async function POST(req: NextRequest) {
   try {
     job = await claimNextRenderJob();
   } catch (err) {
-    return NextResponse.json(
-      { error: 'claim failed', detail: toMessage(err) },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: 'claim failed', detail: toMessage(err) }, { status: 500 });
   }
   if (!job) {
     return NextResponse.json({ ran: false, reason: 'empty queue' });
@@ -112,11 +109,7 @@ export async function POST(req: NextRequest) {
       format: sb.format as PostFormat,
     });
   } catch (err) {
-    const refundAmount = remainingCost(
-      job.shots_total,
-      job.shots_completed,
-      job.cost_per_shot,
-    );
+    const refundAmount = remainingCost(job.shots_total, job.shots_completed, job.cost_per_shot);
     const msg = toMessage(err);
     await markJobFailed(job.id, msg, refundAmount);
     if (refundAmount > 0) {
@@ -176,20 +169,13 @@ function isAuthorized(header: string): boolean {
   const token = header.startsWith('Bearer ') ? header.slice(7) : '';
   if (!token) return false;
   if (serverEnv.CRON_SECRET && token === serverEnv.CRON_SECRET) return true;
-  if (
-    serverEnv.SUPABASE_SERVICE_ROLE_KEY &&
-    token === serverEnv.SUPABASE_SERVICE_ROLE_KEY
-  ) {
+  if (serverEnv.SUPABASE_SERVICE_ROLE_KEY && token === serverEnv.SUPABASE_SERVICE_ROLE_KEY) {
     return true;
   }
   return false;
 }
 
-function remainingCost(
-  shotsTotal: number,
-  shotsCompleted: number,
-  costPerShot: number,
-): number {
+function remainingCost(shotsTotal: number, shotsCompleted: number, costPerShot: number): number {
   return Math.max(0, (shotsTotal - shotsCompleted) * costPerShot);
 }
 

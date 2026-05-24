@@ -20,7 +20,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   }
 
   return (
-    <div className="relative flex h-dvh overflow-hidden bg-[#070707] text-ink">
+    <div className="relative flex h-dvh overflow-hidden bg-[#050505] text-ink">
       <Sidebar userEmail={userEmail} />
       <main className="relative min-w-0 flex-1 overflow-hidden">
         <AppTopbar
@@ -30,7 +30,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             </div>
           }
         />
-        <div className="h-[calc(100dvh-65px)] overflow-y-auto bg-[#070707]">{children}</div>
+        <div className="app-workspace-scroll h-[calc(100dvh-65px)] overflow-y-auto">{children}</div>
       </main>
     </div>
   );

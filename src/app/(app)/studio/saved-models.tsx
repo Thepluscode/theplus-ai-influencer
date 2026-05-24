@@ -8,7 +8,7 @@ import type { AiModelRow } from '@/lib/supabase/types';
 function reachEstimate(id: string): { low: string; high: string } {
   const hash = simpleHash(id);
   const baseK = 3 + (hash % 12); // 3k – 14k
-  const high = baseK + 8 + (hash >> 4) % 30; // base + 8–37
+  const high = baseK + 8 + ((hash >> 4) % 30); // base + 8–37
   return {
     low: `${baseK}.${hash % 10}k`,
     high: `${high}k`,

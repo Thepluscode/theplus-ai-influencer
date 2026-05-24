@@ -1,11 +1,4 @@
-import type {
-  BrandTone,
-  CTA,
-  LightingStyle,
-  Platform,
-  PostFormat,
-  PostGoal,
-} from '@/types/post';
+import type { BrandTone, CTA, LightingStyle, Platform, PostFormat, PostGoal } from '@/types/post';
 
 // ---------------------------------------------------------------------------
 // Trend catalog — v1 of the Trend Synthesizer (STRATEGY.md §AI roadmap).
@@ -152,7 +145,7 @@ export const TRENDS: Trend[] = [
     trendingSince: '2026-04-10',
     prefill: {
       brief:
-        'Top-down hero shot of an aspirational but achievable desk setup. Every prop on the desk has a reason — show, don\'t tell. Final caption lists the 3 items the persona refuses to work without.',
+        "Top-down hero shot of an aspirational but achievable desk setup. Every prop on the desk has a reason — show, don't tell. Final caption lists the 3 items the persona refuses to work without.",
       scene: 'overhead desk shot, walnut wood surface, soft window light from one side',
       outfit: '—',
       props: 'laptop, ceramic mug, small plant, leather notebook, mechanical pencil',
@@ -248,7 +241,7 @@ export const TRENDS: Trend[] = [
     trendingSince: '2026-03-15',
     prefill: {
       brief:
-        'Single hero shot, persona\'s face is bare on the left, fully done up on the right. Sharp dividing line down the middle of the frame. Caption names the 3 products that did the visible work.',
+        "Single hero shot, persona's face is bare on the left, fully done up on the right. Sharp dividing line down the middle of the frame. Caption names the 3 products that did the visible work.",
       scene: 'plain neutral backdrop, dramatic side light',
       outfit: 'shoulders bare or simple top',
       props: 'product line-up tucked into corner of frame',
@@ -315,7 +308,7 @@ export const TRENDS: Trend[] = [
     category: 'business',
     platforms: ['linkedin', 'twitter', 'youtube'],
     description:
-      'Single-take selfie video summarizing the week\'s wins/losses/numbers. No edits, no music.',
+      "Single-take selfie video summarizing the week's wins/losses/numbers. No edits, no music.",
     why: 'LinkedIn impressions for first-person founder updates are up 140% post-algorithm change.',
     trendingSince: '2026-04-19',
     prefill: {
@@ -324,7 +317,7 @@ export const TRENDS: Trend[] = [
       scene: 'home office, late afternoon, natural light',
       outfit: 'plain crewneck',
       props: 'optional: notebook with notes visible',
-      hook: 'Week 23: revenue is up, churn is up, here\'s what I\'m doing about both.',
+      hook: "Week 23: revenue is up, churn is up, here's what I'm doing about both.",
       postGoal: 'community',
       lighting: 'natural',
       format: 'square',

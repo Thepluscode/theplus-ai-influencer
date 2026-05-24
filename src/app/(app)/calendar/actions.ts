@@ -10,6 +10,7 @@ import {
   getPostById,
   updatePostSchedule,
 } from '@/lib/posts';
+import { describeSafetyBlock, runPublishBrandSafetyGate } from '@/lib/publish-safety';
 import { getSupabaseServerClient } from '@/lib/supabase/server';
 import {
   getDefaultZernioProfileId,
@@ -76,6 +77,39 @@ export async function reschedulePostAction(
     let zernioPostId: string | null | undefined = undefined; // undefined = leave column unchanged
     let warning: string | null = null;
 
+    // Brand-safety gate — run before any mutation, only when this reschedule
+    // will actually publish. Fail-closed: a block/error returns without
+    // touching the post or Zernio so the operator can fix the caption first.
+    let safetyNote: string | null = null;
+    if (when && zernioReady) {
+      const gate = await runPublishBrandSafetyGate({
+        workspaceId: post.workspace_id,
+        postId: post.id,
+        caption: parsed.data.caption ?? post.caption ?? null,
+        imageUrl: post.variants[0]?.url ?? null,
+        platforms: post.platforms,
+      });
+      if (!gate.ok) {
+        if (gate.reason === 'insufficient_credits') {
+          return {
+            status: 'error',
+            error: `Not enough credits for the brand-safety check — need ${gate.required}, you have ${gate.balance}. Top up to publish.`,
+          };
+        }
+        if (gate.reason === 'blocked') {
+          return {
+            status: 'error',
+            error: `Brand safety blocked this post: ${describeSafetyBlock(gate.summary, gate.issues)}`,
+          };
+        }
+        return {
+          status: 'error',
+          error: `Brand-safety check failed, so nothing was published: ${gate.error}`,
+        };
+      }
+      safetyNote = gate.note;
+    }
+
     // Detach any prior Zernio post first — covers reschedule + unschedule both.
     if (post.zernio_post_id) {
       try {
@@ -134,7 +168,11 @@ export async function reschedulePostAction(
     revalidatePath('/calendar');
 
     if (warning) {
-      return { status: 'partial', postId: updated.id, warning };
+      const combined = safetyNote ? `${warning} · Brand safety: ${safetyNote}` : warning;
+      return { status: 'partial', postId: updated.id, warning: combined };
+    }
+    if (safetyNote) {
+      return { status: 'partial', postId: updated.id, warning: `Brand safety: ${safetyNote}` };
     }
     return { status: 'saved', postId: updated.id, pushedToZernio: Boolean(when && zernioReady) };
   } catch (err) {

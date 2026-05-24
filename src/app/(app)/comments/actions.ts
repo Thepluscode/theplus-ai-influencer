@@ -6,10 +6,13 @@ import { listAiModels } from '@/lib/ai-models';
 import {
   classifyAndDraft,
   deleteComment as removeComment,
+  getCommentById,
   saveDraftedComment,
   updateCommentStatus,
 } from '@/lib/comments-engine';
 import { consumeCredits, COSTS, refundCredits } from '@/lib/credits';
+import { serverEnv } from '@/lib/env';
+import { getZernioClient } from '@/lib/zernio';
 import { PLATFORMS } from '@/types/post';
 import { getSupabaseServerClient } from '@/lib/supabase/server';
 import { getOrCreateCurrentWorkspace } from '@/lib/workspace';
@@ -68,9 +71,7 @@ export async function addPastedCommentAction(
 
     // Optional: thread the model's voice through the LLM if the operator
     // picked a persona. Otherwise default to a generic brand voice.
-    const models = parsed.data.modelId
-      ? await listAiModels(ws.id)
-      : [];
+    const models = parsed.data.modelId ? await listAiModels(ws.id) : [];
     const model = parsed.data.modelId
       ? models.find((m) => m.id === parsed.data.modelId)
       : undefined;
@@ -111,13 +112,35 @@ export async function addPastedCommentAction(
 
 export async function approveCommentAction(formData: FormData): Promise<void> {
   const id = formData.get('id');
-  const draft = formData.get('draft');
+  const draftRaw = formData.get('draft');
   if (typeof id !== 'string' || !id) return;
-  await updateCommentStatus(
-    id,
-    'replied',
-    typeof draft === 'string' ? draft : undefined,
-  );
+  const draft = typeof draftRaw === 'string' ? draftRaw : undefined;
+
+  const comment = await getCommentById(id);
+  if (!comment) return;
+  const message = (draft ?? comment.draft_reply ?? '').trim();
+
+  // Webhook-ingested comments carry Zernio provenance — post the reply back
+  // to the platform. Fail loudly so a failed send never gets marked "replied".
+  if (serverEnv.ZERNIO_API_KEY && comment.zernio_post_id && comment.zernio_account_id) {
+    if (!message) {
+      throw new Error('Write a reply before approving — empty replies are not posted.');
+    }
+    try {
+      await getZernioClient().replyToComment({
+        zernioPostId: comment.zernio_post_id,
+        accountId: comment.zernio_account_id,
+        message,
+        commentId: comment.external_id ?? undefined,
+      });
+    } catch (err) {
+      throw new Error(
+        `Reply not posted to ${comment.platform}: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+  }
+
+  await updateCommentStatus(id, 'replied', draft);
   revalidatePath('/comments');
 }
 

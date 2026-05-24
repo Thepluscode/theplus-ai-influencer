@@ -1,5 +1,6 @@
 import Link from 'next/link';
-import { CheckCircle2, Sparkles } from 'lucide-react';
+import { CheckCircle2 } from 'lucide-react';
+import { ThePlusTechBrand } from '@/components/brand/theplus-tech-logo';
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -9,10 +10,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           href="/"
           className="inline-flex w-fit items-center gap-2 text-[14px] font-medium tracking-tight text-ink"
         >
-          <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white text-black">
-            <Sparkles size={14} />
-          </span>
-          theplus.ai
+          <ThePlusTechBrand />
         </Link>
 
         <div className="mt-auto max-w-xl pb-8">
@@ -42,10 +40,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         <div className="w-full max-w-[390px] rounded-[18px] border border-[#262626] bg-surface-1 p-6 shadow-[0_30px_80px_-50px_rgba(0,0,0,0.9)]">
           <div className="mb-6 flex items-center justify-between gap-3 lg:hidden">
             <Link href="/" className="inline-flex items-center gap-2 text-[14px] font-medium">
-              <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white text-black">
-                <Sparkles size={14} />
-              </span>
-              theplus.ai
+              <ThePlusTechBrand />
             </Link>
             <span className="rounded-full bg-[#22c55e]/12 px-3 py-1 text-[10px] font-medium uppercase tracking-wider text-[#86efac] ring-1 ring-[#22c55e]/30">
               Review OS

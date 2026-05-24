@@ -82,8 +82,8 @@ export default async function StoryboardDetailPage({ params }: Props) {
   );
 
   return (
-    <div className="min-h-full bg-[#070707] text-ink">
-      <header className="sticky top-0 z-30 border-b border-[#171717] bg-[#070707]/92 px-6 py-3 backdrop-blur-xl lg:px-8">
+    <div className="app-page text-ink">
+      <header className="app-detail-header sticky top-0 z-30 px-6 py-3 backdrop-blur-xl lg:px-8">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
             <Link

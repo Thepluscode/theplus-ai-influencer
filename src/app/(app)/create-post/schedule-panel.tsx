@@ -85,14 +85,14 @@ export function SchedulePanel({
         <input type="hidden" name="variants" value={JSON.stringify(variants)} />
         <input type="hidden" name="caption" value={caption} />
         <input type="hidden" name="mode" value={mode} />
-        {mode === 'later' ? (
-          <input type="hidden" name="scheduledFor" value={scheduledFor} />
-        ) : null}
+        {mode === 'later' ? <input type="hidden" name="scheduledFor" value={scheduledFor} /> : null}
         {/* On retry after a partial result, send the existing postId so the
             server reuses the row instead of creating a duplicate draft — and
             short-circuits the Zernio publish if it already went through last
             time. */}
-        {state?.status === 'partial' ? (
+        {state?.status === 'partial' ||
+        state?.status === 'blocked' ||
+        state?.status === 'insufficient_credits' ? (
           <input type="hidden" name="postId" value={state.postId} />
         ) : null}
 
@@ -182,11 +182,53 @@ export function SchedulePanel({
           </p>
         ) : null}
         {state?.status === 'scheduled' ? (
-          <p className="rounded-[10px] border border-[#0099ff]/30 bg-[#0099ff]/[0.07] px-3 py-2 text-[12px] text-ink">
-            <Link2 size={11} className="-mt-px mr-1 inline text-[#0099ff]" />
-            {state.pushedToZernio
-              ? `Scheduled and pushed to connected platforms for ${format(new Date(state.scheduledFor), 'EEE MMM d, h:mm a')}.`
-              : `Saved for ${format(new Date(state.scheduledFor), 'EEE MMM d, h:mm a')} — Zernio push skipped.`}
+          <div className="rounded-[10px] border border-[#0099ff]/30 bg-[#0099ff]/[0.07] px-3 py-2 text-[12px] text-ink">
+            <p>
+              <Link2 size={11} className="-mt-px mr-1 inline text-[#0099ff]" />
+              {state.pushedToZernio
+                ? `Scheduled and pushed to connected platforms for ${format(new Date(state.scheduledFor), 'EEE MMM d, h:mm a')}.`
+                : `Saved for ${format(new Date(state.scheduledFor), 'EEE MMM d, h:mm a')} — Zernio push skipped.`}
+            </p>
+            {state.safetyNote ? (
+              <p className="mt-1 text-[11px] text-[#ff7a3d]">⚠ Brand safety: {state.safetyNote}</p>
+            ) : null}
+          </div>
+        ) : null}
+        {state?.status === 'blocked' ? (
+          <div
+            className="rounded-[10px] border border-[#ff5577]/40 bg-[#ff5577]/[0.07] px-3 py-2 text-[12px] text-[#ff5577]"
+            role="alert"
+          >
+            <p className="font-medium">Brand safety blocked this post — nothing was published.</p>
+            <p className="mt-0.5">{state.summary}</p>
+            {state.issues.length > 0 ? (
+              <ul className="mt-1.5 list-disc space-y-1 pl-4">
+                {state.issues.map((issue, i) => (
+                  <li key={i}>
+                    <span className="text-[10px] uppercase tracking-wide opacity-80">
+                      {issue.severity}
+                    </span>{' '}
+                    {issue.message}
+                    {issue.suggestion ? (
+                      <span className="block text-[11px] opacity-80">Fix: {issue.suggestion}</span>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+            <p className="mt-1.5 text-[11px] opacity-80">
+              Edit the caption to resolve these, then publish again — we&apos;ll resume from this
+              draft.
+            </p>
+          </div>
+        ) : null}
+        {state?.status === 'insufficient_credits' ? (
+          <p
+            className="rounded-[10px] border border-[#ff7a3d]/40 bg-[#ff7a3d]/[0.07] px-3 py-2 text-[12px] text-[#ff7a3d]"
+            role="alert"
+          >
+            Not enough credits for the brand-safety check — need {state.required}, you have{' '}
+            {state.balance}. Top up to publish.
           </p>
         ) : null}
         {state?.status === 'partial' ? (

@@ -109,15 +109,16 @@ export default async function DashboardPage() {
   ).length;
   const approvedCount = reviewQueue.filter((post) => post.review_status === 'approved').length;
   const finalCount = reviewQueue.filter((post) => post.review_status === 'final').length;
+  const reviewReadyCount = reviewQueue.filter((post) => post.share_token).length;
   const publicReviewHref = featuredPost?.share_token
     ? `/p/${featuredPost.share_token}`
     : '/storyboard';
 
   return (
-    <div className="min-h-full bg-[#070707] text-ink">
+    <div className="app-page text-ink">
       <div className="grid min-h-[calc(100dvh-65px)] xl:grid-cols-[minmax(0,1fr)_390px]">
         <section className="min-w-0 border-r border-[#1b1b1b]">
-          <header className="flex flex-wrap items-center justify-between gap-3 border-b border-[#1b1b1b] px-5 py-4 lg:px-6">
+          <header className="app-detail-header flex flex-wrap items-center justify-between gap-3 px-5 py-4 lg:px-6">
             <div className="min-w-0">
               <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-[#666]">
                 {heroEyebrow}
@@ -211,6 +212,7 @@ export default async function DashboardPage() {
           needsChangesCount={needsChangesCount}
           approvedCount={approvedCount}
           finalCount={finalCount}
+          reviewReadyCount={reviewReadyCount}
           publicReviewHref={publicReviewHref}
           modelsCount={models.length}
         />
@@ -229,6 +231,7 @@ function DashboardInspector({
   needsChangesCount,
   approvedCount,
   finalCount,
+  reviewReadyCount,
   publicReviewHref,
   modelsCount,
 }: {
@@ -241,6 +244,7 @@ function DashboardInspector({
   needsChangesCount: number;
   approvedCount: number;
   finalCount: number;
+  reviewReadyCount: number;
   publicReviewHref: string;
   modelsCount: number;
 }) {
@@ -259,10 +263,15 @@ function DashboardInspector({
         </div>
         <Link
           href={publicReviewHref}
-          className="inline-flex h-9 items-center gap-1.5 rounded-full bg-[#22c55e]/12 px-3 text-[11px] font-medium uppercase tracking-wider text-[#86efac] ring-1 ring-[#22c55e]/30 transition hover:bg-[#22c55e]/18"
+          className={cn(
+            'inline-flex h-9 items-center gap-1.5 rounded-full px-3 text-[11px] font-medium uppercase tracking-wider ring-1 transition',
+            featuredPost?.share_token
+              ? 'bg-[#22c55e]/12 text-[#86efac] ring-[#22c55e]/30 hover:bg-[#22c55e]/18'
+              : 'border border-[#262626] bg-surface-1 text-ink-muted ring-[#262626] hover:border-[#444] hover:text-ink',
+          )}
         >
           <CheckCircle2 size={12} />
-          Review link
+          {featuredPost?.share_token ? 'Review link' : 'Review room'}
         </Link>
       </div>
 
@@ -291,6 +300,15 @@ function DashboardInspector({
             active={activeStatus === 'approved'}
           />
           <DecisionCount label="Final" value={finalCount} active={activeStatus === 'final'} />
+        </div>
+
+        <div className="mt-3 rounded-[10px] border border-[#262626] bg-surface-2 px-3 py-2">
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-[10px] font-medium uppercase tracking-[0.14em] text-[#666]">
+              Review-ready links
+            </span>
+            <span className="text-[12px] font-medium text-[#86efac]">{reviewReadyCount}</span>
+          </div>
         </div>
 
         <div className="mt-3 rounded-[12px] border border-[#262626] bg-surface-2 p-3">
@@ -517,6 +535,12 @@ function QueueItem({
             >
               {formatReviewDecision(post.review_status)}
             </span>
+            {post.share_token ? (
+              <span className="inline-flex h-5 items-center gap-1 rounded-full bg-[#22c55e]/12 px-2 text-[10px] font-medium text-[#86efac] ring-1 ring-[#22c55e]/30">
+                <CheckCircle2 size={10} />
+                Link
+              </span>
+            ) : null}
             <span className="text-[10px] uppercase tracking-wider text-[#666]">
               V{post.review_version}
             </span>

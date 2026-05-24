@@ -1,5 +1,8 @@
 import { Plus } from 'lucide-react';
 import { serverEnv } from '@/lib/env';
+import { syncSocialAccounts } from '@/lib/social-accounts';
+import { getSupabaseServerClient } from '@/lib/supabase/server';
+import { getOrCreateCurrentWorkspace } from '@/lib/workspace';
 import {
   getDefaultZernioProfileId,
   getZernioClient,
@@ -42,6 +45,22 @@ export default async function AccountsPage({ searchParams }: AccountsPageProps) 
     } catch (err) {
       loadError = err instanceof Error ? err.message : 'Unknown Zernio error';
     }
+    // Keep the account → workspace map current so inbound DM webhooks can be
+    // attributed. Reuses the list above (no extra Zernio call); best-effort.
+    if (accounts.length > 0) {
+      try {
+        const supabase = await getSupabaseServerClient();
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (user) {
+          const ws = await getOrCreateCurrentWorkspace(user);
+          await syncSocialAccounts(ws.id, accounts);
+        }
+      } catch {
+        // non-fatal — the page still renders the connected accounts
+      }
+    }
   }
 
   const accountsByPlatform = new Map<string, ZernioAccount[]>();
@@ -54,9 +73,9 @@ export default async function AccountsPage({ searchParams }: AccountsPageProps) 
   const totalConnected = accounts.length;
 
   return (
-    <div className="min-h-full bg-[#070707] text-ink">
-      <div className="px-5 py-5 lg:px-6 lg:py-6">
-        <header className="mb-6 border-b border-[#1b1b1b] pb-5">
+    <div className="app-page text-ink">
+      <div className="app-page-inner">
+        <header className="app-page-header">
           <p className="framer-eyebrow">Accounts</p>
           <h1 className="mt-2 text-[28px] font-medium leading-[1.05] tracking-normal text-balance sm:text-[32px]">
             One workspace.

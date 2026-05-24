@@ -88,19 +88,18 @@ export async function consumeCredits(input: {
   // The Database types don't declare custom Postgres functions; cast to
   // any here rather than maintaining a hand-written Functions block. Real
   // type safety lives in the function's return shape below.
-  const { data, error } = await (supabase.rpc as unknown as (
-    fn: string,
-    params: Record<string, unknown>,
-  ) => Promise<{ data: number | null; error: { message: string } | null }>)(
-    'consume_credits',
-    {
-      p_workspace_id: input.workspaceId,
-      p_amount: input.amount,
-      p_reason: input.reason,
-      p_ref_kind: input.refKind ?? null,
-      p_ref_id: input.refId ?? null,
-    },
-  );
+  const { data, error } = await (
+    supabase.rpc as unknown as (
+      fn: string,
+      params: Record<string, unknown>,
+    ) => Promise<{ data: number | null; error: { message: string } | null }>
+  )('consume_credits', {
+    p_workspace_id: input.workspaceId,
+    p_amount: input.amount,
+    p_reason: input.reason,
+    p_ref_kind: input.refKind ?? null,
+    p_ref_id: input.refId ?? null,
+  });
   if (error) {
     throw new Error(`Credit consume failed: ${error.message}`);
   }
@@ -125,23 +124,27 @@ export async function refundCredits(input: {
 }): Promise<void> {
   if (input.amount === 0) return;
   const supabase = await getSupabaseServerClient();
-  const { error } = await (supabase.rpc as unknown as (
-    fn: string,
-    params: Record<string, unknown>,
-  ) => Promise<{ data: number | null; error: { message: string } | null }>)(
-    'grant_credits',
-    {
-      p_workspace_id: input.workspaceId,
-      p_amount: input.amount,
-      p_reason: 'refund' as CreditReason,
-    },
-  );
+  const { error } = await (
+    supabase.rpc as unknown as (
+      fn: string,
+      params: Record<string, unknown>,
+    ) => Promise<{ data: number | null; error: { message: string } | null }>
+  )('grant_credits', {
+    p_workspace_id: input.workspaceId,
+    p_amount: input.amount,
+    p_reason: 'refund' as CreditReason,
+  });
   if (error) {
     // Log loudly — refund failures shouldn't poison the caller's UX but
     // we want them visible for manual reconciliation.
     console.error(
       '[credits] refund failed',
-      { workspaceId: input.workspaceId, amount: input.amount, refKind: input.refKind, refId: input.refId },
+      {
+        workspaceId: input.workspaceId,
+        amount: input.amount,
+        refKind: input.refKind,
+        refId: input.refId,
+      },
       error,
     );
   }

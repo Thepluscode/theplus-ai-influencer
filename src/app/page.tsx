@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { ArrowUpRight, Sparkles } from 'lucide-react';
+import { ThePlusTechBrand } from '@/components/brand/theplus-tech-logo';
 
 export default function LandingPage() {
   return (
@@ -9,10 +10,7 @@ export default function LandingPage() {
           href="/"
           className="inline-flex items-center gap-2 text-[14px] font-medium tracking-tight text-ink"
         >
-          <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-white text-black">
-            <Sparkles size={13} />
-          </span>
-          theplus.ai
+          <ThePlusTechBrand markClassName="h-7 w-7" />
         </Link>
         <div className="flex items-center gap-2">
           <Link
@@ -47,7 +45,7 @@ export default function LandingPage() {
               AI influencer platform
             </span>
             <h1 className="mt-6 max-w-3xl text-[58px] font-medium leading-[0.96] tracking-normal text-ink sm:text-[76px] lg:text-[92px]">
-              ThePlus.AI Influencer
+              ThePlus-tech Influencer
             </h1>
             <p className="mt-5 max-w-xl text-[16px] leading-[1.5] text-ink-muted">
               Cast a synthetic persona, generate cinematic visuals with Luma, plan a 30-day content
@@ -95,7 +93,7 @@ export default function LandingPage() {
 
       <footer className="mx-auto w-full max-w-6xl px-6 pb-8 pt-2 text-center lg:px-10">
         <p className="text-[11px] text-[#666]">
-          theplus.ai · review-grade creative operations for AI influencer campaigns
+          ThePlus-tech · review-grade creative operations for AI influencer campaigns
         </p>
       </footer>
     </main>

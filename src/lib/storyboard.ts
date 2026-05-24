@@ -8,10 +8,15 @@ import { FORMAT_TO_ASPECT, type PostFormat } from '@/types/post';
 // ---------------------------------------------------------------------------
 // Video Storyboarder — v3 of STRATEGY.md
 // ---------------------------------------------------------------------------
-// Given a model + brief, produces a 3-6 shot storyboard. Each shot is a
-// face-locked Luma image render. The output is the seed for a "reel mock"
-// — the UI cycles through the shots as a preview while we wait to wire
-// real video generation (Luma Dream Machine / Runway Gen-4).
+// Given a model + brief, produces a 3-6 shot reel in three phases:
+//   1. generateStoryboardScript — OpenAI breaks the brief into shot prompts.
+//   2. renderShots             — Luma (photon-1) renders a face-locked still
+//                                per shot via character_ref.
+//   3. animateSingleShot       — Luma (ray-flash-2) animates each still to a
+//                                short clip, driven async by the cron worker
+//                                (api/jobs/storyboard-animate), one shot per
+//                                invocation so no request is held open across
+//                                the whole reel.
 //
 // OPENAI_STUB / LUMA_STUB both bypass external calls for dev.
 // ---------------------------------------------------------------------------
@@ -184,13 +189,7 @@ function clampShotCount(n: number): number {
 
 function describePersona(m: AiModelRow): string {
   const w = m.wizard_input;
-  return [
-    w.gender,
-    w.bodyType,
-    `${w.skinTone} skin`,
-    w.ageRange,
-    `${w.vibe} aesthetic`,
-  ].join(', ');
+  return [w.gender, w.bodyType, `${w.skinTone} skin`, w.ageRange, `${w.vibe} aesthetic`].join(', ');
 }
 
 function normalizeScript(parsed: unknown, target: number): StoryboardScript {
@@ -226,23 +225,27 @@ function clampDuration(v: unknown): number {
 function stubScript(brief: string, target: number): StoryboardScript {
   const beats = [
     {
-      prompt: 'Wide cinematic establishing shot at golden hour, soft warm rim light, persona walking in.',
+      prompt:
+        'Wide cinematic establishing shot at golden hour, soft warm rim light, persona walking in.',
       hookCaption: 'this changed everything',
       durationMs: 2500,
     },
     {
-      prompt: 'Tight close-up on hands holding the product, shallow depth of field, neutral color grade.',
+      prompt:
+        'Tight close-up on hands holding the product, shallow depth of field, neutral color grade.',
       hookCaption: 'so I tried this',
       durationMs: 2000,
     },
     {
-      prompt: 'Medium shot, persona reacting to using/wearing the product, natural smile, hard rim light.',
+      prompt:
+        'Medium shot, persona reacting to using/wearing the product, natural smile, hard rim light.',
       hookCaption: 'and then →',
       durationMs: 2500,
     },
     {
-      prompt: 'Cinematic over-the-shoulder shot, persona looking out a window, soft blur in background.',
-      hookCaption: 'i\'m never going back',
+      prompt:
+        'Cinematic over-the-shoulder shot, persona looking out a window, soft blur in background.',
+      hookCaption: "i'm never going back",
       durationMs: 2500,
     },
     {
@@ -251,7 +254,8 @@ function stubScript(brief: string, target: number): StoryboardScript {
       durationMs: 3000,
     },
     {
-      prompt: 'Product detail still life on a clean surface, lifestyle props, magazine-cover finish.',
+      prompt:
+        'Product detail still life on a clean surface, lifestyle props, magazine-cover finish.',
       hookCaption: '',
       durationMs: 2000,
     },
@@ -285,69 +289,6 @@ function aspectForFormat(format: PostFormat): LumaAspect {
   if (format === 'portrait') return '9:16';
   if (format === 'landscape') return '16:9';
   return '1:1';
-}
-
-export async function animateShots(input: {
-  shots: RenderedShot[];
-  format: PostFormat;
-  /** Duration per clip — Luma supports 5s or 9s. */
-  durationSeconds?: 5 | 9;
-}): Promise<RenderedShot[]> {
-  const duration = input.durationSeconds ?? 5;
-
-  if (serverEnv.LUMA_STUB) {
-    return input.shots.map((s) => ({
-      ...s,
-      videoUrl: stubStoryboardVideo(s.index, input.shots.length),
-      videoGenerationId: `stub-video-${s.index}`,
-      videoDurationMs: duration * 1000,
-    }));
-  }
-
-  const client = getLumaClient();
-  const aspect = aspectForFormat(input.format);
-
-  // Kick all video generations in parallel, then poll each one.
-  const created = await Promise.all(
-    input.shots.map((shot) =>
-      client.generations.video.create({
-        model: 'ray-flash-2',
-        aspect_ratio: aspect,
-        duration: `${duration}s`,
-        prompt: shot.prompt,
-        keyframes: {
-          frame0: { type: 'image', url: shot.imageUrl },
-        },
-      }),
-    ),
-  );
-
-  const polled = await Promise.all(
-    created.map(async (gen) => {
-      const id = gen.id;
-      if (!id) throw new Error('Luma video generation returned no id.');
-      return await pollUntilComplete(client, id);
-    }),
-  );
-
-  const out: RenderedShot[] = [];
-  for (let i = 0; i < polled.length; i++) {
-    const g = polled[i];
-    const shot = input.shots[i];
-    const videoUrl = (g as { assets?: { video?: string } }).assets?.video;
-    if (!videoUrl) {
-      throw new Error(
-        `Shot ${shot.index} video generation did not produce a URL (state=${g.state ?? 'unknown'}).`,
-      );
-    }
-    out.push({
-      ...shot,
-      videoUrl,
-      videoGenerationId: g.id ?? '',
-      videoDurationMs: duration * 1000,
-    });
-  }
-  return out;
 }
 
 /**
@@ -411,9 +352,7 @@ async function pollUntilComplete(
     const g = await client.generations.get(generationId);
     if (g.state === 'completed') return g;
     if (g.state === 'failed') {
-      throw new Error(
-        `Luma video ${generationId} failed: ${g.failure_reason ?? 'unknown reason'}`,
-      );
+      throw new Error(`Luma video ${generationId} failed: ${g.failure_reason ?? 'unknown reason'}`);
     }
     await sleep(POLL_INTERVAL_MS);
   }

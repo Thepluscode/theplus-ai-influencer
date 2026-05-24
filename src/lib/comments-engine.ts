@@ -6,15 +6,14 @@ import type { CommentRow } from '@/lib/supabase/types';
 // ---------------------------------------------------------------------------
 // Comment Watcher engine — v4 of STRATEGY.md
 // ---------------------------------------------------------------------------
-// v1 scope: real LLM logic for classification + reply drafting, but
-// platform comment ingest is manual (operator pastes a comment, or we
-// seed example comments per workspace). Zernio doesn't expose comments
-// in the API surface we're using.
-//
-// When Zernio adds a comments endpoint (or we wire a per-platform OAuth
-// integration), the `syncComments` function below becomes the place that
-// pulls them and saves them into our `comments` table — the rest of the
-// pipeline stays unchanged.
+// This module holds the LLM logic (classification + reply drafting) plus
+// CRUD. Comments arrive two ways, both feeding the same `comments` table:
+//   1. Auto-ingest from Zernio's `comment.received` webhook
+//      (src/lib/zernio-webhooks.ts) — the default path.
+//   2. Manual paste (addPastedCommentAction) — fallback for platforms/posts
+//      Zernio isn't tracking.
+// Approved replies post back to the platform via zernio.replyToComment when
+// the row carries Zernio provenance (zernio_post_id + zernio_account_id).
 // ---------------------------------------------------------------------------
 
 export type CommentClassification = NonNullable<CommentRow['classification']>;
@@ -111,8 +110,7 @@ function normalize(parsed: unknown): DraftedReply {
   const classification = CLASS_SET.has(obj.classification as CommentClassification)
     ? (obj.classification as CommentClassification)
     : 'unknown';
-  const draftReply =
-    typeof obj.draftReply === 'string' ? obj.draftReply.trim() : '';
+  const draftReply = typeof obj.draftReply === 'string' ? obj.draftReply.trim() : '';
   return { classification, draftReply };
 }
 
@@ -151,6 +149,13 @@ function stubDraft({
 // ---------------------------------------------------------------------------
 // CRUD helpers
 // ---------------------------------------------------------------------------
+
+export async function getCommentById(id: string): Promise<CommentRow | null> {
+  const supabase = await getSupabaseServerClient();
+  const { data, error } = await supabase.from('comments').select('*').eq('id', id).maybeSingle();
+  if (error) throw new Error(`Failed to load comment: ${error.message}`);
+  return data ?? null;
+}
 
 export async function listComments(workspaceId: string): Promise<CommentRow[]> {
   const supabase = await getSupabaseServerClient();

@@ -5,11 +5,14 @@ import { z } from 'zod';
 import { listAiModels } from '@/lib/ai-models';
 import {
   deleteDm as removeDm,
+  getDmThreadById,
   saveTriagedDm,
   triageDm,
   updateDmStatus,
 } from '@/lib/dm-engine';
 import { consumeCredits, COSTS, refundCredits } from '@/lib/credits';
+import { serverEnv } from '@/lib/env';
+import { getZernioClient } from '@/lib/zernio';
 import { PLATFORMS } from '@/types/post';
 import { getSupabaseServerClient } from '@/lib/supabase/server';
 import { getOrCreateCurrentWorkspace } from '@/lib/workspace';
@@ -105,9 +108,34 @@ export async function addPastedDmAction(
 
 export async function markDmRepliedAction(formData: FormData): Promise<void> {
   const id = formData.get('id');
-  const reply = formData.get('reply');
+  const replyRaw = formData.get('reply');
   if (typeof id !== 'string' || !id) return;
-  await updateDmStatus(id, 'replied', typeof reply === 'string' ? reply : undefined);
+  const reply = typeof replyRaw === 'string' ? replyRaw : undefined;
+
+  const thread = await getDmThreadById(id);
+  if (!thread) return;
+  const message = (reply ?? thread.suggested_reply ?? '').trim();
+
+  // Webhook-ingested DMs carry Zernio provenance — send the reply back to the
+  // conversation. Fail loudly so a failed send never gets marked "replied".
+  if (serverEnv.ZERNIO_API_KEY && thread.zernio_conversation_id && thread.zernio_account_id) {
+    if (!message) {
+      throw new Error('Write a reply before sending — empty replies are not sent.');
+    }
+    try {
+      await getZernioClient().sendDmReply({
+        conversationId: thread.zernio_conversation_id,
+        accountId: thread.zernio_account_id,
+        message,
+      });
+    } catch (err) {
+      throw new Error(
+        `DM not sent on ${thread.platform}: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+  }
+
+  await updateDmStatus(id, 'replied', reply);
   revalidatePath('/inbox');
 }
 

@@ -137,11 +137,7 @@ export function UploadSlot({ intent, workspaceId, value, onChange, disabled }: P
     return (
       <div className="relative overflow-hidden rounded-[12px] border border-[#262626] bg-surface-2">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={value}
-          alt="Final image"
-          className="block max-h-[200px] w-full object-cover"
-        />
+        <img src={value} alt="Final image" className="block max-h-[200px] w-full object-cover" />
         <div className="pointer-events-none absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-black/85 to-transparent" />
         <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between gap-2 text-[11px] text-white">
           <span className="inline-flex items-center gap-1.5 text-[#0099ff]">

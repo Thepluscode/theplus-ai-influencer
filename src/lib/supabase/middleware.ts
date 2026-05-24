@@ -2,7 +2,14 @@ import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 import { publicEnv } from '@/lib/env';
 
-const PROTECTED_PREFIXES = ['/dashboard', '/studio', '/create-post', '/calendar', '/accounts', '/settings'];
+const PROTECTED_PREFIXES = [
+  '/dashboard',
+  '/studio',
+  '/create-post',
+  '/calendar',
+  '/accounts',
+  '/settings',
+];
 const AUTH_ONLY_PREFIXES = ['/sign-in', '/sign-up'];
 
 export async function updateSession(request: NextRequest) {
@@ -41,7 +48,9 @@ export async function updateSession(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const { pathname } = request.nextUrl;
-  const isProtected = PROTECTED_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+  const isProtected = PROTECTED_PREFIXES.some(
+    (p) => pathname === p || pathname.startsWith(`${p}/`),
+  );
   const isAuthOnly = AUTH_ONLY_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 
   if (!user && isProtected) {

@@ -2,15 +2,7 @@
 
 import { useActionState, useState } from 'react';
 import { formatDistanceToNow } from 'date-fns';
-import {
-  Check,
-  Copy,
-  EyeOff,
-  Loader2,
-  MessageSquarePlus,
-  Trash2,
-  X,
-} from 'lucide-react';
+import { Check, Copy, EyeOff, Loader2, MessageSquarePlus, Trash2, X } from 'lucide-react';
 import {
   addPastedCommentAction,
   approveCommentAction,
@@ -84,11 +76,14 @@ export function CommentsBoard({
                   </span>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-[12px] text-ink">
-                      <span className="text-ink-muted">@{c.author_handle} · {c.platform}:</span>{' '}
+                      <span className="text-ink-muted">
+                        @{c.author_handle} · {c.platform}:
+                      </span>{' '}
                       {c.comment_text}
                     </p>
                     <p className="text-[10px] uppercase tracking-wider text-[#666]">
-                      {c.status} · {formatDistanceToNow(new Date(c.updated_at), { addSuffix: true })}
+                      {c.status} ·{' '}
+                      {formatDistanceToNow(new Date(c.updated_at), { addSuffix: true })}
                     </p>
                   </div>
                   <form action={deleteCommentAction}>
@@ -167,8 +162,7 @@ function CommentCard({ comment }: { comment: CommentRow }) {
         </div>
       ) : (
         <p className="mt-3 rounded-[10px] border border-[#ff7a3d]/30 bg-[#ff7a3d]/[0.07] px-3 py-2 text-[12px] text-[#ff7a3d]">
-          Marked as <span className="font-medium">{cls}</span> — no reply drafted. Hide or
-          delete.
+          Marked as <span className="font-medium">{cls}</span> — no reply drafted. Hide or delete.
         </p>
       )}
 
@@ -248,9 +242,7 @@ function AddCommentForm({ models }: { models: AiModelRow[] }) {
         <h2 className="text-[11px] font-medium uppercase tracking-[0.12em] text-ink-muted">
           Triage a comment
         </h2>
-        <p className="mt-1 text-[12px] text-ink-muted">
-          Paste a comment · 1 credit per draft
-        </p>
+        <p className="mt-1 text-[12px] text-ink-muted">Paste a comment · 1 credit per draft</p>
       </header>
       <form action={formAction} className="flex flex-col gap-3">
         {models.length > 0 ? (

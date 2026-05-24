@@ -27,10 +27,7 @@ export const runtime = 'nodejs';
  */
 export async function POST(req: NextRequest) {
   if (!serverEnv.STRIPE_SECRET_KEY || !serverEnv.STRIPE_WEBHOOK_SECRET) {
-    return NextResponse.json(
-      { error: 'Stripe webhook not configured.' },
-      { status: 503 },
-    );
+    return NextResponse.json({ error: 'Stripe webhook not configured.' }, { status: 503 });
   }
 
   const signature = req.headers.get('stripe-signature');
@@ -42,28 +39,27 @@ export async function POST(req: NextRequest) {
   const stripe = getStripeClient();
   let event: Stripe.Event;
   try {
-    event = stripe.webhooks.constructEvent(
-      rawBody,
-      signature,
-      serverEnv.STRIPE_WEBHOOK_SECRET,
-    );
+    event = stripe.webhooks.constructEvent(rawBody, signature, serverEnv.STRIPE_WEBHOOK_SECRET);
   } catch (err) {
     const message = err instanceof Error ? err.message : 'invalid signature';
-    return NextResponse.json({ error: `Webhook verification failed: ${message}` }, {
-      status: 400,
-    });
+    return NextResponse.json(
+      { error: `Webhook verification failed: ${message}` },
+      {
+        status: 400,
+      },
+    );
   }
 
   // The webhook runs without a user session, so we use the service-role
   // key (NOT the anon key) to write directly to workspaces.
-  if (
-    !publicEnv.NEXT_PUBLIC_SUPABASE_URL ||
-    !serverEnv.SUPABASE_SERVICE_ROLE_KEY
-  ) {
+  if (!publicEnv.NEXT_PUBLIC_SUPABASE_URL || !serverEnv.SUPABASE_SERVICE_ROLE_KEY) {
     console.error('[stripe-webhook] Missing Supabase service-role key — cannot update workspace.');
-    return NextResponse.json({ error: 'Supabase service role not configured.' }, {
-      status: 503,
-    });
+    return NextResponse.json(
+      { error: 'Supabase service role not configured.' },
+      {
+        status: 503,
+      },
+    );
   }
   const admin = createClient<Database>(
     publicEnv.NEXT_PUBLIC_SUPABASE_URL,
@@ -139,17 +135,16 @@ async function handleCheckoutCompleted(
   if (session.metadata?.kind === 'topup') {
     const amount = Number(session.metadata?.credits ?? CREDIT_TOPUP.credits);
     if (Number.isFinite(amount) && amount > 0) {
-      await (admin.rpc as unknown as (
-        fn: string,
-        params: Record<string, unknown>,
-      ) => Promise<{ error: { message: string } | null }>)(
-        'grant_credits',
-        {
-          p_workspace_id: workspaceId,
-          p_amount: amount,
-          p_reason: 'topup',
-        },
-      );
+      await (
+        admin.rpc as unknown as (
+          fn: string,
+          params: Record<string, unknown>,
+        ) => Promise<{ error: { message: string } | null }>
+      )('grant_credits', {
+        p_workspace_id: workspaceId,
+        p_amount: amount,
+        p_reason: 'topup',
+      });
     }
   }
 }
@@ -210,11 +205,7 @@ async function handleSubscriptionDeleted(admin: AdminClient, sub: Stripe.Subscri
     .eq('id', workspaceId);
 }
 
-async function handleInvoicePaid(
-  admin: AdminClient,
-  stripe: Stripe,
-  invoice: Stripe.Invoice,
-) {
+async function handleInvoicePaid(admin: AdminClient, stripe: Stripe, invoice: Stripe.Invoice) {
   // First invoice on a new subscription comes through here too — but
   // customer.subscription.created has already set credits to the plan's
   // monthly grant. To avoid double-granting we only re-grant on
@@ -234,8 +225,5 @@ async function handleInvoicePaid(
   const plan = getPlan(planId);
 
   // Refill to the plan's monthly grant — same shape as plan change.
-  await admin
-    .from('workspaces')
-    .update({ credits: plan.monthlyCredits })
-    .eq('id', workspaceId);
+  await admin.from('workspaces').update({ credits: plan.monthlyCredits }).eq('id', workspaceId);
 }

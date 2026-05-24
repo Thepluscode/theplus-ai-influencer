@@ -372,10 +372,10 @@ export function CreativeAgentsLab({
   }
 
   return (
-    <div className="min-h-full bg-[#070707] text-ink">
+    <div className="app-page text-ink">
       <div className="grid min-h-[calc(100dvh-65px)] xl:grid-cols-[minmax(0,1fr)_380px]">
         <main className="min-w-0 border-r border-[#171717]">
-          <div className="border-b border-[#1b1b1b] px-5 py-5 lg:px-6">
+          <div className="app-detail-header px-5 py-5 lg:px-6">
             <div className="flex flex-wrap items-end justify-between gap-4">
               <div className="max-w-3xl">
                 <p className="framer-eyebrow">Creative Agents</p>

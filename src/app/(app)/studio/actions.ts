@@ -81,11 +81,7 @@ export async function generateInfluencer(
     workspaceId = ws.id;
 
     const [planRow, existing] = await Promise.all([
-      supabase
-        .from('workspaces')
-        .select('plan')
-        .eq('id', ws.id)
-        .maybeSingle(),
+      supabase.from('workspaces').select('plan').eq('id', ws.id).maybeSingle(),
       listAiModels(ws.id),
     ]);
     planId = (planRow.data?.plan as PlanId) ?? 'free';

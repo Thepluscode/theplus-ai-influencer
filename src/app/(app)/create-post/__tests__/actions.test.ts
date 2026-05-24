@@ -33,6 +33,16 @@ vi.mock('@/lib/luma-post', () => ({
   generatePostVariants: vi.fn(),
 }));
 
+// The brand-safety gate is a dependency here — tested in its own unit suite
+// (src/lib/__tests__/publish-safety.test.ts). Default it to "pass" so the
+// Zernio-path tests below exercise publishing, and override per-test to
+// assert how this action reacts to each gate outcome.
+const runPublishBrandSafetyGate = vi.fn();
+vi.mock('@/lib/publish-safety', () => ({
+  runPublishBrandSafetyGate: (...args: unknown[]) => runPublishBrandSafetyGate(...args),
+  describeSafetyBlock: (summary: string) => summary,
+}));
+
 vi.mock('@/lib/workspace', () => ({
   getOrCreateCurrentWorkspace: vi.fn(async () => ({ id: 'ws-1' })),
 }));
@@ -110,6 +120,8 @@ beforeEach(() => {
   pickAccountsForPlatforms.mockReset();
   dispatchWorkspaceWebhookEvent.mockReset();
   dispatchWorkspaceWebhookEvent.mockResolvedValue({ attempted: 0, delivered: 0, failed: 0 });
+  runPublishBrandSafetyGate.mockReset();
+  runPublishBrandSafetyGate.mockResolvedValue({ ok: true, note: null });
 });
 
 describe('scheduleAndPublishAction — rollback on DB failure after Zernio succeeds', () => {
@@ -206,6 +218,97 @@ describe('scheduleAndPublishAction — rollback on DB failure after Zernio succe
       expect(result.warning).toMatch(/db down/);
       expect(result.warning).toMatch(/zernio 502/);
     }
+  });
+});
+
+describe('scheduleAndPublishAction — brand-safety gate', () => {
+  beforeEach(() => {
+    saveDraftPost.mockResolvedValue({ id: 'post-1', zernio_post_id: null });
+    updatePostSchedule.mockResolvedValue({ id: 'post-1' });
+    getDefaultZernioProfileId.mockResolvedValue('profile-1');
+    listAccounts.mockResolvedValue([{ _id: 'a1', platform: 'instagram', isActive: true }]);
+    pickAccountsForPlatforms.mockReturnValue({
+      resolved: [{ _id: 'a1', platform: 'instagram' }],
+      missing: [],
+    });
+  });
+
+  it('blocks publish and never calls Zernio when the gate returns blocked', async () => {
+    runPublishBrandSafetyGate.mockResolvedValue({
+      ok: false,
+      reason: 'blocked',
+      summary: 'High-severity issue — fix before publishing.',
+      issues: [{ severity: 'high', code: 'hate_or_violence', message: 'violent phrasing' }],
+    });
+
+    const result = await scheduleAndPublishAction(null, makeFormData());
+
+    expect(createPost).not.toHaveBeenCalled();
+    expect(result.status).toBe('blocked');
+    if (result.status === 'blocked') {
+      expect(result.postId).toBe('post-1');
+      expect(result.issues).toHaveLength(1);
+      expect(result.summary).toMatch(/fix before publishing/i);
+    }
+  });
+
+  it('returns insufficient_credits without publishing when the gate cannot be paid', async () => {
+    runPublishBrandSafetyGate.mockResolvedValue({
+      ok: false,
+      reason: 'insufficient_credits',
+      balance: 0,
+      required: 2,
+    });
+
+    const result = await scheduleAndPublishAction(null, makeFormData());
+
+    expect(createPost).not.toHaveBeenCalled();
+    expect(result.status).toBe('insufficient_credits');
+    if (result.status === 'insufficient_credits') {
+      expect(result.postId).toBe('post-1');
+      expect(result.required).toBe(2);
+    }
+  });
+
+  it('surfaces a clear error (and skips Zernio) when the gate check fails', async () => {
+    runPublishBrandSafetyGate.mockResolvedValue({
+      ok: false,
+      reason: 'error',
+      error: 'OpenAI 500',
+    });
+
+    const result = await scheduleAndPublishAction(null, makeFormData());
+
+    expect(createPost).not.toHaveBeenCalled();
+    expect(result.status).toBe('error');
+    if (result.status === 'error') {
+      expect(result.error).toMatch(/nothing was published/i);
+      expect(result.error).toMatch(/OpenAI 500/);
+    }
+  });
+
+  it('publishes but attaches a safety note on a warn verdict', async () => {
+    runPublishBrandSafetyGate.mockResolvedValue({ ok: true, note: 'Missing #ad disclosure.' });
+    updatePostSchedule
+      .mockResolvedValueOnce({ id: 'post-1' })
+      .mockResolvedValueOnce({ id: 'post-1', zernio_post_id: 'zern-1' });
+    createPost.mockResolvedValue({ _id: 'zern-1' });
+
+    const result = await scheduleAndPublishAction(null, makeFormData());
+
+    expect(createPost).toHaveBeenCalledTimes(1);
+    expect(result.status).toBe('scheduled');
+    if (result.status === 'scheduled') {
+      expect(result.safetyNote).toBe('Missing #ad disclosure.');
+    }
+  });
+
+  it('does not run the gate for a draft (nothing is published)', async () => {
+    const result = await scheduleAndPublishAction(null, makeFormData({ mode: 'draft' }));
+
+    expect(runPublishBrandSafetyGate).not.toHaveBeenCalled();
+    expect(createPost).not.toHaveBeenCalled();
+    expect(result.status).toBe('saved_draft');
   });
 });
 
