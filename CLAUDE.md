@@ -80,7 +80,7 @@ pnpm exec vitest run src/lib/__tests__/utils.test.ts
 pnpm exec vitest run -t "test name"
 ```
 
-`.husky/pre-push` runs `typecheck` + `lint` + `test` before every push. Don't `--no-verify` without permission. `@playwright/test` is installed for end-to-end browser flows but there is no Playwright config or `e2e/` directory yet — vitest (jsdom) is still the only wired-up test runner.
+`.husky/pre-push` runs `typecheck` + `lint` + `test` before every push. Don't `--no-verify` without permission. `@playwright/test` is installed for end-to-end browser flows but there is no Playwright config or `e2e/` directory yet — vitest (jsdom) is still the only wired-up test runner. **There is intentionally no remote CI** (GitHub Actions is unavailable on this account); pre-push is the only enforced gate, so do not bypass it.
 
 ## Conventions worth knowing
 
