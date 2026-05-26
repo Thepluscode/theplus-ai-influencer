@@ -105,7 +105,12 @@ export default async function AccountsPage({ searchParams }: AccountsPageProps) 
               </StatusPill>
             ) : null}
             {demoMode ? (
-              <StatusPill tone="ok">Demo accounts · no Zernio calls</StatusPill>
+              <StatusPill
+                tone="warn"
+                title="Demo accounts are pre-connected as fixtures. Zernio mutating calls are hard-blocked in demo mode."
+              >
+                Demo accounts · publish disabled
+              </StatusPill>
             ) : !zernioConfigured ? (
               <StatusPill tone="warn">
                 ZERNIO_API_KEY missing · set in <code>.env.local</code>
@@ -126,6 +131,10 @@ export default async function AccountsPage({ searchParams }: AccountsPageProps) 
             code={errorCode}
             billingUrl={billingUrl}
           />
+        ) : null}
+
+        {!demoMode && zernioConfigured && totalConnected === 0 && !loadError ? (
+          <PublishBlockedBanner />
         ) : null}
 
         <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -199,6 +208,28 @@ export default async function AccountsPage({ searchParams }: AccountsPageProps) 
             );
           })}
         </ul>
+      </div>
+    </div>
+  );
+}
+
+function PublishBlockedBanner() {
+  return (
+    <div
+      className="mb-6 rounded-[16px] border border-[#ff7a3d]/40 bg-[#ff7a3d]/[0.06] p-4"
+      role="status"
+    >
+      <div className="flex items-start gap-3">
+        <span className="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#ff7a3d]/15 text-[#ff7a3d] ring-1 ring-[#ff7a3d]/30">
+          !
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-[14px] font-medium text-ink">No publishing accounts connected yet</p>
+          <p className="mt-1 text-[13px] leading-[1.5] text-ink-muted">
+            Scheduled posts cannot be pushed to any platform until at least one social account is
+            connected via Zernio. Pick a tile below to start.
+          </p>
+        </div>
       </div>
     </div>
   );

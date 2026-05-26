@@ -144,7 +144,7 @@ export default async function DashboardPage() {
             </div>
             <div className="flex items-center gap-2">
               {demoMode ? (
-                <StatusPill tone="success">Demo workspace</StatusPill>
+                <StatusPill tone="warning">Demo · publish disabled</StatusPill>
               ) : loadError ? (
                 <StatusPill tone="danger">{loadError}</StatusPill>
               ) : !supabaseConfigured ? (

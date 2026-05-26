@@ -175,7 +175,12 @@ export default async function CreatePostPage({ searchParams }: PageProps) {
           </p>
           <div className="mt-5 flex flex-wrap gap-2">
             {demoMode ? (
-              <StatusPill tone="ok">Demo mode · no paid APIs</StatusPill>
+              <StatusPill
+                tone="warn"
+                title="Demo workspace — Save lands a fake post; Zernio publish is hard-blocked at the SDK boundary."
+              >
+                Demo · publish disabled
+              </StatusPill>
             ) : stubbed ? (
               <StatusPill tone="info">
                 <span className="text-white">LUMA_STUB</span> on · placeholders

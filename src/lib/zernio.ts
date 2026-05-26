@@ -1,5 +1,29 @@
 import 'server-only';
 import { serverEnv } from '@/lib/env';
+import { isDemoMode } from '@/lib/demo-mode';
+
+/**
+ * Thrown when a mutating Zernio method is called while THEPLUS_DEMO_MODE is
+ * active. Demo workspaces must never publish, delete, reply, or DM to real
+ * connected accounts — every mutating method asserts this at the boundary so
+ * a missing route-level check can't leak through.
+ *
+ * `isDemoMode()` itself fail-closes when NODE_ENV=production, so this guard
+ * is a no-op in prod even if THEPLUS_DEMO_MODE=true leaks into the env.
+ */
+export class DemoModeBlockedError extends Error {
+  readonly code = 'demo_mode_blocked' as const;
+  constructor(method: string) {
+    super(
+      `Zernio.${method} is blocked in demo mode — this workspace would otherwise publish to real connected accounts.`,
+    );
+    this.name = 'DemoModeBlockedError';
+  }
+}
+
+function assertNotDemoMode(method: string): void {
+  if (isDemoMode()) throw new DemoModeBlockedError(method);
+}
 
 /**
  * Real Zernio API client. Maps to https://docs.zernio.com (REST + Bearer
@@ -207,6 +231,7 @@ export class ZernioClient {
   }
 
   async createPost(input: CreatePostInput): Promise<ZernioPost> {
+    assertNotDemoMode('createPost');
     const body: Record<string, unknown> = {
       content: input.content,
       platforms: input.platforms,
@@ -274,6 +299,7 @@ export class ZernioClient {
    * posts return a 4xx — we let that bubble up to the caller.
    */
   async deletePost(zernioPostId: string): Promise<void> {
+    assertNotDemoMode('deletePost');
     await this.request(`/posts/${encodeURIComponent(zernioPostId)}`, {
       method: 'DELETE',
     });
@@ -291,6 +317,7 @@ export class ZernioClient {
     message: string;
     commentId?: string;
   }): Promise<{ commentId?: string }> {
+    assertNotDemoMode('replyToComment');
     const body: Record<string, unknown> = {
       accountId: input.accountId,
       message: input.message,
@@ -314,6 +341,7 @@ export class ZernioClient {
     accountId: string;
     message: string;
   }): Promise<void> {
+    assertNotDemoMode('sendDmReply');
     await this.request(
       `/inbox/conversations/${encodeURIComponent(input.conversationId)}/messages`,
       {

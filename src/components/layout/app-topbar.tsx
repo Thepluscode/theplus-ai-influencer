@@ -3,7 +3,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { CheckCircle2, CircleDot, ExternalLink, PanelRight } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, CircleDot, ExternalLink, PanelRight } from 'lucide-react';
 import { getRouteMeta } from '@/components/layout/nav-config';
 import { cn } from '@/lib/utils';
 
@@ -49,9 +49,14 @@ export function AppTopbar({
                 ThePlus AI Influencer / {route?.section ?? 'Workspace'}
               </p>
               <span className="hidden h-1 w-1 rounded-full bg-[#333] sm:inline-flex" />
-              <span className="hidden items-center gap-1 text-[10px] font-medium uppercase tracking-[0.16em] text-ink-muted sm:inline-flex">
-                <CircleDot size={9} className="text-[#0099ff]" />
-                Live workspace
+              <span
+                className={cn(
+                  'hidden items-center gap-1 text-[10px] font-medium uppercase tracking-[0.16em] sm:inline-flex',
+                  demoMode ? 'text-[#fbbf24]' : 'text-ink-muted',
+                )}
+              >
+                <CircleDot size={9} className={demoMode ? 'text-[#fbbf24]' : 'text-[#0099ff]'} />
+                {demoMode ? 'Demo workspace · Publish disabled' : 'Live workspace'}
               </span>
             </div>
             <h1 className="truncate text-[16px] font-medium tracking-tight text-ink sm:text-[18px]">
@@ -61,8 +66,16 @@ export function AppTopbar({
         </div>
 
         <div className="flex min-w-0 items-center gap-2">
-          <span className="hidden h-8 items-center gap-1.5 rounded-full border border-[#1f3f2a] bg-[#102015] px-3 text-[10px] font-medium uppercase tracking-wider text-[#9bf3b8] md:inline-flex">
-            <CheckCircle2 size={11} />
+          <span
+            className={cn(
+              'inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-[10px] font-medium uppercase tracking-wider',
+              demoMode
+                ? 'border-[#4a3a14] bg-[#241a08] text-[#fbbf24]'
+                : 'hidden border-[#1f3f2a] bg-[#102015] text-[#9bf3b8] md:inline-flex',
+            )}
+            title={demoMode ? 'Demo workspace — Zernio publish, comment reply, and DM reply are blocked.' : undefined}
+          >
+            {demoMode ? <AlertTriangle size={11} /> : <CheckCircle2 size={11} />}
             {demoMode ? 'Demo mode' : 'Review-ready'}
           </span>
           <Link

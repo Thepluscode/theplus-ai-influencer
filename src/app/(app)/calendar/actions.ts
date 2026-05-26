@@ -18,6 +18,7 @@ import {
   pickAccountsForPlatforms,
   type ZernioPlatformTarget,
 } from '@/lib/zernio';
+import { isDemoMode } from '@/lib/demo-mode';
 
 export type ReschedState =
   | { status: 'idle' }
@@ -64,6 +65,18 @@ export async function reschedulePostAction(
       return { status: 'error', error: 'Could not parse scheduled date.' };
     }
     when = parsedDate;
+  }
+
+  if (isDemoMode()) {
+    // Validation already ran above; return a deterministic partial-success so
+    // the demo UI shows the reschedule as "saved locally, publish skipped"
+    // without touching Supabase, brand-safety credits, or Zernio.
+    revalidatePath('/calendar');
+    return {
+      status: 'partial',
+      postId: parsed.data.postId,
+      warning: 'Demo mode — schedule saved to the fixture only; Zernio publish is disabled.',
+    };
   }
 
   try {
@@ -186,6 +199,12 @@ export async function deletePostAction(formData: FormData): Promise<void> {
   if (typeof postId !== 'string' || !postId) {
     throw new Error('postId required');
   }
+  if (isDemoMode()) {
+    // No-op in demo mode — Calendar reads fixtures, not Supabase, so the
+    // delete would have nothing to act on. Revalidate to refresh the view.
+    revalidatePath('/calendar');
+    return;
+  }
   await requireUser();
 
   // Try to detach from Zernio first; non-fatal if it fails (already published).
@@ -218,6 +237,10 @@ export async function toggleShareLinkAction(
   const intent = formData.get('intent');
   if (typeof postId !== 'string' || !postId) {
     return { status: 'error', error: 'postId required' };
+  }
+  if (isDemoMode()) {
+    revalidatePath('/calendar');
+    return intent === 'disable' ? { status: 'disabled' } : { status: 'enabled', token: 'demo-review-link' };
   }
   try {
     await requireUser();

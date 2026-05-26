@@ -101,7 +101,9 @@ export default async function StudioPage() {
           </p>
           <div className="mt-5 flex flex-wrap gap-2">
             {demoMode ? (
-              <StatusPill tone="ok">Demo mode · no paid renders</StatusPill>
+              <StatusPill tone="warn" title="Demo workspace — Zernio publish, comment reply, and DM reply are blocked at the SDK boundary.">
+                Demo · publish disabled
+              </StatusPill>
             ) : stubbed ? (
               <StatusPill tone="info">
                 <span className="text-white">LUMA_STUB</span> on · placeholders
