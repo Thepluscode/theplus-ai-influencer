@@ -3,6 +3,7 @@ import { Zap } from 'lucide-react';
 import { publicEnv } from '@/lib/env';
 import { getSupabaseServerClient } from '@/lib/supabase/server';
 import { getOrCreateCurrentWorkspace } from '@/lib/workspace';
+import { getDemoWorkspace, isDemoMode } from '@/lib/demo-mode';
 
 /**
  * Server component — reads the signed-in workspace's credit balance and
@@ -11,6 +12,11 @@ import { getOrCreateCurrentWorkspace } from '@/lib/workspace';
  * that calls `revalidatePath('/', 'layout')`.
  */
 export async function CreditsPill() {
+  if (isDemoMode()) {
+    const ws = getDemoWorkspace();
+    return <CreditsLink credits={ws.credits} plan={ws.plan} demoMode />;
+  }
+
   if (!publicEnv.NEXT_PUBLIC_SUPABASE_URL || !publicEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
     return null;
   }
@@ -37,6 +43,18 @@ export async function CreditsPill() {
     return null;
   }
 
+  return <CreditsLink credits={credits} plan={plan} />;
+}
+
+function CreditsLink({
+  credits,
+  plan,
+  demoMode = false,
+}: {
+  credits: number;
+  plan: 'free' | 'pro' | 'studio' | 'agency';
+  demoMode?: boolean;
+}) {
   const isLow = credits < 50;
   return (
     <Link
@@ -53,7 +71,7 @@ export async function CreditsPill() {
       </span>
       <span className="hidden flex-col items-end leading-tight sm:flex">
         <span className="text-[9px] font-medium uppercase tracking-[0.14em] text-ink-muted">
-          {plan === 'free' ? 'Credits' : `${plan} · credits`}
+          {demoMode ? 'Demo credits' : plan === 'free' ? 'Credits' : `${plan} · credits`}
         </span>
         <span className="text-[13px] font-medium tabular-nums text-ink">
           {credits.toLocaleString()}

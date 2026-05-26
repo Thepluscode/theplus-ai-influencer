@@ -9,6 +9,7 @@ import {
   type ZernioAccount,
   type ZernioPlatform,
 } from '@/lib/zernio';
+import { getDemoAccounts, isDemoMode } from '@/lib/demo-mode';
 import { startConnectionAction } from './actions';
 
 const ALL_PLATFORMS: { id: ZernioPlatform; label: string; icon: string }[] = [
@@ -34,11 +35,14 @@ interface AccountsPageProps {
 
 export default async function AccountsPage({ searchParams }: AccountsPageProps) {
   const { error: connectError, errorPlatform, errorCode, billingUrl } = await searchParams;
-  const zernioConfigured = Boolean(serverEnv.ZERNIO_API_KEY);
+  const demoMode = isDemoMode();
+  const zernioConfigured = demoMode || Boolean(serverEnv.ZERNIO_API_KEY);
 
   let accounts: ZernioAccount[] = [];
   let loadError: string | null = null;
-  if (zernioConfigured) {
+  if (demoMode) {
+    accounts = getDemoAccounts();
+  } else if (zernioConfigured) {
     try {
       const profileId = await getDefaultZernioProfileId();
       accounts = await getZernioClient().listAccounts(profileId);
@@ -100,7 +104,9 @@ export default async function AccountsPage({ searchParams }: AccountsPageProps) 
                 <span className="font-medium text-ink">{totalConnected}</span> connected
               </StatusPill>
             ) : null}
-            {!zernioConfigured ? (
+            {demoMode ? (
+              <StatusPill tone="ok">Demo accounts · no Zernio calls</StatusPill>
+            ) : !zernioConfigured ? (
               <StatusPill tone="warn">
                 ZERNIO_API_KEY missing · set in <code>.env.local</code>
               </StatusPill>
@@ -175,16 +181,18 @@ export default async function AccountsPage({ searchParams }: AccountsPageProps) 
                   <input type="hidden" name="platform" value={id} />
                   <button
                     type="submit"
-                    disabled={!zernioConfigured}
+                    disabled={!zernioConfigured || demoMode}
                     title={
-                      zernioConfigured
-                        ? `Connect a new ${label} account via Zernio`
-                        : 'Set ZERNIO_API_KEY first.'
+                      demoMode
+                        ? 'Demo accounts are pre-connected.'
+                        : zernioConfigured
+                          ? `Connect a new ${label} account via Zernio`
+                          : 'Set ZERNIO_API_KEY first.'
                     }
                     className="inline-flex w-full items-center justify-center gap-2 rounded-[12px] border border-[#262626] bg-surface-2 px-3 py-2.5 text-[13px] font-medium text-ink transition hover:border-[#0099ff]/50 hover:bg-[#222] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-[#262626] disabled:hover:bg-surface-2"
                   >
                     <Plus size={14} />
-                    Connect {isConnected ? 'another' : label}
+                    {demoMode ? 'Demo connected' : `Connect ${isConnected ? 'another' : label}`}
                   </button>
                 </form>
               </li>

@@ -15,6 +15,14 @@ const AUTH_ONLY_PREFIXES = ['/sign-in', '/sign-up'];
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request });
 
+  if (
+    process.env.THEPLUS_DEMO_MODE &&
+    ['1', 'true'].includes(process.env.THEPLUS_DEMO_MODE.toLowerCase()) &&
+    process.env.NODE_ENV !== 'production'
+  ) {
+    return response;
+  }
+
   if (!publicEnv.NEXT_PUBLIC_SUPABASE_URL || !publicEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
     // Supabase not configured yet — let everything through so the dev can
     // still see scaffold pages without env keys. Real protection kicks in

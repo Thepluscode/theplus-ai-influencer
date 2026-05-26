@@ -13,7 +13,13 @@ import {
 } from '@/components/layout/nav-config';
 import { cn } from '@/lib/utils';
 
-export function Sidebar({ userEmail }: { userEmail: string | null }) {
+export function Sidebar({
+  userEmail,
+  demoMode = false,
+}: {
+  userEmail: string | null;
+  demoMode?: boolean;
+}) {
   const pathname = usePathname();
   const [clientPathname, setClientPathname] = useState('');
   const hasClientPathname = clientPathname.length > 0;
@@ -137,8 +143,12 @@ export function Sidebar({ userEmail }: { userEmail: string | null }) {
               <CheckCircle2 size={13} />
             </span>
             <div className="min-w-0">
-              <p className="text-[12px] font-medium text-ink">Approval gates on</p>
-              <p className="truncate text-[11px] text-[#777]">Review rooms ready</p>
+              <p className="text-[12px] font-medium text-ink">
+                {demoMode ? 'Demo workspace' : 'Approval gates on'}
+              </p>
+              <p className="truncate text-[11px] text-[#777]">
+                {demoMode ? 'No paid APIs or real posts' : 'Review rooms ready'}
+              </p>
             </div>
           </div>
         </div>
@@ -166,15 +176,17 @@ export function Sidebar({ userEmail }: { userEmail: string | null }) {
             >
               {userEmail}
             </span>
-            <form action="/auth/sign-out" method="post">
-              <button
-                type="submit"
-                className="rounded-full p-1.5 text-ink-muted transition hover:bg-surface-1 hover:text-ink"
-                aria-label="Sign out"
-              >
-                <LogOut size={13} />
-              </button>
-            </form>
+            {demoMode ? null : (
+              <form action="/auth/sign-out" method="post">
+                <button
+                  type="submit"
+                  className="rounded-full p-1.5 text-ink-muted transition hover:bg-surface-1 hover:text-ink"
+                  aria-label="Sign out"
+                >
+                  <LogOut size={13} />
+                </button>
+              </form>
+            )}
           </div>
         ) : (
           <span className="text-[12px] text-[#666]">workspace locked</span>

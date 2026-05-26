@@ -4,6 +4,10 @@ const emptyStringToUndefined = (value: unknown) => (value === '' ? undefined : v
 
 const ServerEnvSchema = z.object({
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1).optional(),
+  THEPLUS_DEMO_MODE: z
+    .string()
+    .optional()
+    .transform((v) => v === '1' || v?.toLowerCase() === 'true'),
   LUMA_API_KEY: z.string().min(1).optional(),
   // Set to "1" or "true" to skip real Luma calls and return placeholder
   // images. Useful for end-to-end UI/Supabase/Zernio testing without

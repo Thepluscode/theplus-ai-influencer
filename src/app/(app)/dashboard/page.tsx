@@ -23,8 +23,16 @@ import { getOrCreateCurrentWorkspace } from '@/lib/workspace';
 import { getDefaultZernioProfileId, getZernioClient } from '@/lib/zernio';
 import { PLATFORMS, type Platform } from '@/types/post';
 import { cn } from '@/lib/utils';
+import {
+  DEMO_CONNECTED_PLATFORMS,
+  DEMO_USER_EMAIL,
+  getDemoModels,
+  getDemoPosts,
+  isDemoMode,
+} from '@/lib/demo-mode';
 
 export default async function DashboardPage() {
+  const demoMode = isDemoMode();
   const supabaseConfigured = Boolean(
     publicEnv.NEXT_PUBLIC_SUPABASE_URL && publicEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY,
   );
@@ -36,7 +44,14 @@ export default async function DashboardPage() {
   let loadError: string | null = null;
   let connectedPlatforms: Platform[] = [];
 
-  if (supabaseConfigured) {
+  if (demoMode) {
+    userEmail = DEMO_USER_EMAIL;
+    models = getDemoModels();
+    const posts = getDemoPosts();
+    scheduled = posts.filter((post) => post.status === 'scheduled');
+    drafts = posts.filter((post) => post.status === 'draft');
+    connectedPlatforms = DEMO_CONNECTED_PLATFORMS;
+  } else if (supabaseConfigured) {
     try {
       const supabase = await getSupabaseServerClient();
       const {
@@ -128,7 +143,9 @@ export default async function DashboardPage() {
               </h1>
             </div>
             <div className="flex items-center gap-2">
-              {loadError ? (
+              {demoMode ? (
+                <StatusPill tone="success">Demo workspace</StatusPill>
+              ) : loadError ? (
                 <StatusPill tone="danger">{loadError}</StatusPill>
               ) : !supabaseConfigured ? (
                 <StatusPill tone="warning">Supabase offline</StatusPill>
@@ -215,6 +232,7 @@ export default async function DashboardPage() {
           reviewReadyCount={reviewReadyCount}
           publicReviewHref={publicReviewHref}
           modelsCount={models.length}
+          demoMode={demoMode}
         />
       </div>
     </div>
@@ -234,6 +252,7 @@ function DashboardInspector({
   reviewReadyCount,
   publicReviewHref,
   modelsCount,
+  demoMode,
 }: {
   firstName: string | null;
   heroUrl: string | null;
@@ -247,6 +266,7 @@ function DashboardInspector({
   reviewReadyCount: number;
   publicReviewHref: string;
   modelsCount: number;
+  demoMode: boolean;
 }) {
   const activeStatus: ReviewDecision = featuredPost?.review_status ?? 'needs_changes';
 
@@ -274,6 +294,26 @@ function DashboardInspector({
           {featuredPost?.share_token ? 'Review link' : 'Review room'}
         </Link>
       </div>
+
+      <section className="rounded-[16px] border border-[#262626] bg-surface-1 p-4">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <h3 className="text-[11px] font-medium uppercase tracking-[0.14em] text-ink-muted">
+            Launch checklist
+          </h3>
+          <span className="rounded-full bg-[#22c55e]/12 px-2 py-1 text-[10px] uppercase tracking-wider text-[#86efac] ring-1 ring-[#22c55e]/30">
+            {demoMode ? 'Demo ready' : 'Live'}
+          </span>
+        </div>
+        <div className="grid gap-2">
+          <ChecklistItem done={modelsCount > 0} label="Persona created" href="/studio" />
+          <ChecklistItem
+            done={connectedPlatforms.length > 0}
+            label="Publishing accounts connected"
+            href="/accounts"
+          />
+          <ChecklistItem done={reviewReadyCount > 0} label="Review link ready" href="/storyboard" />
+        </div>
+      </section>
 
       <section className="rounded-[16px] border border-[#262626] bg-surface-1 p-4">
         <div className="mb-4 flex items-center justify-between gap-3">
@@ -630,6 +670,32 @@ function QuickAction({
     </div>
   );
   return disabled ? inner : <Link href={href}>{inner}</Link>;
+}
+
+function ChecklistItem({ done, label, href }: { done: boolean; label: string; href: string }) {
+  return (
+    <Link
+      href={href}
+      className="flex items-center justify-between gap-3 rounded-[12px] border border-[#262626] bg-surface-2 px-3 py-2.5 text-[12px] transition hover:border-[#0099ff]/40"
+    >
+      <span className="flex items-center gap-2 text-ink">
+        <span
+          className={cn(
+            'inline-flex h-5 w-5 items-center justify-center rounded-full ring-1',
+            done
+              ? 'bg-[#22c55e]/12 text-[#86efac] ring-[#22c55e]/30'
+              : 'bg-[#ff7a3d]/10 text-[#ffb088] ring-[#ff7a3d]/30',
+          )}
+        >
+          {done ? <CheckCircle2 size={11} /> : <Clock3 size={11} />}
+        </span>
+        {label}
+      </span>
+      <span className="text-[10px] uppercase tracking-wider text-[#666]">
+        {done ? 'ready' : 'open'}
+      </span>
+    </Link>
+  );
 }
 
 function DecisionCount({

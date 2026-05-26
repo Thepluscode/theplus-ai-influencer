@@ -25,6 +25,14 @@ import {
   type ZernioPlatformTarget,
 } from '@/lib/zernio';
 import { PostBriefInput, type Platform, type PostVariant } from '@/types/post';
+import {
+  DEMO_MODEL_ID,
+  DEMO_POST_ID,
+  getDemoCaptions,
+  getDemoPlatformVariants,
+  getDemoPostVariants,
+  isDemoMode,
+} from '@/lib/demo-mode';
 
 export type GeneratePostState =
   | { status: 'idle' }
@@ -81,6 +89,29 @@ export async function generatePostVariantsAction(
       status: 'error',
       error: 'Please fix the highlighted fields.',
       fieldErrors,
+    };
+  }
+
+  if (isDemoMode()) {
+    if (parsed.data.modelId !== DEMO_MODEL_ID) {
+      return {
+        status: 'error',
+        error: 'Selected demo model not found.',
+        fieldErrors: { modelId: 'Pick the demo model in this workspace.' },
+      };
+    }
+    return {
+      status: 'success',
+      brief: parsed.data,
+      variants: parsed.data.uploadedImageUrl
+        ? [
+            {
+              url: parsed.data.uploadedImageUrl,
+              generationId: 'demo_operator_upload',
+              generatedAt: new Date().toISOString(),
+            },
+          ]
+        : getDemoPostVariants(parsed.data),
     };
   }
 
@@ -178,6 +209,10 @@ export async function saveDraftPostAction(
     return { status: 'error', error: `Could not save: ${message}` };
   }
 
+  if (isDemoMode()) {
+    return { status: 'saved', postId: DEMO_POST_ID };
+  }
+
   try {
     const supabase = await getSupabaseServerClient();
     const {
@@ -228,6 +263,10 @@ export async function generateCaptionsAction(
   } catch (err) {
     const m = err instanceof Error ? err.message : 'invalid brief';
     return { status: 'error', error: `Could not read brief: ${m}` };
+  }
+
+  if (isDemoMode()) {
+    return { status: 'success', data: getDemoCaptions(brief) };
   }
 
   try {
@@ -313,6 +352,13 @@ export async function reformatCaptionAction(
     } catch {
       // hashtags are optional — ignore parse failures
     }
+  }
+
+  if (isDemoMode()) {
+    return {
+      status: 'success',
+      data: getDemoPlatformVariants(brief, caption.trim(), hashtags),
+    };
   }
 
   try {
@@ -418,6 +464,20 @@ export async function scheduleAndPublishAction(
     scheduledFor = d;
   }
 
+  if (isDemoMode()) {
+    if (mode === 'draft') {
+      return { status: 'saved_draft', postId: DEMO_POST_ID };
+    }
+    const scheduledIso = (scheduledFor ?? new Date()).toISOString();
+    return {
+      status: 'scheduled',
+      postId: DEMO_POST_ID,
+      scheduledFor: scheduledIso,
+      pushedToZernio: true,
+      safetyNote: 'Demo brand-safety pass; no remote publish was created.',
+    };
+  }
+
   try {
     const supabase = await getSupabaseServerClient();
     const {
@@ -513,7 +573,12 @@ export async function scheduleAndPublishAction(
               };
             }
             if (gate.reason === 'blocked') {
-              return { status: 'blocked', postId: saved.id, summary: gate.summary, issues: gate.issues };
+              return {
+                status: 'blocked',
+                postId: saved.id,
+                summary: gate.summary,
+                issues: gate.issues,
+              };
             }
             return {
               status: 'error',

@@ -8,6 +8,7 @@ import { generateInfluencerVisuals } from '@/lib/luma-influencer';
 import { getSupabaseServerClient } from '@/lib/supabase/server';
 import { getOrCreateCurrentWorkspace } from '@/lib/workspace';
 import { InfluencerWizardInput, type InfluencerVisuals } from '@/types/influencer';
+import { DEMO_MODEL_ID, getDemoInfluencerVisuals, isDemoMode } from '@/lib/demo-mode';
 
 export type GenerateState =
   | { status: 'idle' }
@@ -61,6 +62,14 @@ export async function generateInfluencer(
       status: 'error',
       error: 'Please fix the highlighted fields.',
       fieldErrors,
+    };
+  }
+
+  if (isDemoMode()) {
+    return {
+      status: 'success',
+      visuals: getDemoInfluencerVisuals(parsed.data),
+      input: parsed.data,
     };
   }
 
@@ -155,6 +164,10 @@ export async function saveGeneratedInfluencer(
   } catch (err) {
     const message = err instanceof Error ? err.message : 'invalid payload';
     return { status: 'error', error: `Could not save: ${message}` };
+  }
+
+  if (isDemoMode()) {
+    return { status: 'saved', modelId: DEMO_MODEL_ID };
   }
 
   try {

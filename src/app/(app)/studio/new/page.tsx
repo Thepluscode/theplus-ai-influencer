@@ -4,9 +4,11 @@ import { publicEnv, serverEnv } from '@/lib/env';
 import { isLumaStubbed } from '@/lib/luma-stub';
 import { getSupabaseServerClient } from '@/lib/supabase/server';
 import { getOrCreateCurrentWorkspace } from '@/lib/workspace';
+import { isDemoMode } from '@/lib/demo-mode';
 import { StudioWizard } from '../studio-wizard';
 
 export default async function StudioNewPage() {
+  const demoMode = isDemoMode();
   const stubbed = isLumaStubbed();
   const lumaConfigured = stubbed || Boolean(serverEnv.LUMA_API_KEY);
   const supabaseConfigured = Boolean(
@@ -14,7 +16,9 @@ export default async function StudioNewPage() {
   );
 
   let saveDisabledReason: string | null = null;
-  if (!supabaseConfigured) {
+  if (demoMode) {
+    saveDisabledReason = null;
+  } else if (!supabaseConfigured) {
     saveDisabledReason = 'Set Supabase env vars in .env.local to enable Save.';
   } else {
     try {
@@ -60,7 +64,9 @@ export default async function StudioNewPage() {
             across framings.
           </p>
           <div className="mt-5 flex flex-wrap gap-2">
-            {stubbed ? (
+            {demoMode ? (
+              <StatusPill tone="ok">Demo mode · no paid renders</StatusPill>
+            ) : stubbed ? (
               <StatusPill tone="info">
                 <span className="text-white">LUMA_STUB</span> on · placeholders
               </StatusPill>

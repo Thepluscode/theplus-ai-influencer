@@ -11,11 +11,13 @@ import { getDefaultZernioProfileId, getZernioClient } from '@/lib/zernio';
 import { PLATFORMS, type Platform } from '@/types/post';
 import { PostsRail } from '@/components/posts/posts-rail';
 import { cn } from '@/lib/utils';
+import { DEMO_CONNECTED_PLATFORMS, getDemoModels, getDemoPosts, isDemoMode } from '@/lib/demo-mode';
 import { SavedModels } from './saved-models';
 
 const ACTIVITY_RANGE_DAYS = 30;
 
 export default async function StudioPage() {
+  const demoMode = isDemoMode();
   const stubbed = isLumaStubbed();
   const lumaConfigured = stubbed || Boolean(serverEnv.LUMA_API_KEY);
   const supabaseConfigured = Boolean(
@@ -27,7 +29,11 @@ export default async function StudioPage() {
   let modelsErrorReason: string | null = null;
   let connectedPlatforms: Platform[] = [];
 
-  if (supabaseConfigured) {
+  if (demoMode) {
+    savedModels = getDemoModels();
+    recentPosts = getDemoPosts();
+    connectedPlatforms = DEMO_CONNECTED_PLATFORMS;
+  } else if (supabaseConfigured) {
     try {
       const supabase = await getSupabaseServerClient();
       const {
@@ -94,7 +100,9 @@ export default async function StudioPage() {
             Your roster, your campaigns, and the latest activity — all in one place.
           </p>
           <div className="mt-5 flex flex-wrap gap-2">
-            {stubbed ? (
+            {demoMode ? (
+              <StatusPill tone="ok">Demo mode · no paid renders</StatusPill>
+            ) : stubbed ? (
               <StatusPill tone="info">
                 <span className="text-white">LUMA_STUB</span> on · placeholders
               </StatusPill>
@@ -147,7 +155,7 @@ export default async function StudioPage() {
               />
             </section>
 
-            {supabaseConfigured ? (
+            {demoMode || supabaseConfigured ? (
               <section className="rounded-[16px] border border-[#1b1b1b] bg-[#0b0b0b] p-4">
                 <header className="mb-4 flex items-end justify-between border-b border-[#1b1b1b] pb-3">
                   <div>
@@ -155,8 +163,9 @@ export default async function StudioPage() {
                       Asset roster
                     </p>
                     <p className="mt-1 text-[13px] text-ink-muted">
-                      {savedModels.length} {savedModels.length === 1 ? 'persona' : 'personas'} on
-                      the roster
+                      {savedModels.length > 0
+                        ? `${savedModels.length} ${savedModels.length === 1 ? 'persona' : 'personas'} ready for campaign briefs`
+                        : 'Create one persona to unlock Create Post and Storyboard.'}
                     </p>
                   </div>
                   {savedModels.length > 0 ? (
@@ -169,7 +178,24 @@ export default async function StudioPage() {
                     </Link>
                   ) : null}
                 </header>
-                <SavedModels models={savedModels} />
+                {savedModels.length > 0 ? (
+                  <SavedModels models={savedModels} />
+                ) : (
+                  <div className="rounded-[14px] border border-dashed border-[#2d2d2d] bg-surface-2/35 p-5">
+                    <p className="text-[14px] font-medium text-ink">No persona on the roster.</p>
+                    <p className="mt-1 max-w-xl text-[13px] leading-[1.5] text-ink-muted">
+                      Start with a face-locked AI model. Once saved, Create Post will use it for
+                      renders, captions, and scheduling.
+                    </p>
+                    <Link
+                      href="/studio/new"
+                      className="mt-4 inline-flex h-10 items-center gap-1.5 rounded-[10px] bg-white px-4 text-[13px] font-medium text-black transition hover:bg-white/90"
+                    >
+                      Cast first model
+                      <ArrowUpRight size={12} />
+                    </Link>
+                  </div>
+                )}
               </section>
             ) : null}
           </div>

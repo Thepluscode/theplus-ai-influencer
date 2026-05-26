@@ -7,7 +7,13 @@ import { CheckCircle2, CircleDot, ExternalLink, PanelRight } from 'lucide-react'
 import { getRouteMeta } from '@/components/layout/nav-config';
 import { cn } from '@/lib/utils';
 
-export function AppTopbar({ credits }: { credits: ReactNode }) {
+export function AppTopbar({
+  credits,
+  demoMode = false,
+}: {
+  credits: ReactNode;
+  demoMode?: boolean;
+}) {
   const pathname = usePathname();
   const [clientPathname, setClientPathname] = useState('');
 
@@ -57,7 +63,7 @@ export function AppTopbar({ credits }: { credits: ReactNode }) {
         <div className="flex min-w-0 items-center gap-2">
           <span className="hidden h-8 items-center gap-1.5 rounded-full border border-[#1f3f2a] bg-[#102015] px-3 text-[10px] font-medium uppercase tracking-wider text-[#9bf3b8] md:inline-flex">
             <CheckCircle2 size={11} />
-            Review-ready
+            {demoMode ? 'Demo mode' : 'Review-ready'}
           </span>
           <Link
             href="/storyboard"
