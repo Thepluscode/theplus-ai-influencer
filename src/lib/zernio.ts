@@ -1,19 +1,46 @@
 import 'server-only';
 import { serverEnv } from '@/lib/env';
+import { isDemoMode } from '@/lib/demo-mode';
+
+/**
+ * Thrown when a mutating Zernio method is called while THEPLUS_DEMO_MODE is
+ * active. Demo workspaces must never publish, delete, reply, or DM to real
+ * connected accounts — every mutating method asserts this at the boundary so
+ * a missing route-level check can't leak through.
+ *
+ * `isDemoMode()` itself fail-closes when NODE_ENV=production, so this guard
+ * is a no-op in prod even if THEPLUS_DEMO_MODE=true leaks into the env.
+ */
+export class DemoModeBlockedError extends Error {
+  readonly code = 'demo_mode_blocked' as const;
+  constructor(method: string) {
+    super(
+      `Zernio.${method} is blocked in demo mode — this workspace would otherwise publish to real connected accounts.`,
+    );
+    this.name = 'DemoModeBlockedError';
+  }
+}
+
+function assertNotDemoMode(method: string): void {
+  if (isDemoMode()) throw new DemoModeBlockedError(method);
+}
 
 /**
  * Real Zernio API client. Maps to https://docs.zernio.com (REST + Bearer
  * auth). Server-only — the API key must never reach the browser.
  *
- * Coverage in v1:
+ * Coverage:
  *   - listAccounts
  *   - initiateConnection (returns the platform OAuth URL)
  *   - createPost (immediate or scheduled)
- *   - listPosts
- *   - deletePost
+ *   - listPosts / deletePost
+ *   - getPostAnalytics
+ *   - replyToComment / sendDmReply (Inbox add-on — reply to inbound
+ *     engagement ingested via the comment.received / message.received
+ *     webhooks; see src/lib/zernio-webhooks.ts)
  *
- * Out of scope for v1: ads, comments/DMs, analytics — add when the
- * matching surfaces ship in the app.
+ * Out of scope: ads. Reading the inbox via REST (listInboxComments /
+ * listInboxConversations) is unused — ingest is webhook-driven.
  */
 
 export type ZernioPlatform =
@@ -86,8 +113,7 @@ function normalizeZernioMetrics(raw: Record<string, unknown>): ZernioPostMetrics
     (raw as { metrics?: unknown }).metrics,
     (raw as { engagement?: unknown }).engagement,
   ];
-  const num = (v: unknown): number =>
-    typeof v === 'number' && Number.isFinite(v) ? v : 0;
+  const num = (v: unknown): number => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
 
   let found = false;
   let views = 0;
@@ -166,9 +192,7 @@ export class ZernioClient {
   async listProfiles(): Promise<ZernioProfile[]> {
     // Be defensive about the response shape — docs hint at { profiles: [...] }
     // but other endpoints have inconsistent envelopes.
-    const data = await this.request<
-      { profiles?: ZernioProfile[] } | ZernioProfile[]
-    >('/profiles');
+    const data = await this.request<{ profiles?: ZernioProfile[] } | ZernioProfile[]>('/profiles');
     if (Array.isArray(data)) return data;
     return data.profiles ?? [];
   }
@@ -207,6 +231,7 @@ export class ZernioClient {
   }
 
   async createPost(input: CreatePostInput): Promise<ZernioPost> {
+    assertNotDemoMode('createPost');
     const body: Record<string, unknown> = {
       content: input.content,
       platforms: input.platforms,
@@ -250,13 +275,15 @@ export class ZernioClient {
     return null;
   }
 
-  async listPosts(opts: {
-    status?: ZernioPostStatus;
-    platform?: ZernioPlatform;
-    profileId?: string;
-    page?: number;
-    limit?: number;
-  } = {}): Promise<{ posts: ZernioPost[]; pagination?: { total: number; pages: number } }> {
+  async listPosts(
+    opts: {
+      status?: ZernioPostStatus;
+      platform?: ZernioPlatform;
+      profileId?: string;
+      page?: number;
+      limit?: number;
+    } = {},
+  ): Promise<{ posts: ZernioPost[]; pagination?: { total: number; pages: number } }> {
     const params = new URLSearchParams();
     if (opts.status) params.set('status', opts.status);
     if (opts.platform) params.set('platform', opts.platform);
@@ -272,9 +299,56 @@ export class ZernioClient {
    * posts return a 4xx — we let that bubble up to the caller.
    */
   async deletePost(zernioPostId: string): Promise<void> {
+    assertNotDemoMode('deletePost');
     await this.request(`/posts/${encodeURIComponent(zernioPostId)}`, {
       method: 'DELETE',
     });
+  }
+
+  /**
+   * Reply to a comment on a post (Inbox add-on). `zernioPostId` is the
+   * post the comment lives on; `commentId` targets a specific comment
+   * (omit to reply to the post itself). Returns the new comment id.
+   * POST /inbox/comments/{postId} → { success, data: { commentId, isReply } }
+   */
+  async replyToComment(input: {
+    zernioPostId: string;
+    accountId: string;
+    message: string;
+    commentId?: string;
+  }): Promise<{ commentId?: string }> {
+    assertNotDemoMode('replyToComment');
+    const body: Record<string, unknown> = {
+      accountId: input.accountId,
+      message: input.message,
+    };
+    if (input.commentId) body.commentId = input.commentId;
+    const res = await this.request<{ data?: { commentId?: string } }>(
+      `/inbox/comments/${encodeURIComponent(input.zernioPostId)}`,
+      { method: 'POST', body: JSON.stringify(body) },
+    );
+    return { commentId: res.data?.commentId };
+  }
+
+  /**
+   * Send a message in an existing inbox conversation (Inbox add-on).
+   * `conversationId` is the platform-specific conversation id carried on
+   * the message.received webhook (conversation.platformConversationId).
+   * POST /inbox/conversations/{conversationId}/messages
+   */
+  async sendDmReply(input: {
+    conversationId: string;
+    accountId: string;
+    message: string;
+  }): Promise<void> {
+    assertNotDemoMode('sendDmReply');
+    await this.request(
+      `/inbox/conversations/${encodeURIComponent(input.conversationId)}/messages`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ accountId: input.accountId, message: input.message }),
+      },
+    );
   }
 }
 

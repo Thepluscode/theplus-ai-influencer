@@ -142,13 +142,9 @@ function ResultBlock({
     <div className={cn('mt-5 rounded-[12px] border p-4', tone)}>
       <div className="flex items-center gap-2">
         <Icon size={14} />
-        <p className="text-[11px] font-medium uppercase tracking-[0.12em]">
-          Verdict · {verdict}
-        </p>
+        <p className="text-[11px] font-medium uppercase tracking-[0.12em]">Verdict · {verdict}</p>
       </div>
-      {result.summary ? (
-        <p className="mt-1.5 text-[13px] text-ink">{result.summary}</p>
-      ) : null}
+      {result.summary ? <p className="mt-1.5 text-[13px] text-ink">{result.summary}</p> : null}
       {result.issues.length > 0 ? (
         <ul className="mt-3 grid gap-2">
           {result.issues.map((issue, i) => (

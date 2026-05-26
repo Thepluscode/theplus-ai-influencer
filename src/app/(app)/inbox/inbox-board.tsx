@@ -25,13 +25,7 @@ const CLASS_TONE: Record<DmThreadRow['classification'], string> = {
   other: 'bg-surface-2 text-ink-muted ring-[#262626]',
 };
 
-export function InboxBoard({
-  dms,
-  models,
-}: {
-  dms: DmThreadRow[];
-  models: AiModelRow[];
-}) {
+export function InboxBoard({ dms, models }: { dms: DmThreadRow[]; models: AiModelRow[] }) {
   const pending = dms.filter((d) => d.status === 'pending');
   const handled = dms.filter((d) => d.status !== 'pending');
 
@@ -76,11 +70,14 @@ export function InboxBoard({
                   </span>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-[12px] text-ink">
-                      <span className="text-ink-muted">@{d.author_handle} · {d.platform}:</span>{' '}
+                      <span className="text-ink-muted">
+                        @{d.author_handle} · {d.platform}:
+                      </span>{' '}
                       {d.summary ?? d.last_message}
                     </p>
                     <p className="text-[10px] uppercase tracking-wider text-[#666]">
-                      {d.status} · {formatDistanceToNow(new Date(d.updated_at), { addSuffix: true })}
+                      {d.status} ·{' '}
+                      {formatDistanceToNow(new Date(d.updated_at), { addSuffix: true })}
                     </p>
                   </div>
                   <form action={deleteDmAction}>

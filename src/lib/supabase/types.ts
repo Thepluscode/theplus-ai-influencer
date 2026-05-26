@@ -293,6 +293,8 @@ export type Database = {
           draft_reply: string | null;
           classification: 'fan' | 'question' | 'troll' | 'spam' | 'collab' | 'unknown' | null;
           external_id: string | null;
+          zernio_post_id: string | null;
+          zernio_account_id: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -308,6 +310,8 @@ export type Database = {
           draft_reply?: string | null;
           classification?: 'fan' | 'question' | 'troll' | 'spam' | 'collab' | 'unknown' | null;
           external_id?: string | null;
+          zernio_post_id?: string | null;
+          zernio_account_id?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -323,6 +327,8 @@ export type Database = {
           draft_reply?: string | null;
           classification?: 'fan' | 'question' | 'troll' | 'spam' | 'collab' | 'unknown' | null;
           external_id?: string | null;
+          zernio_post_id?: string | null;
+          zernio_account_id?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -341,6 +347,8 @@ export type Database = {
           suggested_reply: string | null;
           status: 'pending' | 'replied' | 'archived' | 'snoozed';
           external_id: string | null;
+          zernio_conversation_id: string | null;
+          zernio_account_id: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -356,6 +364,8 @@ export type Database = {
           suggested_reply?: string | null;
           status?: 'pending' | 'replied' | 'archived' | 'snoozed';
           external_id?: string | null;
+          zernio_conversation_id?: string | null;
+          zernio_account_id?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -371,6 +381,44 @@ export type Database = {
           suggested_reply?: string | null;
           status?: 'pending' | 'replied' | 'archived' | 'snoozed';
           external_id?: string | null;
+          zernio_conversation_id?: string | null;
+          zernio_account_id?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      social_accounts: {
+        Row: {
+          id: string;
+          workspace_id: string;
+          zernio_account_id: string;
+          platform: string;
+          username: string | null;
+          display_name: string | null;
+          connected_at: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          workspace_id: string;
+          zernio_account_id: string;
+          platform: string;
+          username?: string | null;
+          display_name?: string | null;
+          connected_at?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          workspace_id?: string;
+          zernio_account_id?: string;
+          platform?: string;
+          username?: string | null;
+          display_name?: string | null;
+          connected_at?: string;
           created_at?: string;
           updated_at?: string;
         };
@@ -999,5 +1047,6 @@ export type CreativeAgentAssetRow = Database['public']['Tables']['creative_agent
 export type CreativeAgentReviewIssueRow =
   Database['public']['Tables']['creative_agent_review_issues']['Row'];
 export type DmThreadRow = Database['public']['Tables']['dm_threads']['Row'];
+export type SocialAccountRow = Database['public']['Tables']['social_accounts']['Row'];
 export type SafetyAuditRow = Database['public']['Tables']['safety_audits']['Row'];
 export type StoryboardRenderJobRow = Database['public']['Tables']['storyboard_render_jobs']['Row'];

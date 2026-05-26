@@ -8,6 +8,7 @@ import { generateInfluencerVisuals } from '@/lib/luma-influencer';
 import { getSupabaseServerClient } from '@/lib/supabase/server';
 import { getOrCreateCurrentWorkspace } from '@/lib/workspace';
 import { InfluencerWizardInput, type InfluencerVisuals } from '@/types/influencer';
+import { DEMO_MODEL_ID, getDemoInfluencerVisuals, isDemoMode } from '@/lib/demo-mode';
 
 export type GenerateState =
   | { status: 'idle' }
@@ -64,6 +65,14 @@ export async function generateInfluencer(
     };
   }
 
+  if (isDemoMode()) {
+    return {
+      status: 'success',
+      visuals: getDemoInfluencerVisuals(parsed.data),
+      input: parsed.data,
+    };
+  }
+
   // Plan + credit gates must happen on the server BEFORE the Luma call.
   // The atomic credit RPC means two simultaneous tabs can't both succeed
   // when the balance is only enough for one; the plan-limit check below
@@ -81,11 +90,7 @@ export async function generateInfluencer(
     workspaceId = ws.id;
 
     const [planRow, existing] = await Promise.all([
-      supabase
-        .from('workspaces')
-        .select('plan')
-        .eq('id', ws.id)
-        .maybeSingle(),
+      supabase.from('workspaces').select('plan').eq('id', ws.id).maybeSingle(),
       listAiModels(ws.id),
     ]);
     planId = (planRow.data?.plan as PlanId) ?? 'free';
@@ -159,6 +164,10 @@ export async function saveGeneratedInfluencer(
   } catch (err) {
     const message = err instanceof Error ? err.message : 'invalid payload';
     return { status: 'error', error: `Could not save: ${message}` };
+  }
+
+  if (isDemoMode()) {
+    return { status: 'saved', modelId: DEMO_MODEL_ID };
   }
 
   try {

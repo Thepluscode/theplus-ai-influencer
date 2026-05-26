@@ -77,10 +77,7 @@ export async function releaseJobClaim(jobId: string): Promise<void> {
 }
 
 /** Increment shots_completed and clear the claim so the next tick continues. */
-export async function recordShotProgress(
-  jobId: string,
-  shotsCompleted: number,
-): Promise<void> {
+export async function recordShotProgress(jobId: string, shotsCompleted: number): Promise<void> {
   const supabase = getSupabaseAdminClient();
   const { error } = await supabase
     .from('storyboard_render_jobs')
@@ -168,9 +165,7 @@ export async function getLatestJobForStoryboard(
  * Is there an in-flight job for this storyboard right now? Used by the
  * server action to refuse double-enqueue.
  */
-export async function hasActiveJobForStoryboard(
-  storyboardId: string,
-): Promise<boolean> {
+export async function hasActiveJobForStoryboard(storyboardId: string): Promise<boolean> {
   const supabase = getSupabaseAdminClient();
   const { data, error } = await supabase
     .from('storyboard_render_jobs')

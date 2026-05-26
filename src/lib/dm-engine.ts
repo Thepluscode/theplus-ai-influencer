@@ -45,7 +45,11 @@ export async function triageDm(input: {
     return stubTriage(input);
   }
   if (!serverEnv.OPENAI_API_KEY) {
-    return { classification: 'other', summary: 'No OpenAI key — triage skipped.', suggestedReply: '' };
+    return {
+      classification: 'other',
+      summary: 'No OpenAI key — triage skipped.',
+      suggestedReply: '',
+    };
   }
 
   const userPrompt = `Persona: ${input.personaName} (${input.personaVibe ?? 'general'} vibe).
@@ -88,14 +92,7 @@ Return JSON only.`;
   return normalize(parsed);
 }
 
-const CLASS_SET = new Set<DmClassification>([
-  'collab',
-  'lead',
-  'fan',
-  'support',
-  'spam',
-  'other',
-]);
+const CLASS_SET = new Set<DmClassification>(['collab', 'lead', 'fan', 'support', 'spam', 'other']);
 
 function normalize(parsed: unknown): DmTriage {
   if (!parsed || typeof parsed !== 'object') {
@@ -106,8 +103,7 @@ function normalize(parsed: unknown): DmTriage {
     ? (obj.classification as DmClassification)
     : 'other';
   const summary = typeof obj.summary === 'string' ? obj.summary : '';
-  const suggestedReply =
-    typeof obj.suggestedReply === 'string' ? obj.suggestedReply.trim() : '';
+  const suggestedReply = typeof obj.suggestedReply === 'string' ? obj.suggestedReply.trim() : '';
   return { classification, summary, suggestedReply };
 }
 
@@ -153,6 +149,13 @@ function stubTriage({
 // ---------------------------------------------------------------------------
 // CRUD helpers
 // ---------------------------------------------------------------------------
+
+export async function getDmThreadById(id: string): Promise<DmThreadRow | null> {
+  const supabase = await getSupabaseServerClient();
+  const { data, error } = await supabase.from('dm_threads').select('*').eq('id', id).maybeSingle();
+  if (error) throw new Error(`Failed to load DM: ${error.message}`);
+  return data ?? null;
+}
 
 export async function listDmThreads(workspaceId: string): Promise<DmThreadRow[]> {
   const supabase = await getSupabaseServerClient();

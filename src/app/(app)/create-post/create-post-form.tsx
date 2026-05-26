@@ -180,11 +180,17 @@ export function CreatePostForm({
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_440px]">
       {/* === LEFT: brief panel === */}
       <form action={formAction} className="flex flex-col gap-5">
-        <PanelCard label="Model" hint={selectedModel ? selectedModel.name : 'Pick a saved persona'}>
+        <PanelCard
+          label="01 · Model"
+          hint={selectedModel ? selectedModel.name : 'Pick a saved persona'}
+        >
           <ModelRail models={models} value={modelId} onChange={setModelId} error={fe?.modelId} />
         </PanelCard>
 
-        <PanelCard label="Campaign" hint={prefill ? 'Pre-filled from a Series plan' : undefined}>
+        <PanelCard
+          label="02 · Campaign"
+          hint={prefill ? 'Pre-filled from a Series plan' : undefined}
+        >
           <Input
             name="name"
             placeholder="e.g. Citrus energy drink launch"
@@ -203,7 +209,7 @@ export function CreatePostForm({
         </PanelCard>
 
         <PanelCard
-          label="Reference Images"
+          label="03 · Reference images"
           hint={skipRender ? 'Final image set' : 'Max 3 · optional'}
         >
           <UploadSlot
@@ -226,7 +232,7 @@ export function CreatePostForm({
           </div>
         </PanelCard>
 
-        <PanelCard label="Distribution">
+        <PanelCard label="04 · Distribution">
           <PlatformPicker
             platforms={platforms}
             connectedPlatforms={connectedPlatforms}
@@ -260,7 +266,7 @@ export function CreatePostForm({
           {fe?.format ? <p className="text-[12px] text-[#ff5577]">{fe.format}</p> : null}
         </PanelCard>
 
-        <PanelCard label="Scene direction" hint="Optional — sharpens the render">
+        <PanelCard label="05 · Scene direction" hint="Optional — sharpens the render">
           <ChipGrid label="Post goal" cols={3}>
             {POST_GOALS.map((g) => (
               <Chip
@@ -309,7 +315,10 @@ export function CreatePostForm({
           </div>
         </PanelCard>
 
-        <PanelCard label="Voice" hint={brandDefaults ? 'Workspace defaults applied' : undefined}>
+        <PanelCard
+          label="06 · Voice"
+          hint={brandDefaults ? 'Workspace defaults applied' : undefined}
+        >
           <ChipGrid label="Brand tone" cols={3}>
             {BRAND_TONES.map((t) => (
               <Chip
@@ -365,6 +374,9 @@ export function CreatePostForm({
         <button
           type="submit"
           disabled={pending || models.length === 0}
+          title={
+            models.length === 0 ? 'Create a persona in Studio before generating posts.' : undefined
+          }
           className={cn(
             'inline-flex h-14 w-full items-center justify-center gap-2.5 rounded-[14px] text-[15px] font-medium text-white transition',
             'bg-[#0099ff] hover:bg-[#1aa6ff] active:scale-[0.99]',
@@ -380,15 +392,17 @@ export function CreatePostForm({
           ) : (
             <>
               <Sparkles size={16} />
-              {skipRender
-                ? state?.status === 'success'
-                  ? 'Re-run with this image'
-                  : 'Use this image (free)'
-                : state?.status === 'success'
-                  ? 'Regenerate (50 credits)'
-                  : hasAnyProductRef
-                    ? 'Generate variants with references (50 credits)'
-                    : 'Generate post variants (50 credits)'}
+              {models.length === 0
+                ? 'Create a persona first'
+                : skipRender
+                  ? state?.status === 'success'
+                    ? 'Re-run with this image'
+                    : 'Use this image (free)'
+                  : state?.status === 'success'
+                    ? 'Regenerate (50 credits)'
+                    : hasAnyProductRef
+                      ? 'Generate variants with references (50 credits)'
+                      : 'Generate post variants (50 credits)'}
             </>
           )}
         </button>
@@ -740,10 +754,10 @@ function ModelRail({
     return (
       <div className="rounded-md border border-amber-900/50 bg-amber-950/30 px-3 py-3 text-xs text-amber-300">
         No saved models yet — head to{' '}
-        <a href="/studio" className="font-semibold underline-offset-2 hover:underline">
+        <a href="/studio/new" className="font-semibold underline-offset-2 hover:underline">
           Studio
         </a>{' '}
-        to cast one first.
+        to cast one first. Create Post unlocks as soon as that model is saved.
       </div>
     );
   }

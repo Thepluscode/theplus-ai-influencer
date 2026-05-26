@@ -83,10 +83,10 @@ function PostDetailsModalBody({
   );
   const [caption, setCaption] = useState<string>(post.caption ?? '');
 
-  const [reschedState, reschedAction, rescheduling] = useActionState<
-    ReschedState | null,
-    FormData
-  >(reschedulePostAction, null);
+  const [reschedState, reschedAction, rescheduling] = useActionState<ReschedState | null, FormData>(
+    reschedulePostAction,
+    null,
+  );
   const [shareState, shareAction, sharing] = useActionState<ShareLinkState | null, FormData>(
     toggleShareLinkAction,
     null,
@@ -98,8 +98,7 @@ function PostDetailsModalBody({
     return post.share_token ?? null;
   }, [post, shareState]);
 
-  const origin =
-    typeof window !== 'undefined' ? window.location.origin : 'https://app.theplus.ai';
+  const origin = typeof window !== 'undefined' ? window.location.origin : 'https://app.theplus.ai';
   const shareUrl = currentToken ? `${origin}/p/${currentToken}` : null;
 
   const [copied, setCopied] = useState(false);
@@ -121,8 +120,7 @@ function PostDetailsModalBody({
         ? 'aspect-[9/16]'
         : 'aspect-[16/9]';
 
-  const settled =
-    reschedState?.status === 'saved' || reschedState?.status === 'partial';
+  const settled = reschedState?.status === 'saved' || reschedState?.status === 'partial';
   const saveDisabled = rescheduling || Boolean(saveDisabledReason);
   const hero = post.variants[0]?.url;
 
@@ -140,11 +138,7 @@ function PostDetailsModalBody({
         <div className="relative bg-canvas">
           {hero ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={hero}
-              alt=""
-              className={cn('w-full object-cover md:h-full', aspect)}
-            />
+            <img src={hero} alt="" className={cn('w-full object-cover md:h-full', aspect)} />
           ) : (
             <div className={cn('grid w-full place-items-center text-[#444]', aspect)}>
               no preview
@@ -174,6 +168,12 @@ function PostDetailsModalBody({
               <h3 className="mt-1 truncate text-[16px] font-semibold text-ink" title={post.name}>
                 {post.name}
               </h3>
+              {currentToken ? (
+                <span className="mt-2 inline-flex h-6 items-center gap-1.5 rounded-full bg-[#22c55e]/12 px-2.5 text-[10px] font-medium uppercase tracking-wider text-[#86efac] ring-1 ring-[#22c55e]/30">
+                  <Check size={10} />
+                  Review link ready
+                </span>
+              ) : null}
             </div>
             <button
               type="button"
@@ -365,7 +365,7 @@ function SharePanel({
     <div className="rounded-[12px] border border-[#262626] bg-surface-2 p-3">
       <div className="flex items-center justify-between gap-2">
         <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-ink-muted">
-          Public share link
+          Review link
         </span>
         {currentToken ? (
           <form action={shareAction}>
@@ -433,7 +433,7 @@ function SharePanel({
             className="inline-flex w-full items-center justify-center gap-1.5 rounded-[8px] border border-[#262626] bg-surface-1 py-2 text-[12px] font-medium text-ink transition hover:border-[#0099ff]/50 hover:text-[#0099ff] disabled:opacity-60"
           >
             {sharing ? <Loader2 size={11} className="animate-spin" /> : <Link2 size={11} />}
-            Generate share link
+            Generate review link
           </button>
         </form>
       )}
@@ -442,7 +442,7 @@ function SharePanel({
         <p className="mt-2 text-[10px] text-[#ff5577]">{shareState.error}</p>
       ) : !currentToken ? (
         <p className="mt-1.5 text-[10px] text-[#666]">
-          Anyone with the link can view this post.
+          Anyone with the link can view and approve this post.
         </p>
       ) : null}
     </div>

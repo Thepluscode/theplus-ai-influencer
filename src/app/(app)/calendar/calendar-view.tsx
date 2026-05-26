@@ -13,7 +13,7 @@ import {
   startOfWeek,
   subMonths,
 } from 'date-fns';
-import { Camera, ChevronLeft, ChevronRight, Plus, X } from 'lucide-react';
+import { Camera, CheckCircle2, ChevronLeft, ChevronRight, Plus, X } from 'lucide-react';
 import Link from 'next/link';
 import { PostDetailsModal } from '@/components/posts/post-details-modal';
 import type { PostRow } from '@/lib/supabase/types';
@@ -136,9 +136,7 @@ export function CalendarView({
 
       {/* Drafts strip lives below the grid so the canvas above stays clean,
           matching the reference's quiet layout. */}
-      {drafts.length > 0 ? (
-        <DraftsShelf drafts={drafts} onPick={(p) => setEditing(p)} />
-      ) : null}
+      {drafts.length > 0 ? <DraftsShelf drafts={drafts} onPick={(p) => setEditing(p)} /> : null}
 
       <PostDetailsModal
         post={editing}
@@ -257,6 +255,7 @@ function EventPill({ post, onClick }: { post: PostRow; onClick: () => void }) {
         <span className="flex items-center gap-1 text-[12px] font-medium text-ink">
           <Camera size={11} className="shrink-0 text-ink-muted" />
           <span className="truncate">{post.name}</span>
+          {post.share_token ? <CheckCircle2 size={11} className="shrink-0 text-[#86efac]" /> : null}
         </span>
         {time ? <span className="text-[10px] text-ink-muted">{time}</span> : null}
       </span>
@@ -272,9 +271,7 @@ function DraftsShelf({ drafts, onPick }: { drafts: PostRow[]; onPick: (p: PostRo
           <h3 className="text-[10px] font-semibold uppercase tracking-[0.22em] text-ink-muted">
             Drafts shelf
           </h3>
-          <p className="mt-0.5 text-[11px] text-ink-muted">
-            Click any draft to schedule it.
-          </p>
+          <p className="mt-0.5 text-[11px] text-ink-muted">Click any draft to schedule it.</p>
         </div>
         <span className="rounded-md border border-[#262626] bg-surface-2/80 px-2 py-0.5 text-[10px] uppercase tracking-wider text-ink-muted">
           {drafts.length} pending
@@ -334,9 +331,7 @@ function DraftPicker({
             <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[#0099ff]">
               Schedule on
             </p>
-            <h3 className="mt-0.5 text-sm font-semibold text-ink">
-              {format(date, 'EEEE, MMM d')}
-            </h3>
+            <h3 className="mt-0.5 text-sm font-semibold text-ink">{format(date, 'EEEE, MMM d')}</h3>
           </div>
           <button
             type="button"

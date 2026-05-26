@@ -1,21 +1,21 @@
-import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
-import "./globals.css";
+import type { Metadata } from 'next';
+import { Geist, Geist_Mono } from 'next/font/google';
+import './globals.css';
 
 const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
+  variable: '--font-geist-sans',
+  subsets: ['latin'],
 });
 
 const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+  variable: '--font-geist-mono',
+  subsets: ['latin'],
 });
 
 export const metadata: Metadata = {
-  title: "ThePlus.AI Influencer",
+  title: 'ThePlus.AI Influencer',
   description:
-    "Build AI influencer personas, generate cinematic visuals with Luma, and schedule cross-platform posts via Zernio.",
+    'Build AI influencer personas, generate cinematic visuals with Luma, and schedule cross-platform posts via Zernio.',
 };
 
 export default function RootLayout({

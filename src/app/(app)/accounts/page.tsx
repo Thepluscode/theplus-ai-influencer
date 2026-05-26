@@ -1,11 +1,15 @@
 import { Plus } from 'lucide-react';
 import { serverEnv } from '@/lib/env';
+import { syncSocialAccounts } from '@/lib/social-accounts';
+import { getSupabaseServerClient } from '@/lib/supabase/server';
+import { getOrCreateCurrentWorkspace } from '@/lib/workspace';
 import {
   getDefaultZernioProfileId,
   getZernioClient,
   type ZernioAccount,
   type ZernioPlatform,
 } from '@/lib/zernio';
+import { getDemoAccounts, isDemoMode } from '@/lib/demo-mode';
 import { startConnectionAction } from './actions';
 
 const ALL_PLATFORMS: { id: ZernioPlatform; label: string; icon: string }[] = [
@@ -31,16 +35,35 @@ interface AccountsPageProps {
 
 export default async function AccountsPage({ searchParams }: AccountsPageProps) {
   const { error: connectError, errorPlatform, errorCode, billingUrl } = await searchParams;
-  const zernioConfigured = Boolean(serverEnv.ZERNIO_API_KEY);
+  const demoMode = isDemoMode();
+  const zernioConfigured = demoMode || Boolean(serverEnv.ZERNIO_API_KEY);
 
   let accounts: ZernioAccount[] = [];
   let loadError: string | null = null;
-  if (zernioConfigured) {
+  if (demoMode) {
+    accounts = getDemoAccounts();
+  } else if (zernioConfigured) {
     try {
       const profileId = await getDefaultZernioProfileId();
       accounts = await getZernioClient().listAccounts(profileId);
     } catch (err) {
       loadError = err instanceof Error ? err.message : 'Unknown Zernio error';
+    }
+    // Keep the account → workspace map current so inbound DM webhooks can be
+    // attributed. Reuses the list above (no extra Zernio call); best-effort.
+    if (accounts.length > 0) {
+      try {
+        const supabase = await getSupabaseServerClient();
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (user) {
+          const ws = await getOrCreateCurrentWorkspace(user);
+          await syncSocialAccounts(ws.id, accounts);
+        }
+      } catch {
+        // non-fatal — the page still renders the connected accounts
+      }
     }
   }
 
@@ -54,9 +77,9 @@ export default async function AccountsPage({ searchParams }: AccountsPageProps) 
   const totalConnected = accounts.length;
 
   return (
-    <div className="min-h-full bg-[#070707] text-ink">
-      <div className="px-5 py-5 lg:px-6 lg:py-6">
-        <header className="mb-6 border-b border-[#1b1b1b] pb-5">
+    <div className="app-page text-ink">
+      <div className="app-page-inner">
+        <header className="app-page-header">
           <p className="framer-eyebrow">Accounts</p>
           <h1 className="mt-2 text-[28px] font-medium leading-[1.05] tracking-normal text-balance sm:text-[32px]">
             One workspace.
@@ -81,7 +104,14 @@ export default async function AccountsPage({ searchParams }: AccountsPageProps) 
                 <span className="font-medium text-ink">{totalConnected}</span> connected
               </StatusPill>
             ) : null}
-            {!zernioConfigured ? (
+            {demoMode ? (
+              <StatusPill
+                tone="warn"
+                title="Demo accounts are pre-connected as fixtures. Zernio mutating calls are hard-blocked in demo mode."
+              >
+                Demo accounts · publish disabled
+              </StatusPill>
+            ) : !zernioConfigured ? (
               <StatusPill tone="warn">
                 ZERNIO_API_KEY missing · set in <code>.env.local</code>
               </StatusPill>
@@ -101,6 +131,10 @@ export default async function AccountsPage({ searchParams }: AccountsPageProps) 
             code={errorCode}
             billingUrl={billingUrl}
           />
+        ) : null}
+
+        {!demoMode && zernioConfigured && totalConnected === 0 && !loadError ? (
+          <PublishBlockedBanner />
         ) : null}
 
         <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -156,22 +190,46 @@ export default async function AccountsPage({ searchParams }: AccountsPageProps) 
                   <input type="hidden" name="platform" value={id} />
                   <button
                     type="submit"
-                    disabled={!zernioConfigured}
+                    disabled={!zernioConfigured || demoMode}
                     title={
-                      zernioConfigured
-                        ? `Connect a new ${label} account via Zernio`
-                        : 'Set ZERNIO_API_KEY first.'
+                      demoMode
+                        ? 'Demo accounts are pre-connected.'
+                        : zernioConfigured
+                          ? `Connect a new ${label} account via Zernio`
+                          : 'Set ZERNIO_API_KEY first.'
                     }
                     className="inline-flex w-full items-center justify-center gap-2 rounded-[12px] border border-[#262626] bg-surface-2 px-3 py-2.5 text-[13px] font-medium text-ink transition hover:border-[#0099ff]/50 hover:bg-[#222] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-[#262626] disabled:hover:bg-surface-2"
                   >
                     <Plus size={14} />
-                    Connect {isConnected ? 'another' : label}
+                    {demoMode ? 'Demo connected' : `Connect ${isConnected ? 'another' : label}`}
                   </button>
                 </form>
               </li>
             );
           })}
         </ul>
+      </div>
+    </div>
+  );
+}
+
+function PublishBlockedBanner() {
+  return (
+    <div
+      className="mb-6 rounded-[16px] border border-[#ff7a3d]/40 bg-[#ff7a3d]/[0.06] p-4"
+      role="status"
+    >
+      <div className="flex items-start gap-3">
+        <span className="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#ff7a3d]/15 text-[#ff7a3d] ring-1 ring-[#ff7a3d]/30">
+          !
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-[14px] font-medium text-ink">No publishing accounts connected yet</p>
+          <p className="mt-1 text-[13px] leading-[1.5] text-ink-muted">
+            Scheduled posts cannot be pushed to any platform until at least one social account is
+            connected via Zernio. Pick a tile below to start.
+          </p>
+        </div>
       </div>
     </div>
   );

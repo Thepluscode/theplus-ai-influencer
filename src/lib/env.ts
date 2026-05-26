@@ -1,7 +1,13 @@
 import { z } from 'zod';
 
+const emptyStringToUndefined = (value: unknown) => (value === '' ? undefined : value);
+
 const ServerEnvSchema = z.object({
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1).optional(),
+  THEPLUS_DEMO_MODE: z
+    .string()
+    .optional()
+    .transform((v) => v === '1' || v?.toLowerCase() === 'true'),
   LUMA_API_KEY: z.string().min(1).optional(),
   // Set to "1" or "true" to skip real Luma calls and return placeholder
   // images. Useful for end-to-end UI/Supabase/Zernio testing without
@@ -10,8 +16,19 @@ const ServerEnvSchema = z.object({
     .string()
     .optional()
     .transform((v) => v === '1' || v?.toLowerCase() === 'true'),
-  ZERNIO_API_KEY: z.string().min(1).optional(),
+  ZERNIO_API_KEY: z
+    .string()
+    .min(1)
+    .optional()
+    .or(z.literal('').transform(() => undefined)),
   ZERNIO_API_BASE_URL: z.string().url().default('https://zernio.com/api/v1'),
+  // HMAC-SHA256 secret Zernio signs inbound webhooks with (X-Zernio-Signature).
+  // Required for the /api/webhooks/zernio receiver to accept comment/DM events.
+  ZERNIO_WEBHOOK_SECRET: z
+    .string()
+    .min(1)
+    .optional()
+    .or(z.literal('').transform(() => undefined)),
   STRIPE_SECRET_KEY: z.string().min(1).optional(),
   STRIPE_WEBHOOK_SECRET: z.string().min(1).optional(),
   // Stripe Price IDs — one per paid plan + the credit topup SKU.
@@ -38,9 +55,12 @@ const ServerEnvSchema = z.object({
 
 const PublicEnvSchema = z.object({
   NEXT_PUBLIC_APP_URL: z.string().url().default('http://localhost:3002'),
-  NEXT_PUBLIC_SUPABASE_URL: z.string().url().optional(),
-  NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1).optional(),
-  NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: z.string().min(1).optional(),
+  NEXT_PUBLIC_SUPABASE_URL: z.preprocess(emptyStringToUndefined, z.string().url().optional()),
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: z.preprocess(emptyStringToUndefined, z.string().min(1).optional()),
+  NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: z.preprocess(
+    emptyStringToUndefined,
+    z.string().min(1).optional(),
+  ),
 });
 
 export const serverEnv = ServerEnvSchema.parse(process.env);

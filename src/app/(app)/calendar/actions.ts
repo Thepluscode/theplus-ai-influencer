@@ -10,6 +10,7 @@ import {
   getPostById,
   updatePostSchedule,
 } from '@/lib/posts';
+import { describeSafetyBlock, runPublishBrandSafetyGate } from '@/lib/publish-safety';
 import { getSupabaseServerClient } from '@/lib/supabase/server';
 import {
   getDefaultZernioProfileId,
@@ -17,6 +18,7 @@ import {
   pickAccountsForPlatforms,
   type ZernioPlatformTarget,
 } from '@/lib/zernio';
+import { isDemoMode } from '@/lib/demo-mode';
 
 export type ReschedState =
   | { status: 'idle' }
@@ -65,6 +67,18 @@ export async function reschedulePostAction(
     when = parsedDate;
   }
 
+  if (isDemoMode()) {
+    // Validation already ran above; return a deterministic partial-success so
+    // the demo UI shows the reschedule as "saved locally, publish skipped"
+    // without touching Supabase, brand-safety credits, or Zernio.
+    revalidatePath('/calendar');
+    return {
+      status: 'partial',
+      postId: parsed.data.postId,
+      warning: 'Demo mode — schedule saved to the fixture only; Zernio publish is disabled.',
+    };
+  }
+
   try {
     await requireUser();
     const post = await getPostById(parsed.data.postId);
@@ -75,6 +89,39 @@ export async function reschedulePostAction(
     const zernioReady = Boolean(serverEnv.ZERNIO_API_KEY);
     let zernioPostId: string | null | undefined = undefined; // undefined = leave column unchanged
     let warning: string | null = null;
+
+    // Brand-safety gate — run before any mutation, only when this reschedule
+    // will actually publish. Fail-closed: a block/error returns without
+    // touching the post or Zernio so the operator can fix the caption first.
+    let safetyNote: string | null = null;
+    if (when && zernioReady) {
+      const gate = await runPublishBrandSafetyGate({
+        workspaceId: post.workspace_id,
+        postId: post.id,
+        caption: parsed.data.caption ?? post.caption ?? null,
+        imageUrl: post.variants[0]?.url ?? null,
+        platforms: post.platforms,
+      });
+      if (!gate.ok) {
+        if (gate.reason === 'insufficient_credits') {
+          return {
+            status: 'error',
+            error: `Not enough credits for the brand-safety check — need ${gate.required}, you have ${gate.balance}. Top up to publish.`,
+          };
+        }
+        if (gate.reason === 'blocked') {
+          return {
+            status: 'error',
+            error: `Brand safety blocked this post: ${describeSafetyBlock(gate.summary, gate.issues)}`,
+          };
+        }
+        return {
+          status: 'error',
+          error: `Brand-safety check failed, so nothing was published: ${gate.error}`,
+        };
+      }
+      safetyNote = gate.note;
+    }
 
     // Detach any prior Zernio post first — covers reschedule + unschedule both.
     if (post.zernio_post_id) {
@@ -134,7 +181,11 @@ export async function reschedulePostAction(
     revalidatePath('/calendar');
 
     if (warning) {
-      return { status: 'partial', postId: updated.id, warning };
+      const combined = safetyNote ? `${warning} · Brand safety: ${safetyNote}` : warning;
+      return { status: 'partial', postId: updated.id, warning: combined };
+    }
+    if (safetyNote) {
+      return { status: 'partial', postId: updated.id, warning: `Brand safety: ${safetyNote}` };
     }
     return { status: 'saved', postId: updated.id, pushedToZernio: Boolean(when && zernioReady) };
   } catch (err) {
@@ -147,6 +198,12 @@ export async function deletePostAction(formData: FormData): Promise<void> {
   const postId = formData.get('postId');
   if (typeof postId !== 'string' || !postId) {
     throw new Error('postId required');
+  }
+  if (isDemoMode()) {
+    // No-op in demo mode — Calendar reads fixtures, not Supabase, so the
+    // delete would have nothing to act on. Revalidate to refresh the view.
+    revalidatePath('/calendar');
+    return;
   }
   await requireUser();
 
@@ -180,6 +237,10 @@ export async function toggleShareLinkAction(
   const intent = formData.get('intent');
   if (typeof postId !== 'string' || !postId) {
     return { status: 'error', error: 'postId required' };
+  }
+  if (isDemoMode()) {
+    revalidatePath('/calendar');
+    return intent === 'disable' ? { status: 'disabled' } : { status: 'enabled', token: 'demo-review-link' };
   }
   try {
     await requireUser();

@@ -112,7 +112,12 @@ export function StudioWizard({ saveDisabledReason }: { saveDisabledReason: strin
         <PanelCard label="Build">
           <ChipGrid label="Gender" cols={3}>
             {GENDERS.map((g) => (
-              <Chip key={g} active={gender === g} onClick={() => setGender(g)} icon={GENDER_EMOJI[g]}>
+              <Chip
+                key={g}
+                active={gender === g}
+                onClick={() => setGender(g)}
+                icon={GENDER_EMOJI[g]}
+              >
                 <span className="capitalize">{g}</span>
               </Chip>
             ))}
@@ -120,7 +125,12 @@ export function StudioWizard({ saveDisabledReason }: { saveDisabledReason: strin
 
           <ChipGrid label="Body type" cols={2}>
             {BODY_TYPES.map((b) => (
-              <Chip key={b} active={bodyType === b} onClick={() => setBodyType(b)} icon={BODY_EMOJI[b]}>
+              <Chip
+                key={b}
+                active={bodyType === b}
+                onClick={() => setBodyType(b)}
+                icon={BODY_EMOJI[b]}
+              >
                 <span className="capitalize">{b.replace('-', ' ')}</span>
               </Chip>
             ))}
@@ -146,7 +156,12 @@ export function StudioWizard({ saveDisabledReason }: { saveDisabledReason: strin
 
           <ChipGrid label="Age range" cols={3}>
             {AGE_RANGES.map((a) => (
-              <Chip key={a} active={ageRange === a} onClick={() => setAgeRange(a)} icon={AGE_EMOJI[a]}>
+              <Chip
+                key={a}
+                active={ageRange === a}
+                onClick={() => setAgeRange(a)}
+                icon={AGE_EMOJI[a]}
+              >
                 <span className="tabular-nums">{a}</span>
               </Chip>
             ))}
@@ -200,16 +215,11 @@ export function StudioWizard({ saveDisabledReason }: { saveDisabledReason: strin
           </p>
         ) : null}
         {state?.status === 'insufficient_credits' ? (
-          <InsufficientCreditsBanner
-            balance={state.balance}
-            required={state.required}
-          />
+          <InsufficientCreditsBanner balance={state.balance} required={state.required} />
         ) : null}
         {state?.status === 'plan_limit' ? (
           <div className="rounded-[12px] border border-[#ff7a3d]/40 bg-[#ff7a3d]/[0.07] p-4">
-            <p className="text-[14px] font-medium text-ink">
-              {state.planName} plan limit reached
-            </p>
+            <p className="text-[14px] font-medium text-ink">{state.planName} plan limit reached</p>
             <p className="mt-1 text-[12px] leading-[1.4] text-ink-muted">
               You have {state.current} of {state.max} influencers on the {state.planName} plan.
               Upgrade to add more.
@@ -270,9 +280,7 @@ export function StudioWizard({ saveDisabledReason }: { saveDisabledReason: strin
                 <input type="hidden" name="visuals" value={JSON.stringify(state.visuals)} />
                 <button
                   type="submit"
-                  disabled={
-                    saving || saveState?.status === 'saved' || Boolean(saveDisabledReason)
-                  }
+                  disabled={saving || saveState?.status === 'saved' || Boolean(saveDisabledReason)}
                   title={saveDisabledReason ?? undefined}
                   className="inline-flex h-8 items-center gap-1.5 rounded-full bg-surface-2 px-3 text-[12px] font-medium text-ink ring-1 ring-[#262626] transition hover:bg-[#222] disabled:cursor-not-allowed disabled:text-[#666]"
                 >

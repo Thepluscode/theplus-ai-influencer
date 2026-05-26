@@ -1,13 +1,18 @@
 import Link from 'next/link';
 import { format } from 'date-fns';
-import { ArrowUpRight, CalendarRange, Plus, Sparkles, Trash2 } from 'lucide-react';
+import { ArrowUpRight, CalendarRange, CheckCircle2, Plus, Sparkles } from 'lucide-react';
 import { listContentPlans } from '@/lib/content-plans';
+import {
+  getPlanReviewSummary,
+  getPostReviewLinksForPlans,
+  type ReviewLinkLookup,
+} from '@/lib/content-plan-review-links';
 import { publicEnv } from '@/lib/env';
 import { getSupabaseServerClient } from '@/lib/supabase/server';
 import type { ContentPlanRow } from '@/lib/supabase/types';
 import { getOrCreateCurrentWorkspace } from '@/lib/workspace';
 import { cn } from '@/lib/utils';
-import { deleteContentPlanAction } from './actions';
+import { DeletePlanButton } from './delete-plan-button';
 
 export default async function SeriesIndexPage() {
   const supabaseConfigured = Boolean(
@@ -15,6 +20,7 @@ export default async function SeriesIndexPage() {
   );
 
   let plans: ContentPlanRow[] = [];
+  let postReviewLinks: ReviewLinkLookup = new Map();
   let loadError: string | null = null;
 
   if (supabaseConfigured) {
@@ -26,6 +32,7 @@ export default async function SeriesIndexPage() {
       if (user) {
         const ws = await getOrCreateCurrentWorkspace(user);
         plans = await listContentPlans(ws.id);
+        postReviewLinks = await getPostReviewLinksForPlans(ws.id, plans);
       }
     } catch (err) {
       loadError = err instanceof Error ? err.message : 'Unknown error';
@@ -33,9 +40,9 @@ export default async function SeriesIndexPage() {
   }
 
   return (
-    <div className="min-h-full bg-[#070707] text-ink">
-      <div className="px-5 py-5 lg:px-6 lg:py-6">
-        <header className="mb-6 flex flex-wrap items-end justify-between gap-4 border-b border-[#1b1b1b] pb-5">
+    <div className="app-page text-ink">
+      <div className="app-page-inner">
+        <header className="app-page-header flex flex-wrap items-end justify-between gap-4">
           <div className="max-w-2xl">
             <p className="framer-eyebrow">Content Engine</p>
             <h1 className="mt-2 text-[28px] font-medium leading-[1.05] tracking-normal text-balance sm:text-[32px]">
@@ -82,7 +89,7 @@ export default async function SeriesIndexPage() {
         ) : (
           <ul className="grid gap-3 sm:grid-cols-2">
             {plans.map((p) => (
-              <PlanCard key={p.id} plan={p} />
+              <PlanCard key={p.id} plan={p} postReviewLinks={postReviewLinks} />
             ))}
           </ul>
         )}
@@ -91,26 +98,41 @@ export default async function SeriesIndexPage() {
   );
 }
 
-function PlanCard({ plan }: { plan: ContentPlanRow }) {
+function PlanCard({
+  plan,
+  postReviewLinks,
+}: {
+  plan: ContentPlanRow;
+  postReviewLinks: ReviewLinkLookup;
+}) {
   const items = Array.isArray(plan.items) ? plan.items : [];
   const seed = (plan.seed_inputs ?? {}) as { deliverables?: string[] };
+  const review = getPlanReviewSummary(plan, postReviewLinks);
   return (
-    <li className="relative">
+    <li className="group relative">
       <Link
         href={`/series/${plan.id}`}
         className="group block rounded-[16px] border border-[#262626] bg-surface-1 p-5 transition hover:border-[#0099ff]/50"
       >
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
-            <p
-              className={cn(
-                'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-medium uppercase tracking-wider',
-                'bg-[#0099ff]/10 text-[#0099ff] ring-1 ring-[#0099ff]/30',
-              )}
-            >
-              <CalendarRange size={10} />
-              {plan.goal} · {plan.duration_days}d · {plan.cadence_per_week}/wk
-            </p>
+            <div className="flex flex-wrap gap-1.5">
+              <p
+                className={cn(
+                  'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-medium uppercase tracking-wider',
+                  'bg-[#0099ff]/10 text-[#0099ff] ring-1 ring-[#0099ff]/30',
+                )}
+              >
+                <CalendarRange size={10} />
+                {plan.goal} · {plan.duration_days}d · {plan.cadence_per_week}/wk
+              </p>
+              {review.count > 0 ? (
+                <p className="inline-flex items-center gap-1.5 rounded-full bg-[#22c55e]/12 px-2.5 py-1 text-[10px] font-medium uppercase tracking-wider text-[#86efac] ring-1 ring-[#22c55e]/30">
+                  <CheckCircle2 size={10} />
+                  {review.count} review-ready
+                </p>
+              ) : null}
+            </div>
             <h3 className="mt-2 truncate text-[18px] font-medium text-ink" title={plan.name}>
               {plan.name}
             </h3>
@@ -128,22 +150,17 @@ function PlanCard({ plan }: { plan: ContentPlanRow }) {
           <ArrowUpRight size={16} className="shrink-0 text-ink-muted group-hover:text-ink" />
         </div>
       </Link>
-      <form action={deleteContentPlanAction} className="absolute right-3 top-3 z-10">
-        <input type="hidden" name="planId" value={plan.id} />
-        <button
-          type="submit"
-          onClick={(e) => {
-            if (typeof window !== 'undefined' && !window.confirm('Delete this plan?')) {
-              e.preventDefault();
-            }
-          }}
-          className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-[#262626] bg-surface-2 text-ink-muted opacity-0 transition group-hover:opacity-100 hover:border-[#ff5577]/40 hover:bg-[#ff5577]/10 hover:text-[#ff5577]"
-          aria-label="Delete plan"
-          title="Delete plan"
+      {review.firstHref ? (
+        <Link
+          href={review.firstHref}
+          className="absolute bottom-3 right-3 z-10 inline-flex h-8 items-center gap-1.5 rounded-full bg-[#22c55e]/12 px-3 text-[10px] font-medium uppercase tracking-wider text-[#86efac] ring-1 ring-[#22c55e]/30 transition hover:bg-[#22c55e]/18"
+          aria-label={`Open review link for ${plan.name}`}
         >
-          <Trash2 size={11} />
-        </button>
-      </form>
+          Review link
+          <ArrowUpRight size={10} />
+        </Link>
+      ) : null}
+      <DeletePlanButton planId={plan.id} />
     </li>
   );
 }

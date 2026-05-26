@@ -11,6 +11,14 @@ import { getDefaultZernioProfileId, getZernioClient } from '@/lib/zernio';
 import { findTrend } from '@/lib/trends/catalog';
 import { PLATFORMS, type Platform } from '@/types/post';
 import { CreatePostForm, type CreatePostPrefill } from './create-post-form';
+import {
+  DEMO_CONNECTED_PLATFORMS,
+  DEMO_WORKSPACE_ID,
+  getDemoBrandDefaults,
+  getDemoModels,
+  getDemoPostBrief,
+  isDemoMode,
+} from '@/lib/demo-mode';
 
 interface PageProps {
   searchParams: Promise<{
@@ -23,6 +31,7 @@ interface PageProps {
 
 export default async function CreatePostPage({ searchParams }: PageProps) {
   const { planId, day, modelId: prefillModelId, trendId } = await searchParams;
+  const demoMode = isDemoMode();
   const stubbed = isLumaStubbed();
   const lumaConfigured = stubbed || Boolean(serverEnv.LUMA_API_KEY);
   const supabaseConfigured = Boolean(
@@ -37,7 +46,13 @@ export default async function CreatePostPage({ searchParams }: PageProps) {
   let prefill: CreatePostPrefill | undefined;
   let brandDefaults: WorkspaceBrandDefaultsRow | undefined;
 
-  if (!supabaseConfigured) {
+  if (demoMode) {
+    workspaceId = DEMO_WORKSPACE_ID;
+    models = getDemoModels();
+    connectedPlatforms = DEMO_CONNECTED_PLATFORMS;
+    brandDefaults = getDemoBrandDefaults();
+    prefill = getDemoPostBrief();
+  } else if (!supabaseConfigured) {
     saveDisabledReason = 'Set Supabase env vars in .env.local to enable Save.';
   } else {
     try {
@@ -145,9 +160,9 @@ export default async function CreatePostPage({ searchParams }: PageProps) {
   }
 
   return (
-    <div className="min-h-full bg-[#070707] text-ink">
-      <div className="px-5 py-5 lg:px-6 lg:py-6">
-        <header className="mb-6 border-b border-[#1b1b1b] pb-5">
+    <div className="app-page text-ink">
+      <div className="app-page-inner">
+        <header className="app-page-header">
           <p className="framer-eyebrow">Create</p>
           <h1 className="mt-2 text-[28px] font-medium leading-[1.05] tracking-normal text-balance sm:text-[32px]">
             Brief the shoot.
@@ -159,7 +174,14 @@ export default async function CreatePostPage({ searchParams }: PageProps) {
             model&apos;s portrait stays locked across renders so the face is consistent.
           </p>
           <div className="mt-5 flex flex-wrap gap-2">
-            {stubbed ? (
+            {demoMode ? (
+              <StatusPill
+                tone="warn"
+                title="Demo workspace — Save lands a fake post; Zernio publish is hard-blocked at the SDK boundary."
+              >
+                Demo · publish disabled
+              </StatusPill>
+            ) : stubbed ? (
               <StatusPill tone="info">
                 <span className="text-white">LUMA_STUB</span> on · placeholders
               </StatusPill>

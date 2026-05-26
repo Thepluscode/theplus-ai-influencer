@@ -34,6 +34,17 @@ export interface CarouselSlide {
   copy: string;
   visualBrief: string;
   facePlacement: 'hero' | 'supporting' | 'none';
+  asset?: CarouselSlideAsset;
+}
+
+export interface CarouselSlideAsset {
+  status: 'generating' | 'ready' | 'failed';
+  url?: string;
+  generationId?: string;
+  generatedAt?: string;
+  error?: string;
+  lastError?: string;
+  lastAttemptedAt?: string;
 }
 
 export interface FilmingScript {
@@ -68,6 +79,27 @@ export interface ContentPackage {
   email: EmailDraft;
   blog: BlogDraft;
   seoKeywords: string[];
+  calendarDraft?: ContentPackageCalendarDraft;
+  scheduledPost?: ContentPackageScheduledPost;
+  reviewLink?: ContentPackageReviewLink;
+}
+
+export interface ContentPackageCalendarDraft {
+  postId: string;
+  createdAt: string;
+}
+
+export interface ContentPackageScheduledPost {
+  postId: string;
+  scheduledFor: string;
+  pushedToZernio: boolean;
+  updatedAt: string;
+}
+
+export interface ContentPackageReviewLink {
+  postId: string;
+  token: string;
+  enabledAt: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -373,6 +405,10 @@ function asString(v: unknown, fallback: string): string {
   return typeof v === 'string' ? v.trim() : fallback;
 }
 
+function asOptionalString(v: unknown): string | undefined {
+  return typeof v === 'string' && v.trim() ? v.trim() : undefined;
+}
+
 function asStringArray(v: unknown, fallback: string[], max = 8): string[] {
   if (!Array.isArray(v)) return fallback;
   const values = v
@@ -456,10 +492,38 @@ function normalizeSlides(value: unknown, fallback: CarouselSlide[]): CarouselSli
         copy: asString(obj.copy, ''),
         visualBrief: asString(obj.visualBrief, ''),
         facePlacement,
+        asset: normalizeSlideAsset(obj.asset),
       },
     ];
   });
   return slides.length > 0 ? slides : fallback;
+}
+
+function normalizeSlideAsset(value: unknown): CarouselSlideAsset | undefined {
+  if (!value || typeof value !== 'object') return undefined;
+  const obj = value as Record<string, unknown>;
+  const status =
+    obj.status === 'ready' || obj.status === 'failed' || obj.status === 'generating'
+      ? obj.status
+      : undefined;
+  if (!status) return undefined;
+  const url = asOptionalString(obj.url);
+  const generationId = asOptionalString(obj.generationId);
+  const generatedAt = asOptionalString(obj.generatedAt);
+  const error = asOptionalString(obj.error);
+  const lastError = asOptionalString(obj.lastError);
+  const lastAttemptedAt = asOptionalString(obj.lastAttemptedAt);
+  if (status === 'ready' && (!url || !generationId)) return undefined;
+  if (status === 'failed' && !error) return undefined;
+  return {
+    status,
+    ...(url ? { url } : {}),
+    ...(generationId ? { generationId } : {}),
+    ...(generatedAt ? { generatedAt } : {}),
+    ...(error ? { error } : {}),
+    ...(lastError ? { lastError } : {}),
+    ...(lastAttemptedAt ? { lastAttemptedAt } : {}),
+  };
 }
 
 function normalizeFilmingScript(value: unknown, fallback: FilmingScript): FilmingScript {

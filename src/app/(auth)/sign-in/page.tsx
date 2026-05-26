@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { signInWithOAuth } from '../actions';
 import { SignInForm } from './sign-in-form';
+import { isDemoMode } from '@/lib/demo-mode';
 
 export default async function SignInPage({
   searchParams,
@@ -8,6 +9,7 @@ export default async function SignInPage({
   searchParams: Promise<{ returnTo?: string }>;
 }) {
   const { returnTo } = await searchParams;
+  const demoMode = isDemoMode();
 
   return (
     <div className="flex flex-col gap-6">
@@ -45,6 +47,15 @@ export default async function SignInPage({
       </div>
 
       <SignInForm returnTo={returnTo} />
+
+      {demoMode ? (
+        <Link
+          href="/dashboard"
+          className="inline-flex h-10 items-center justify-center rounded-[10px] border border-[#0099ff]/40 bg-[#0099ff]/10 px-3 text-[13px] font-medium text-[#79cfff] transition hover:bg-[#0099ff]/15"
+        >
+          Open demo workspace
+        </Link>
+      ) : null}
 
       <p className="text-center text-[12px] text-ink-muted">
         New here?{' '}

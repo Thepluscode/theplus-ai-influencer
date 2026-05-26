@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { pickAccountsForPlatforms, type ZernioAccount } from '../zernio';
 
-const acct = (overrides: Partial<ZernioAccount> & Pick<ZernioAccount, '_id' | 'platform'>): ZernioAccount => ({
+const acct = (
+  overrides: Partial<ZernioAccount> & Pick<ZernioAccount, '_id' | 'platform'>,
+): ZernioAccount => ({
   isActive: true,
   ...overrides,
 });
@@ -32,7 +34,11 @@ describe('pickAccountsForPlatforms', () => {
 
   it('reports missing platforms separately so the caller can warn', () => {
     const accounts: ZernioAccount[] = [acct({ _id: 'a1', platform: 'instagram' })];
-    const { resolved, missing } = pickAccountsForPlatforms(accounts, ['instagram', 'tiktok', 'youtube']);
+    const { resolved, missing } = pickAccountsForPlatforms(accounts, [
+      'instagram',
+      'tiktok',
+      'youtube',
+    ]);
     expect(resolved).toEqual([{ platform: 'instagram', accountId: 'a1' }]);
     expect(missing).toEqual(['tiktok', 'youtube']);
   });

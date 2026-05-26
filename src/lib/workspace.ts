@@ -39,9 +39,7 @@ export async function getOrCreateCurrentWorkspace(
     .single();
 
   if (insertErr || !created) {
-    throw new Error(
-      `Failed to bootstrap workspace: ${insertErr?.message ?? 'no row returned'}`,
-    );
+    throw new Error(`Failed to bootstrap workspace: ${insertErr?.message ?? 'no row returned'}`);
   }
   return created;
 }

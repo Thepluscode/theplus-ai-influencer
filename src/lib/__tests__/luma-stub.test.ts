@@ -36,10 +36,11 @@ describe('stubInfluencerVisuals', () => {
   beforeEach(() => {
     vi.stubGlobal(
       'fetch',
-      vi.fn(async () =>
-        new Response(JSON.stringify({ results: [{ picture: { large: PORTRAIT_URL } }] }), {
-          status: 200,
-        }),
+      vi.fn(
+        async () =>
+          new Response(JSON.stringify({ results: [{ picture: { large: PORTRAIT_URL } }] }), {
+            status: 200,
+          }),
       ),
     );
   });
@@ -74,7 +75,10 @@ describe('stubInfluencerVisuals', () => {
   });
 
   it('falls back to pravatar when randomuser fails', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('', { status: 503 })));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response('', { status: 503 })),
+    );
     const v = await stubInfluencerVisuals(input);
     expect(v.portraitUrl).toMatch(/^https:\/\/i\.pravatar\.cc/);
   });

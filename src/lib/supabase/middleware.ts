@@ -2,11 +2,26 @@ import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 import { publicEnv } from '@/lib/env';
 
-const PROTECTED_PREFIXES = ['/dashboard', '/studio', '/create-post', '/calendar', '/accounts', '/settings'];
+const PROTECTED_PREFIXES = [
+  '/dashboard',
+  '/studio',
+  '/create-post',
+  '/calendar',
+  '/accounts',
+  '/settings',
+];
 const AUTH_ONLY_PREFIXES = ['/sign-in', '/sign-up'];
 
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request });
+
+  if (
+    process.env.THEPLUS_DEMO_MODE &&
+    ['1', 'true'].includes(process.env.THEPLUS_DEMO_MODE.toLowerCase()) &&
+    process.env.NODE_ENV !== 'production'
+  ) {
+    return response;
+  }
 
   if (!publicEnv.NEXT_PUBLIC_SUPABASE_URL || !publicEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
     // Supabase not configured yet — let everything through so the dev can
@@ -41,7 +56,9 @@ export async function updateSession(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const { pathname } = request.nextUrl;
-  const isProtected = PROTECTED_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+  const isProtected = PROTECTED_PREFIXES.some(
+    (p) => pathname === p || pathname.startsWith(`${p}/`),
+  );
   const isAuthOnly = AUTH_ONLY_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 
   if (!user && isProtected) {

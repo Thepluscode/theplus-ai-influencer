@@ -1,12 +1,13 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { CheckCircle2, Clock3, Download, PlayCircle, Share2, Sparkles } from 'lucide-react';
+import { CheckCircle2, Clock3, Download, PlayCircle, Share2 } from 'lucide-react';
 import { getPostByShareToken } from '@/lib/posts';
 import { listPublicReviewDecisionsForPost } from '@/lib/review-approvals';
 import type { ReviewDecision } from '@/lib/review-approvals-schema';
 import { listPublicReviewCommentsForPost } from '@/lib/review-comments';
 import type { PostRow, ReviewCommentRow, ReviewDecisionRow } from '@/lib/supabase/types';
+import { ThePlusTechBrand } from '@/components/brand/theplus-tech-logo';
 import { PublicPostDecisionPanel } from '@/components/review/public-post-decision-panel';
 import { PublicPostReviewPanel } from '@/components/review/public-post-review-panel';
 import { cn } from '@/lib/utils';
@@ -95,10 +96,7 @@ export default async function SharedPostPage({ params }: PageProps) {
             href="/"
             className="inline-flex items-center gap-2 text-[14px] font-medium tracking-tight text-ink transition hover:text-ink/80"
           >
-            <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-white text-black">
-              <Sparkles size={13} />
-            </span>
-            theplus.ai
+            <ThePlusTechBrand markClassName="h-7 w-7" />
           </Link>
           <div className="flex items-center gap-2">
             <span className="inline-flex h-8 items-center gap-1.5 rounded-full bg-[#22c55e]/12 px-3 text-[11px] font-medium uppercase tracking-wider text-[#86efac] ring-1 ring-[#22c55e]/30">
@@ -163,6 +161,8 @@ export default async function SharedPostPage({ params }: PageProps) {
               </div>
             </div>
           </div>
+
+          {post.variants.length > 1 ? <CarouselPackage post={post} aspect={aspect} /> : null}
 
           <ReviewTimeline post={post} aspect={aspect} />
         </section>
@@ -238,7 +238,7 @@ function ShareInspector({
 
       <section className="rounded-[16px] border border-[#262626] bg-surface-1 p-4">
         <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-ink-muted">
-          Made with theplus.ai
+          Made with ThePlus-tech
         </p>
         <p className="mt-2 text-[13px] leading-[1.5] text-ink-muted">
           Generate a consistent AI influencer, compose platform-native campaigns, and route creative
@@ -252,6 +252,48 @@ function ShareInspector({
         </Link>
       </section>
     </aside>
+  );
+}
+
+function CarouselPackage({ post, aspect }: { post: PostRow; aspect: string }) {
+  return (
+    <section className="rounded-[16px] border border-[#262626] bg-surface-1 p-4">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="text-[11px] font-medium uppercase tracking-[0.14em] text-ink-muted">
+            Carousel package
+          </h2>
+          <p className="mt-1 text-[12px] text-[#666]">
+            {post.variants.length} review asset{post.variants.length === 1 ? '' : 's'} attached
+          </p>
+        </div>
+        <span className="inline-flex h-7 items-center gap-1.5 rounded-full bg-[#22c55e]/12 px-3 text-[10px] font-medium uppercase tracking-wider text-[#86efac] ring-1 ring-[#22c55e]/30">
+          <CheckCircle2 size={11} />
+          Package review
+        </span>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        {post.variants.map((variant, index) => (
+          <figure
+            key={variant.generationId || index}
+            className="overflow-hidden rounded-[14px] border border-[#262626] bg-surface-2"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={variant.url}
+              alt={`${post.name} slide ${index + 1}`}
+              className={cn(aspect, 'w-full object-cover')}
+            />
+            <figcaption className="flex items-center justify-between gap-3 p-3">
+              <span className="text-[12px] font-medium text-ink">Slide {index + 1}</span>
+              <span className="truncate text-[10px] uppercase tracking-wider text-[#666]">
+                {variant.generationId || `variant-${index + 1}`}
+              </span>
+            </figcaption>
+          </figure>
+        ))}
+      </div>
+    </section>
   );
 }
 

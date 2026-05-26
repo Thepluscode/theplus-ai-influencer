@@ -29,9 +29,9 @@ export default async function TrendsPage({ searchParams }: PageProps) {
   const breakingThisWeek = getBreakingThisWeek(trends);
 
   return (
-    <div className="min-h-full bg-[#070707] text-ink">
-      <div className="px-5 py-5 lg:px-6 lg:py-6">
-        <header className="mb-6 border-b border-[#1b1b1b] pb-5">
+    <div className="app-page text-ink">
+      <div className="app-page-inner">
+        <header className="app-page-header">
           <p className="framer-eyebrow">Trends</p>
           <h1 className="mt-2 text-[28px] font-medium leading-[1.05] tracking-normal text-balance sm:text-[32px]">
             What&apos;s breaking right now.

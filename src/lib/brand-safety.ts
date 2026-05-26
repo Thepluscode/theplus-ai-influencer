@@ -187,7 +187,10 @@ function stubCheck({ caption }: CheckInput): SafetyResult {
       suggestion: 'Soften to "supports" or "helps" instead of "cures" / "guarantees".',
     });
   }
-  if (/#ad|#sponsored|#partner/.test(lc) === false && /\b(use code|sponsored by|paid partner)\b/.test(lc)) {
+  if (
+    /#ad|#sponsored|#partner/.test(lc) === false &&
+    /\b(use code|sponsored by|paid partner)\b/.test(lc)
+  ) {
     issues.push({
       severity: 'medium',
       code: 'undisclosed_sponsorship',

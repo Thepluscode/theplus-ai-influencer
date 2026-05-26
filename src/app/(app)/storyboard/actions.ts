@@ -165,7 +165,11 @@ export async function deleteStoryboardAction(formData: FormData): Promise<void> 
       data: { user },
     } = await supabase.auth.getUser();
     if (!user) throw new Error('Not signed in.');
-    await getOrCreateCurrentWorkspace(user);
+    const ws = await getOrCreateCurrentWorkspace(user);
+    const storyboard = await getStoryboard(id);
+    if (!storyboard || storyboard.workspace_id !== ws.id) {
+      throw new Error('Storyboard not found.');
+    }
     await removeStoryboard(id);
     revalidatePath('/storyboard');
   } catch (err) {

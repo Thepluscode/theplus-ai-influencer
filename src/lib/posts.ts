@@ -47,6 +47,7 @@ export async function listDraftPosts(workspaceId: string, limit = 20): Promise<P
     .from('posts')
     .select('*')
     .eq('workspace_id', workspaceId)
+    .is('scheduled_for', null)
     .order('created_at', { ascending: false })
     .limit(limit);
 
@@ -129,11 +130,7 @@ export async function updatePostSchedule(
 
 export async function getPostById(postId: string): Promise<PostRow | null> {
   const supabase = await getSupabaseServerClient();
-  const { data, error } = await supabase
-    .from('posts')
-    .select('*')
-    .eq('id', postId)
-    .maybeSingle();
+  const { data, error } = await supabase.from('posts').select('*').eq('id', postId).maybeSingle();
   if (error) {
     throw new Error(`Failed to load post: ${error.message}`);
   }
@@ -175,10 +172,7 @@ export async function enablePostSharing(postId: string): Promise<string> {
   }
 
   const token = crypto.randomUUID();
-  const { error } = await supabase
-    .from('posts')
-    .update({ share_token: token })
-    .eq('id', postId);
+  const { error } = await supabase.from('posts').update({ share_token: token }).eq('id', postId);
 
   if (error) {
     throw new Error(`Failed to enable sharing: ${error.message}`);
@@ -188,10 +182,7 @@ export async function enablePostSharing(postId: string): Promise<string> {
 
 export async function disablePostSharing(postId: string): Promise<void> {
   const supabase = await getSupabaseServerClient();
-  const { error } = await supabase
-    .from('posts')
-    .update({ share_token: null })
-    .eq('id', postId);
+  const { error } = await supabase.from('posts').update({ share_token: null }).eq('id', postId);
   if (error) {
     throw new Error(`Failed to disable sharing: ${error.message}`);
   }

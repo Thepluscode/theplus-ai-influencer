@@ -24,13 +24,7 @@ import { cn } from '@/lib/utils';
  * advance on the natural `ended` event so the cadence matches the actual
  * Luma Dream Machine clip length.
  */
-export function ReelPreview({
-  shots,
-  format,
-}: {
-  shots: RenderedShot[];
-  format: PostFormat;
-}) {
+export function ReelPreview({ shots, format }: { shots: RenderedShot[]; format: PostFormat }) {
   const [index, setIndex] = useState(0);
   const [playing, setPlaying] = useState(true);
   const [progress, setProgress] = useState(0);
@@ -43,14 +37,9 @@ export function ReelPreview({
   const isVideoShot = Boolean(current?.videoUrl);
   // When we have real video, the video element drives timing. When it's
   // an image, RAF drives a synthetic timer for the same UX.
-  const shotDurationMs =
-    current?.videoDurationMs ?? current?.durationMs ?? 2500;
+  const shotDurationMs = current?.videoDurationMs ?? current?.durationMs ?? 2500;
   const totalDurationMs = useMemo(
-    () =>
-      shots.reduce(
-        (sum, shot) => sum + (shot.videoDurationMs ?? shot.durationMs ?? 2500),
-        0,
-      ),
+    () => shots.reduce((sum, shot) => sum + (shot.videoDurationMs ?? shot.durationMs ?? 2500), 0),
     [shots],
   );
   const currentOffsetMs = useMemo(
@@ -191,104 +180,104 @@ export function ReelPreview({
 
       <div className="px-4 py-4">
         <div className={cn('mx-auto w-full', heroMax)}>
-        <figure
-          className={cn(
-            'relative w-full overflow-hidden rounded-[14px] border border-[#262626] bg-canvas',
-            aspect,
-          )}
-        >
-          {/* Video or image for the active shot */}
-          {isVideoShot ? (
-            <video
-              ref={videoRef}
-              key={current.videoUrl}
-              src={current.videoUrl}
-              autoPlay={playing}
-              muted
-              playsInline
-              onTimeUpdate={handleVideoTimeUpdate}
-              onEnded={handleVideoEnded}
-              className="h-full w-full object-cover"
-            />
-          ) : (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              key={current.imageUrl}
-              src={current.imageUrl}
-              alt={`Shot ${current.index + 1}`}
-              className="h-full w-full object-cover transition-opacity duration-300"
-            />
-          )}
+          <figure
+            className={cn(
+              'relative w-full overflow-hidden rounded-[14px] border border-[#262626] bg-canvas',
+              aspect,
+            )}
+          >
+            {/* Video or image for the active shot */}
+            {isVideoShot ? (
+              <video
+                ref={videoRef}
+                key={current.videoUrl}
+                src={current.videoUrl}
+                autoPlay={playing}
+                muted
+                playsInline
+                onTimeUpdate={handleVideoTimeUpdate}
+                onEnded={handleVideoEnded}
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                key={current.imageUrl}
+                src={current.imageUrl}
+                alt={`Shot ${current.index + 1}`}
+                className="h-full w-full object-cover transition-opacity duration-300"
+              />
+            )}
 
-          {/* Per-shot progress bars across the top */}
-          <div className="absolute inset-x-3 top-3 flex gap-1">
-            {bars.map((i) => {
-              const widthPct = i < index ? 100 : i === index ? progress * 100 : 0;
-              return (
-                <div
-                  key={i}
-                  className="relative h-[3px] flex-1 overflow-hidden rounded-full bg-white/25"
-                >
-                  <span
-                    className="absolute inset-y-0 left-0 bg-white"
-                    style={{ width: `${widthPct}%` }}
-                  />
-                </div>
-              );
-            })}
+            {/* Per-shot progress bars across the top */}
+            <div className="absolute inset-x-3 top-3 flex gap-1">
+              {bars.map((i) => {
+                const widthPct = i < index ? 100 : i === index ? progress * 100 : 0;
+                return (
+                  <div
+                    key={i}
+                    className="relative h-[3px] flex-1 overflow-hidden rounded-full bg-white/25"
+                  >
+                    <span
+                      className="absolute inset-y-0 left-0 bg-white"
+                      style={{ width: `${widthPct}%` }}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Hook caption */}
+            {current.hookCaption ? (
+              <p className="absolute inset-x-4 bottom-12 text-center text-[18px] font-semibold leading-tight text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.7)]">
+                {current.hookCaption}
+              </p>
+            ) : null}
+
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/85 via-black/30 to-transparent" />
+
+            <span className="absolute bottom-3 left-3 inline-flex h-6 items-center rounded-full bg-black/55 px-2.5 text-[10px] font-medium uppercase tracking-wider text-white backdrop-blur">
+              Shot {current.index + 1} / {total}
+            </span>
+            <span className="absolute bottom-3 right-3 inline-flex h-6 items-center gap-1 rounded-full bg-black/55 px-2.5 text-[10px] font-medium uppercase tracking-wider text-white backdrop-blur">
+              <Clock3 size={10} />
+              {currentTimecode}
+            </span>
+          </figure>
+
+          <div className="mt-3 flex items-center justify-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setIndex((i) => (i - 1 + total) % total);
+                setProgress(0);
+              }}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[#262626] bg-surface-1 text-ink-muted transition hover:border-[#0099ff]/50 hover:text-[#0099ff]"
+              aria-label="Previous shot"
+            >
+              <SkipBack size={14} />
+            </button>
+            <button
+              type="button"
+              onClick={() => setPlaying((p) => !p)}
+              className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-[#0099ff] text-white shadow-[0_8px_24px_-6px_rgba(0,153,255,0.45)] transition hover:bg-[#1aa6ff]"
+              aria-label={playing ? 'Pause' : 'Play'}
+            >
+              {playing ? <Pause size={15} /> : <Play size={15} />}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setIndex((i) => (i + 1) % total);
+                setProgress(0);
+              }}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[#262626] bg-surface-1 text-ink-muted transition hover:border-[#0099ff]/50 hover:text-[#0099ff]"
+              aria-label="Next shot"
+            >
+              <SkipForward size={14} />
+            </button>
           </div>
-
-          {/* Hook caption */}
-          {current.hookCaption ? (
-            <p className="absolute inset-x-4 bottom-12 text-center text-[18px] font-semibold leading-tight text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.7)]">
-              {current.hookCaption}
-            </p>
-          ) : null}
-
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/85 via-black/30 to-transparent" />
-
-          <span className="absolute bottom-3 left-3 inline-flex h-6 items-center rounded-full bg-black/55 px-2.5 text-[10px] font-medium uppercase tracking-wider text-white backdrop-blur">
-            Shot {current.index + 1} / {total}
-          </span>
-          <span className="absolute bottom-3 right-3 inline-flex h-6 items-center gap-1 rounded-full bg-black/55 px-2.5 text-[10px] font-medium uppercase tracking-wider text-white backdrop-blur">
-            <Clock3 size={10} />
-            {currentTimecode}
-          </span>
-        </figure>
-
-        <div className="mt-3 flex items-center justify-center gap-2">
-          <button
-            type="button"
-            onClick={() => {
-              setIndex((i) => (i - 1 + total) % total);
-              setProgress(0);
-            }}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[#262626] bg-surface-1 text-ink-muted transition hover:border-[#0099ff]/50 hover:text-[#0099ff]"
-            aria-label="Previous shot"
-          >
-            <SkipBack size={14} />
-          </button>
-          <button
-            type="button"
-            onClick={() => setPlaying((p) => !p)}
-            className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-[#0099ff] text-white shadow-[0_8px_24px_-6px_rgba(0,153,255,0.45)] transition hover:bg-[#1aa6ff]"
-            aria-label={playing ? 'Pause' : 'Play'}
-          >
-            {playing ? <Pause size={15} /> : <Play size={15} />}
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setIndex((i) => (i + 1) % total);
-              setProgress(0);
-            }}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[#262626] bg-surface-1 text-ink-muted transition hover:border-[#0099ff]/50 hover:text-[#0099ff]"
-            aria-label="Next shot"
-          >
-            <SkipForward size={14} />
-          </button>
         </div>
-      </div>
 
         <div className="mt-5 rounded-[12px] border border-[#1f1f1f] bg-[#0d0d0d] p-3">
           <div className="mb-2 flex items-center justify-between gap-3 text-[10px] uppercase tracking-wider text-[#666]">
@@ -340,9 +329,7 @@ export function ReelPreview({
           </div>
           <div className="mt-2 flex items-center gap-2 text-[11px] text-ink-muted">
             <MessageSquare size={11} className="text-[#0099ff]" />
-            <span>
-              Comment markers map to shots. Next pass can persist anchored review notes.
-            </span>
+            <span>Comment markers map to shots. Next pass can persist anchored review notes.</span>
           </div>
         </div>
       </div>

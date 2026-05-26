@@ -17,6 +17,11 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { getContentPlan } from '@/lib/content-plans';
+import {
+  getItemReviewHref,
+  getPostReviewLinksForItems,
+  type ReviewLinkLookup,
+} from '@/lib/content-plan-review-links';
 import { publicEnv } from '@/lib/env';
 import { listAiModels } from '@/lib/ai-models';
 import { getSupabaseServerClient } from '@/lib/supabase/server';
@@ -24,6 +29,7 @@ import type { AiModelRow } from '@/lib/supabase/types';
 import { getOrCreateCurrentWorkspace } from '@/lib/workspace';
 import type { CarouselSlide, ContentPackage, PlanItem } from '@/lib/series-planner';
 import { cn } from '@/lib/utils';
+import { ContentPackageDrawer } from './content-package-drawer';
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -47,6 +53,7 @@ export default async function SeriesPlanDetailPage({ params }: Props) {
   if (!plan || plan.workspace_id !== ws.id) notFound();
 
   const items = (Array.isArray(plan.items) ? plan.items : []) as PlanItem[];
+  const postReviewLinks = await getPostReviewLinksForItems(ws.id, items);
   const seed = (plan.seed_inputs ?? {}) as {
     campaign?: string;
     summary?: string;
@@ -60,9 +67,9 @@ export default async function SeriesPlanDetailPage({ params }: Props) {
     : undefined;
 
   return (
-    <div className="min-h-full bg-[#070707] text-ink">
-      <div className="px-5 py-5 lg:px-6 lg:py-6">
-        <header className="mb-8">
+    <div className="app-page text-ink">
+      <div className="app-page-inner">
+        <header className="app-page-header">
           <Link
             href="/series"
             className="mb-4 inline-flex items-center gap-1.5 text-[12px] text-ink-muted transition hover:text-ink"
@@ -129,9 +136,11 @@ export default async function SeriesPlanDetailPage({ params }: Props) {
             <PlanItemCard
               key={idx}
               item={item}
+              itemIndex={idx}
               planId={plan.id}
               modelId={plan.model_id ?? ''}
               model={model}
+              postReviewLinks={postReviewLinks}
             />
           ))}
         </ul>
@@ -150,17 +159,22 @@ function Pill({ children }: { children: React.ReactNode }) {
 
 function PlanItemCard({
   item,
+  itemIndex,
   planId,
   modelId,
   model,
+  postReviewLinks,
 }: {
   item: PlanItem;
+  itemIndex: number;
   planId: string;
   modelId: string;
   model: AiModelRow | undefined;
+  postReviewLinks: ReviewLinkLookup;
 }) {
   const date = new Date(item.scheduledAt);
   const pkg = item.contentPackage as ContentPackage | undefined;
+  const reviewHref = getItemReviewHref(item, postReviewLinks);
   const briefParams = new URLSearchParams({
     planId,
     day: String(item.day),
@@ -220,7 +234,7 @@ function PlanItemCard({
         </div>
 
         {/* CTA */}
-        <div className="flex flex-row gap-2 lg:flex-col">
+        <div className="flex flex-row flex-wrap gap-2 lg:flex-col">
           <Link
             href={`/create-post?${briefParams.toString()}`}
             className={cn(
@@ -232,6 +246,24 @@ function PlanItemCard({
             Create social post
             <ArrowUpRight size={11} />
           </Link>
+          {pkg ? (
+            <ContentPackageDrawer
+              planId={planId}
+              itemIndex={itemIndex}
+              item={item}
+              pkg={pkg}
+              model={
+                model
+                  ? {
+                      name: model.name,
+                      portraitUrl: model.portrait_url,
+                    }
+                  : null
+              }
+              createPostHref={`/create-post?${briefParams.toString()}`}
+              initialReviewHref={reviewHref}
+            />
+          ) : null}
         </div>
       </div>
     </li>

@@ -4,7 +4,11 @@ import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { listAiModels } from '@/lib/ai-models';
-import { deleteContentPlan as removePlan, saveContentPlan } from '@/lib/content-plans';
+import {
+  deleteContentPlan as removePlan,
+  getContentPlan,
+  saveContentPlan,
+} from '@/lib/content-plans';
 import { consumeCredits, COSTS, refundCredits } from '@/lib/credits';
 import {
   BRAND_ENTITIES,
@@ -170,7 +174,11 @@ export async function deleteContentPlanAction(formData: FormData): Promise<void>
     throw new Error('planId required');
   }
   try {
-    await getOrCreateCurrentWorkspaceFromCookies();
+    const ws = await getOrCreateCurrentWorkspaceFromCookies();
+    const plan = await getContentPlan(id);
+    if (!plan || plan.workspace_id !== ws.id) {
+      throw new Error('Content plan not found.');
+    }
     await removePlan(id);
     revalidatePath('/series');
   } catch (err) {

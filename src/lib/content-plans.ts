@@ -69,6 +69,23 @@ export async function getContentPlan(id: string): Promise<ContentPlanRow | null>
   return data;
 }
 
+export async function updateContentPlanItems(
+  id: string,
+  items: PlanItem[],
+): Promise<ContentPlanRow> {
+  const supabase = await getSupabaseServerClient();
+  const { data, error } = await supabase
+    .from('content_plans')
+    .update({ items })
+    .eq('id', id)
+    .select('*')
+    .single();
+  if (error || !data) {
+    throw new Error(`Failed to update content plan: ${error?.message ?? 'no row'}`);
+  }
+  return data;
+}
+
 export async function deleteContentPlan(id: string): Promise<void> {
   const supabase = await getSupabaseServerClient();
   const { error } = await supabase.from('content_plans').delete().eq('id', id);

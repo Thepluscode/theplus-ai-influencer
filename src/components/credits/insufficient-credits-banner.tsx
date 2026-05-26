@@ -16,15 +16,11 @@ export function InsufficientCreditsBanner({
           <Zap size={16} />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="text-[14px] font-medium text-ink">
-            Not enough credits to run this.
-          </p>
+          <p className="text-[14px] font-medium text-ink">Not enough credits to run this.</p>
           <p className="mt-0.5 text-[13px] leading-[1.4] text-ink-muted">
-            You have <span className="tabular-nums text-ink">{balance.toLocaleString()}</span>{' '}
-            but need{' '}
-            <span className="tabular-nums text-ink">{required.toLocaleString()}</span> ·{' '}
-            short by{' '}
-            <span className="tabular-nums text-[#ff7a3d]">{short.toLocaleString()}</span>.
+            You have <span className="tabular-nums text-ink">{balance.toLocaleString()}</span> but
+            need <span className="tabular-nums text-ink">{required.toLocaleString()}</span> · short
+            by <span className="tabular-nums text-[#ff7a3d]">{short.toLocaleString()}</span>.
           </p>
           <Link
             href="/settings#billing"
