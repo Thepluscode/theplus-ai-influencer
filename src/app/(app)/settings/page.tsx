@@ -1,6 +1,14 @@
 import { Check, CreditCard, ExternalLink, LogOut, Zap } from 'lucide-react';
 import { getPlan, PLANS, type PlanId } from '@/lib/billing/plans';
 import { isStripeConfigured } from '@/lib/billing/stripe';
+import {
+  DEMO_USER_EMAIL,
+  getDemoBrandDefaults,
+  getDemoInvites,
+  getDemoWebhooks,
+  getDemoWorkspace,
+  isDemoMode,
+} from '@/lib/demo-mode';
 import { publicEnv, serverEnv } from '@/lib/env';
 import { isLumaStubbed } from '@/lib/luma-stub';
 import { getSupabaseServerClient } from '@/lib/supabase/server';
@@ -37,14 +45,15 @@ interface PageProps {
 
 export default async function SettingsPage({ searchParams }: PageProps) {
   const { billing, billingError, plan: planParam, settings, settingsError } = await searchParams;
+  const demoMode = isDemoMode();
 
   const supabaseConfigured = Boolean(
     publicEnv.NEXT_PUBLIC_SUPABASE_URL && publicEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY,
   );
   const stubbed = isLumaStubbed();
-  const lumaConfigured = stubbed || Boolean(serverEnv.LUMA_API_KEY);
-  const zernioConfigured = Boolean(serverEnv.ZERNIO_API_KEY);
-  const stripeConfigured = isStripeConfigured();
+  const lumaConfigured = demoMode || stubbed || Boolean(serverEnv.LUMA_API_KEY);
+  const zernioConfigured = demoMode || Boolean(serverEnv.ZERNIO_API_KEY);
+  const stripeConfigured = !demoMode && isStripeConfigured();
 
   let userEmail: string | null = null;
   let userId: string | null = null;
@@ -58,7 +67,19 @@ export default async function SettingsPage({ searchParams }: PageProps) {
   let webhooks: WorkspaceWebhookRow[] = [];
   let controlsError: string | null = null;
 
-  if (supabaseConfigured) {
+  if (demoMode) {
+    const workspace = getDemoWorkspace();
+    userEmail = DEMO_USER_EMAIL;
+    userId = workspace.owner_user_id;
+    currentPlan = workspace.plan;
+    credits = workspace.credits;
+    renewsAt = workspace.plan_renews_at;
+    hasSubscription = false;
+    workspaceId = workspace.id;
+    brandDefaults = getDemoBrandDefaults();
+    invites = getDemoInvites();
+    webhooks = getDemoWebhooks();
+  } else if (supabaseConfigured) {
     try {
       const supabase = await getSupabaseServerClient();
       const {
@@ -95,7 +116,7 @@ export default async function SettingsPage({ searchParams }: PageProps) {
 
   const effectiveBrandDefaults =
     brandDefaults ?? fallbackBrandDefaults(workspaceId ?? '00000000-0000-0000-0000-000000000000');
-  const controlsDisabled = !userId || Boolean(controlsError);
+  const controlsDisabled = demoMode || !userId || Boolean(controlsError);
 
   return (
     <div className="app-page text-ink">
@@ -110,25 +131,42 @@ export default async function SettingsPage({ searchParams }: PageProps) {
           <p className="mt-3 max-w-2xl text-[13px] leading-[1.5] text-ink-muted">
             Account info, billing, integration status, and platform keys.
           </p>
+          <div className="mt-5 flex flex-wrap gap-2">
+            {demoMode ? (
+              <StatusPill tone="info">Demo workspace · live changes disabled</StatusPill>
+            ) : null}
+            {!demoMode && !supabaseConfigured ? (
+              <StatusPill tone="warn">Supabase off · workspace controls unavailable</StatusPill>
+            ) : null}
+          </div>
         </header>
 
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
-          <div className="flex flex-col gap-6">
+          <div className="flex min-w-0 flex-col gap-6">
             {/* ---- BILLING ---- */}
             <section
               id="billing"
               className="rounded-[16px] border border-[#262626] bg-surface-1 p-5"
             >
-              <header className="mb-4 flex items-baseline justify-between gap-2">
+              <header className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
                 <h2 className="text-[11px] font-medium uppercase tracking-[0.12em] text-ink-muted">
                   Billing
                 </h2>
                 {!stripeConfigured ? (
                   <span className="text-[11px] text-[#ff7a3d]">
-                    Stripe keys missing · set in .env.local
+                    {demoMode
+                      ? 'Demo mode · Stripe disabled'
+                      : 'Stripe keys missing · set in .env.local'}
                   </span>
                 ) : null}
               </header>
+
+              {demoMode ? (
+                <BillingFlash tone="info">
+                  Demo billing is read-only. Upgrade and top-up buttons stay disabled to prevent
+                  real Stripe sessions.
+                </BillingFlash>
+              ) : null}
 
               {billing === 'success' && planParam ? (
                 <BillingFlash tone="ok">
@@ -163,6 +201,11 @@ export default async function SettingsPage({ searchParams }: PageProps) {
                     plan={p}
                     currentPlanId={currentPlan}
                     stripeConfigured={stripeConfigured}
+                    disabledReason={
+                      demoMode
+                        ? 'Demo mode does not open Stripe Checkout.'
+                        : 'Set STRIPE_SECRET_KEY + STRIPE_PRICE_* in .env.local first.'
+                    }
                   />
                 ))}
               </div>
@@ -179,7 +222,13 @@ export default async function SettingsPage({ searchParams }: PageProps) {
                     <button
                       type="submit"
                       disabled={!stripeConfigured}
-                      title={!stripeConfigured ? 'Set Stripe keys in .env.local first.' : undefined}
+                      title={
+                        !stripeConfigured
+                          ? demoMode
+                            ? 'Demo mode does not open Stripe Checkout.'
+                            : 'Set Stripe keys in .env.local first.'
+                          : undefined
+                      }
                       className="inline-flex h-9 items-center gap-1.5 rounded-full bg-[#0099ff] px-3.5 text-[12px] font-medium text-white transition hover:bg-[#1aa6ff] active:scale-[0.99] disabled:cursor-not-allowed disabled:bg-surface-2 disabled:text-[#666]"
                     >
                       <Zap size={11} />
@@ -204,7 +253,8 @@ export default async function SettingsPage({ searchParams }: PageProps) {
                 <form action="/auth/sign-out" method="post" className="inline-flex">
                   <button
                     type="submit"
-                    disabled={!userEmail}
+                    disabled={!userEmail || demoMode}
+                    title={demoMode ? 'Demo sessions are not backed by Supabase auth.' : undefined}
                     className="inline-flex h-9 items-center gap-1.5 rounded-[10px] border border-[#262626] bg-surface-2 px-3 text-[12px] font-medium text-ink transition hover:border-[#ff5577]/40 hover:text-[#ff5577] disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     <LogOut size={12} />
@@ -218,44 +268,70 @@ export default async function SettingsPage({ searchParams }: PageProps) {
             <Section label="Integrations" hint="Set keys in .env.local">
               <IntegrationRow
                 name="Supabase"
-                desc="Auth + workspace data store."
-                status={supabaseConfigured ? 'ok' : 'warn'}
-                statusLabel={supabaseConfigured ? 'connected' : 'missing'}
-                value={publicEnv.NEXT_PUBLIC_SUPABASE_URL ?? '—'}
+                desc={
+                  demoMode ? 'Bypassed for local demo workspace.' : 'Auth + workspace data store.'
+                }
+                status={demoMode ? 'info' : supabaseConfigured ? 'ok' : 'warn'}
+                statusLabel={demoMode ? 'demo' : supabaseConfigured ? 'connected' : 'missing'}
+                value={
+                  demoMode ? 'THEPLUS_DEMO_MODE=true' : (publicEnv.NEXT_PUBLIC_SUPABASE_URL ?? '—')
+                }
               />
               <IntegrationRow
                 name="Luma"
                 desc={
-                  stubbed
-                    ? 'Stub mode — placeholder images, no real generation.'
-                    : 'Image generation API.'
+                  demoMode
+                    ? 'Demo fixtures — no paid generation calls.'
+                    : stubbed
+                      ? 'Stub mode — placeholder images, no real generation.'
+                      : 'Image generation API.'
                 }
-                status={stubbed ? 'info' : lumaConfigured ? 'ok' : 'warn'}
-                statusLabel={stubbed ? 'stub' : lumaConfigured ? 'live' : 'missing'}
+                status={demoMode || stubbed ? 'info' : lumaConfigured ? 'ok' : 'warn'}
+                statusLabel={
+                  demoMode ? 'demo' : stubbed ? 'stub' : lumaConfigured ? 'live' : 'missing'
+                }
                 value={
-                  stubbed
-                    ? 'LUMA_STUB=1'
-                    : serverEnv.LUMA_API_KEY
-                      ? maskKey(serverEnv.LUMA_API_KEY)
-                      : '—'
+                  demoMode
+                    ? 'demo fixtures'
+                    : stubbed
+                      ? 'LUMA_STUB=1'
+                      : serverEnv.LUMA_API_KEY
+                        ? maskKey(serverEnv.LUMA_API_KEY)
+                        : '—'
                 }
               />
               <IntegrationRow
                 name="Zernio"
-                desc="Cross-platform scheduling broker."
-                status={zernioConfigured ? 'ok' : 'warn'}
-                statusLabel={zernioConfigured ? 'connected' : 'missing'}
-                value={zernioConfigured ? maskKey(serverEnv.ZERNIO_API_KEY ?? '') : '—'}
+                desc={
+                  demoMode
+                    ? 'Demo connected platforms — no broker calls.'
+                    : 'Cross-platform scheduling broker.'
+                }
+                status={demoMode ? 'info' : zernioConfigured ? 'ok' : 'warn'}
+                statusLabel={demoMode ? 'demo' : zernioConfigured ? 'connected' : 'missing'}
+                value={
+                  demoMode
+                    ? 'Instagram · TikTok · YouTube'
+                    : zernioConfigured
+                      ? maskKey(serverEnv.ZERNIO_API_KEY ?? '')
+                      : '—'
+                }
               />
               <IntegrationRow
                 name="Stripe"
-                desc="Billing + credit top-ups."
-                status={stripeConfigured ? 'ok' : 'warn'}
-                statusLabel={stripeConfigured ? 'connected' : 'missing'}
+                desc={
+                  demoMode
+                    ? 'Disabled in demo so Checkout never opens.'
+                    : 'Billing + credit top-ups.'
+                }
+                status={demoMode ? 'info' : stripeConfigured ? 'ok' : 'warn'}
+                statusLabel={demoMode ? 'demo off' : stripeConfigured ? 'connected' : 'missing'}
                 value={
-                  stripeConfigured && serverEnv.STRIPE_SECRET_KEY
-                    ? maskKey(serverEnv.STRIPE_SECRET_KEY)
-                    : '—'
+                  demoMode
+                    ? 'checkout disabled'
+                    : stripeConfigured && serverEnv.STRIPE_SECRET_KEY
+                      ? maskKey(serverEnv.STRIPE_SECRET_KEY)
+                      : '—'
                 }
               />
             </Section>
@@ -268,6 +344,12 @@ export default async function SettingsPage({ searchParams }: PageProps) {
               {settings ? <SettingsFlash tone="ok">{settings}</SettingsFlash> : null}
               {settingsError ? <SettingsFlash tone="err">{settingsError}</SettingsFlash> : null}
               {controlsError ? <SettingsFlash tone="err">{controlsError}</SettingsFlash> : null}
+              {demoMode ? (
+                <SettingsFlash tone="ok">
+                  Demo settings are visible but read-only. Use normal mode with Supabase configured
+                  to save workspace controls.
+                </SettingsFlash>
+              ) : null}
               <BrandDefaultsForm defaults={effectiveBrandDefaults} disabled={controlsDisabled} />
               <TeamMembersPanel
                 ownerEmail={userEmail}
@@ -316,6 +398,19 @@ export default async function SettingsPage({ searchParams }: PageProps) {
 }
 
 // ---------- subcomponents ----------
+
+function StatusPill({ tone, children }: { tone: 'info' | 'warn'; children: React.ReactNode }) {
+  const dot = {
+    info: 'bg-[#0099ff]',
+    warn: 'bg-[#ff7a3d]',
+  }[tone];
+  return (
+    <span className="inline-flex items-center gap-2 rounded-full bg-surface-1 px-3 py-1.5 text-[12px] text-ink ring-1 ring-[#262626]">
+      <span className={`h-1.5 w-1.5 rounded-full ${dot}`} />
+      {children}
+    </span>
+  );
+}
 
 function CurrentPlanCard({
   planId,
@@ -380,10 +475,12 @@ function PlanUpgradeCard({
   plan,
   currentPlanId,
   stripeConfigured,
+  disabledReason,
 }: {
   plan: ReturnType<typeof getPlan>;
   currentPlanId: PlanId;
   stripeConfigured: boolean;
+  disabledReason: string;
 }) {
   const isCurrent = plan.id === currentPlanId;
   const order: PlanId[] = ['free', 'pro', 'studio', 'agency'];
@@ -431,11 +528,7 @@ function PlanUpgradeCard({
         <button
           type="submit"
           disabled={isCurrent || !stripeConfigured}
-          title={
-            !stripeConfigured
-              ? 'Set STRIPE_SECRET_KEY + STRIPE_PRICE_* in .env.local first.'
-              : undefined
-          }
+          title={!stripeConfigured ? disabledReason : undefined}
           className={cn(
             'inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-[10px] text-[12px] font-medium transition',
             isCurrent
@@ -486,7 +579,7 @@ function Section({
 }) {
   return (
     <section id={id} className="rounded-[16px] border border-[#262626] bg-surface-1 p-5">
-      <header className="mb-4 flex items-baseline justify-between gap-2">
+      <header className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
         <h2 className="text-[11px] font-medium uppercase tracking-[0.12em] text-ink-muted">
           {label}
         </h2>

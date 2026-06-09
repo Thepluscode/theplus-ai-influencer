@@ -1,5 +1,6 @@
 import { endOfMonth, endOfWeek, startOfMonth, startOfWeek } from 'date-fns';
 import { listAiModels } from '@/lib/ai-models';
+import { DEMO_CONNECTED_PLATFORMS, getDemoModels, getDemoPosts, isDemoMode } from '@/lib/demo-mode';
 import { publicEnv, serverEnv } from '@/lib/env';
 import { listPostsInRange } from '@/lib/posts';
 import { getSupabaseServerClient } from '@/lib/supabase/server';
@@ -27,6 +28,7 @@ export default async function CalendarPage({
 }) {
   const { month } = await searchParams;
   const monthStart = parseMonth(month);
+  const demoMode = isDemoMode();
 
   const supabaseConfigured = Boolean(
     publicEnv.NEXT_PUBLIC_SUPABASE_URL && publicEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY,
@@ -39,7 +41,13 @@ export default async function CalendarPage({
   let connectedPlatforms: Platform[] = [];
   let modelNamesById: Record<string, string> = {};
 
-  if (!supabaseConfigured) {
+  if (demoMode) {
+    const posts = getDemoPosts();
+    scheduled = posts.filter((post) => post.status === 'scheduled');
+    drafts = posts.filter((post) => post.status === 'draft');
+    connectedPlatforms = DEMO_CONNECTED_PLATFORMS;
+    modelNamesById = Object.fromEntries(getDemoModels().map((m) => [m.id, m.name]));
+  } else if (!supabaseConfigured) {
     saveDisabledReason = 'Set Supabase env vars in .env.local to enable rescheduling.';
   } else {
     try {
@@ -99,8 +107,14 @@ export default async function CalendarPage({
             to edit it, or click <span className="text-ink">+</span> on a date to assign a draft.
           </p>
           <div className="mt-5 flex flex-wrap gap-2">
-            {!supabaseConfigured ? (
+            {demoMode ? (
+              <StatusPill tone="info">Demo workspace · rescheduling is local-only</StatusPill>
+            ) : null}
+            {!demoMode && !supabaseConfigured ? (
               <StatusPill tone="warn">Supabase off · calendar empty</StatusPill>
+            ) : null}
+            {connectedPlatforms.length > 0 ? (
+              <StatusPill tone="ok">{connectedPlatforms.length} platforms connected</StatusPill>
             ) : null}
             {dataErrorReason ? (
               <StatusPill tone="err" title={dataErrorReason}>

@@ -7,6 +7,7 @@ import {
   getPostReviewLinksForPlans,
   type ReviewLinkLookup,
 } from '@/lib/content-plan-review-links';
+import { getDemoContentPlans, isDemoMode } from '@/lib/demo-mode';
 import { publicEnv } from '@/lib/env';
 import { getSupabaseServerClient } from '@/lib/supabase/server';
 import type { ContentPlanRow } from '@/lib/supabase/types';
@@ -15,6 +16,7 @@ import { cn } from '@/lib/utils';
 import { DeletePlanButton } from './delete-plan-button';
 
 export default async function SeriesIndexPage() {
+  const demoMode = isDemoMode();
   const supabaseConfigured = Boolean(
     publicEnv.NEXT_PUBLIC_SUPABASE_URL && publicEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY,
   );
@@ -23,7 +25,9 @@ export default async function SeriesIndexPage() {
   let postReviewLinks: ReviewLinkLookup = new Map();
   let loadError: string | null = null;
 
-  if (supabaseConfigured) {
+  if (demoMode) {
+    plans = getDemoContentPlans();
+  } else if (supabaseConfigured) {
     try {
       const supabase = await getSupabaseServerClient();
       const {
@@ -61,6 +65,19 @@ export default async function SeriesIndexPage() {
                 {loadError}
               </p>
             ) : null}
+            <div className="mt-5 flex flex-wrap gap-2">
+              {demoMode ? (
+                <StatusPill tone="info">Demo workspace · sample campaign</StatusPill>
+              ) : null}
+              {!demoMode && !supabaseConfigured ? (
+                <StatusPill tone="warn">Supabase off · campaigns unavailable</StatusPill>
+              ) : null}
+              {plans.length > 0 ? (
+                <StatusPill tone="ok">
+                  {plans.length} {plans.length === 1 ? 'campaign' : 'campaigns'} ready
+                </StatusPill>
+              ) : null}
+            </div>
           </div>
           <Link
             href="/series/new"
@@ -95,6 +112,26 @@ export default async function SeriesIndexPage() {
         )}
       </div>
     </div>
+  );
+}
+
+function StatusPill({
+  tone,
+  children,
+}: {
+  tone: 'info' | 'warn' | 'ok';
+  children: React.ReactNode;
+}) {
+  const dot = {
+    info: 'bg-[#0099ff]',
+    warn: 'bg-[#ff7a3d]',
+    ok: 'bg-[#22c55e]',
+  }[tone];
+  return (
+    <span className="inline-flex items-center gap-2 rounded-full bg-surface-1 px-3 py-1.5 text-[12px] text-ink ring-1 ring-[#262626]">
+      <span className={`h-1.5 w-1.5 rounded-full ${dot}`} />
+      {children}
+    </span>
   );
 }
 

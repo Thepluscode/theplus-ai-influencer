@@ -1,5 +1,6 @@
 import { Inbox as InboxIcon } from 'lucide-react';
 import { listAiModels } from '@/lib/ai-models';
+import { getDemoDmThreads, getDemoModels, isDemoMode } from '@/lib/demo-mode';
 import { listDmThreads } from '@/lib/dm-engine';
 import { publicEnv } from '@/lib/env';
 import { getSupabaseServerClient } from '@/lib/supabase/server';
@@ -9,6 +10,7 @@ import { InboxBoard } from './inbox-board';
 import { cn } from '@/lib/utils';
 
 export default async function InboxPage() {
+  const demoMode = isDemoMode();
   const supabaseConfigured = Boolean(
     publicEnv.NEXT_PUBLIC_SUPABASE_URL && publicEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY,
   );
@@ -16,7 +18,10 @@ export default async function InboxPage() {
   let dms: DmThreadRow[] = [];
   let models: AiModelRow[] = [];
   let loadError: string | null = null;
-  if (supabaseConfigured) {
+  if (demoMode) {
+    dms = getDemoDmThreads();
+    models = getDemoModels();
+  } else if (supabaseConfigured) {
     try {
       const supabase = await getSupabaseServerClient();
       const {
@@ -52,6 +57,10 @@ export default async function InboxPage() {
             ingest is a v2 wiring.
           </p>
           <div className="mt-5 flex flex-wrap gap-2">
+            {demoMode ? <StatusPill tone="info">Demo workspace · sample inbox</StatusPill> : null}
+            {!demoMode && !supabaseConfigured ? (
+              <StatusPill tone="warn">Supabase off · paste flow unavailable</StatusPill>
+            ) : null}
             <ClsPill cls="collab" count={byClass.collab ?? 0} />
             <ClsPill cls="lead" count={byClass.lead ?? 0} />
             <ClsPill cls="support" count={byClass.support ?? 0} />
@@ -69,6 +78,19 @@ export default async function InboxPage() {
         <InboxBoard dms={dms} models={models} />
       </div>
     </div>
+  );
+}
+
+function StatusPill({ tone, children }: { tone: 'info' | 'warn'; children: React.ReactNode }) {
+  const dot = {
+    info: 'bg-[#0099ff]',
+    warn: 'bg-[#ff7a3d]',
+  }[tone];
+  return (
+    <span className="inline-flex h-7 items-center gap-2 rounded-full bg-surface-1 px-3 text-[12px] text-ink ring-1 ring-[#262626]">
+      <span className={`h-1.5 w-1.5 rounded-full ${dot}`} />
+      {children}
+    </span>
   );
 }
 

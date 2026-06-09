@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { format } from 'date-fns';
 import { ArrowUpRight, Film, Plus } from 'lucide-react';
+import { getDemoStoryboards, isDemoMode } from '@/lib/demo-mode';
 import { publicEnv } from '@/lib/env';
 import { listStoryboards } from '@/lib/storyboards';
 import { getSupabaseServerClient } from '@/lib/supabase/server';
@@ -11,6 +12,7 @@ import { cn } from '@/lib/utils';
 import { DeleteStoryboardButton } from './delete-storyboard-button';
 
 export default async function StoryboardIndexPage() {
+  const demoMode = isDemoMode();
   const supabaseConfigured = Boolean(
     publicEnv.NEXT_PUBLIC_SUPABASE_URL && publicEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY,
   );
@@ -18,7 +20,9 @@ export default async function StoryboardIndexPage() {
   let storyboards: StoryboardRow[] = [];
   let loadError: string | null = null;
 
-  if (supabaseConfigured) {
+  if (demoMode) {
+    storyboards = getDemoStoryboards();
+  } else if (supabaseConfigured) {
     try {
       const supabase = await getSupabaseServerClient();
       const {
@@ -54,6 +58,20 @@ export default async function StoryboardIndexPage() {
                 {loadError}
               </p>
             ) : null}
+            <div className="mt-5 flex flex-wrap gap-2">
+              {demoMode ? (
+                <StatusPill tone="info">Demo workspace · rendered reel</StatusPill>
+              ) : null}
+              {!demoMode && !supabaseConfigured ? (
+                <StatusPill tone="warn">Supabase off · storyboards unavailable</StatusPill>
+              ) : null}
+              {storyboards.length > 0 ? (
+                <StatusPill tone="ok">
+                  {storyboards.length} {storyboards.length === 1 ? 'storyboard' : 'storyboards'}{' '}
+                  ready
+                </StatusPill>
+              ) : null}
+            </div>
           </div>
           <Link
             href="/storyboard/new"
@@ -86,6 +104,26 @@ export default async function StoryboardIndexPage() {
         )}
       </div>
     </div>
+  );
+}
+
+function StatusPill({
+  tone,
+  children,
+}: {
+  tone: 'info' | 'warn' | 'ok';
+  children: React.ReactNode;
+}) {
+  const dot = {
+    info: 'bg-[#0099ff]',
+    warn: 'bg-[#ff7a3d]',
+    ok: 'bg-[#22c55e]',
+  }[tone];
+  return (
+    <span className="inline-flex items-center gap-2 rounded-full bg-surface-1 px-3 py-1.5 text-[12px] text-ink ring-1 ring-[#262626]">
+      <span className={`h-1.5 w-1.5 rounded-full ${dot}`} />
+      {children}
+    </span>
   );
 }
 

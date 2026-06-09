@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { format } from 'date-fns';
 import { ArrowUpRight, Eye, Heart, MessageCircle, Send, Sparkles } from 'lucide-react';
 import { listAiModels } from '@/lib/ai-models';
+import { getDemoModels, getDemoPosts, isDemoMode } from '@/lib/demo-mode';
 import { publicEnv, serverEnv } from '@/lib/env';
 import { listPostsInRange } from '@/lib/posts';
 import { getSupabaseServerClient } from '@/lib/supabase/server';
@@ -20,6 +21,7 @@ const LOOKBACK_DAYS = 30;
  * per-post engagement reads in the next milestone.
  */
 export default async function AnalyticsPage() {
+  const demoMode = isDemoMode();
   const supabaseConfigured = Boolean(
     publicEnv.NEXT_PUBLIC_SUPABASE_URL && publicEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY,
   );
@@ -28,7 +30,10 @@ export default async function AnalyticsPage() {
   let models: AiModelRow[] = [];
   let loadError: string | null = null;
 
-  if (supabaseConfigured) {
+  if (demoMode) {
+    posts = getDemoPosts().filter((post) => post.status === 'scheduled');
+    models = getDemoModels();
+  } else if (supabaseConfigured) {
     try {
       const supabase = await getSupabaseServerClient();
       const {
@@ -51,7 +56,7 @@ export default async function AnalyticsPage() {
     }
   }
 
-  const zernioConfigured = Boolean(serverEnv.ZERNIO_API_KEY);
+  const zernioConfigured = !demoMode && Boolean(serverEnv.ZERNIO_API_KEY);
 
   // Live metrics from Zernio. We fetch in parallel for every post that
   // has a zernio_post_id; falls back to a deterministic placeholder for
@@ -113,7 +118,9 @@ export default async function AnalyticsPage() {
             decisions.
           </p>
           <div className="mt-5 flex flex-wrap gap-2">
-            {!zernioConfigured ? (
+            {demoMode ? (
+              <StatusPill tone="info">Demo workspace · deterministic metrics</StatusPill>
+            ) : !zernioConfigured ? (
               <StatusPill tone="warn">Zernio off · metrics are placeholders</StatusPill>
             ) : liveCount > 0 ? (
               <StatusPill tone="ok">
