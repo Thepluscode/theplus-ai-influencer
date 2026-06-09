@@ -30,6 +30,29 @@ describe('demo mode safety boundary', () => {
 
     expect(isDemoMode()).toBe(false);
   });
+
+  it('provides deterministic secondary-route fixtures', async () => {
+    setNodeEnv('development');
+    vi.doMock('@/lib/env', () => ({
+      serverEnv: { THEPLUS_DEMO_MODE: true },
+    }));
+
+    const {
+      getDemoComments,
+      getDemoContentPlans,
+      getDemoDmThreads,
+      getDemoInvites,
+      getDemoStoryboards,
+      getDemoWebhooks,
+    } = await import('@/lib/demo-mode');
+
+    expect(getDemoContentPlans()).toHaveLength(1);
+    expect(getDemoStoryboards()[0]?.shots).toHaveLength(4);
+    expect(getDemoComments().filter((comment) => comment.status === 'pending')).toHaveLength(2);
+    expect(getDemoDmThreads().filter((dm) => dm.status === 'pending')).toHaveLength(2);
+    expect(getDemoInvites()[0]?.status).toBe('pending');
+    expect(getDemoWebhooks()[0]?.events).toContain('post.scheduled');
+  });
 });
 
 function setNodeEnv(value: string | undefined) {
