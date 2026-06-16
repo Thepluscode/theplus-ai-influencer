@@ -5,13 +5,19 @@ Never mark `VERIFIED` without production evidence (logs, API response, observed 
 
 ## Content OS — Extract → Repackage → Distribute
 
-**Status: IN PROGRESS** (code complete + demo-verified locally; migration not yet applied to prod; no live paid-API run).
+**Status: IN PROGRESS** (code complete + demo-verified; `0017` applied to prod 2026-06-16; no live paid-API run yet).
+
+> **Prod note:** the Supabase project `izfwasxgfdisvlxjlvzs` (eu-west-1) was *paused* and had schema `0001–0016` already applied with real data (5 credit_transactions rows). It was restored to apply `0017`.
+>
+> **`0018_lock_job_rpcs.sql` applied** (2026-06-16): revoked EXECUTE on `claim_content_job` / `reclaim_stalled_content_jobs` from `public/anon/authenticated`, re-granted to `service_role` only. Verified: svc=true, anon/authenticated=false. (`consume_credits`/`grant_credits` left open to `authenticated` by design.)
+>
+> **Pre-existing prod discrepancy found (not fixed here):** `reclaim_stalled_storyboard_render_jobs()` from local `0011` does **not exist in prod**, yet `storyboard-jobs.ts` calls it — the storyboard animate cron's reclaim step would throw in prod. Separate from Content OS; worth a dedicated fix.
 
 Primary `/content-os` workflow: drop a source (paste / txt / md / pdf / audio / video) → extract reusable atoms → repackage into 10 channel-native outputs → approval-gated distribution through the existing posts / brand-safety / Calendar / Zernio path.
 
 | Piece | State | Evidence |
 |---|---|---|
-| Migration `0017_content_os.sql` (5 tables, private `content-sources` bucket, claim/reclaim RPCs, RLS, credit-reason CHECK extend) | written, **NOT applied to prod** | apply in Supabase SQL editor in numeric order |
+| Migration `0017_content_os.sql` (5 tables, private `content-sources` bucket, claim/reclaim RPCs, RLS, credit-reason CHECK extend) | **APPLIED to prod** (project `izfwasxgfdisvlxjlvzs`, 2026-06-16) | verified: 5 tables present, bucket `public=false` @ 25 MB, 2 RPCs, constraint has new reasons; security advisors = WARN only |
 | env: `OPENAI_TRANSCRIBE_MODEL`, `CONTENT_SOURCE_MAX_BYTES`; deps: `unpdf@1.6.2`; credits: 4 COSTS + 4 reasons | done | typecheck/lint green |
 | Source ingest (client-direct upload to private bucket + `createContentSourceAction`) | done | demo page renders, upload composer wired |
 | Extraction (paste/txt/md, PDF via unpdf, audio/video via OpenAI transcribe) + atoms | done | unit tests (stub) pass; **real paid path unrun** |
@@ -25,7 +31,7 @@ Primary `/content-os` workflow: drop a source (paste / txt / md / pdf / audio / 
 **Gates:** `pnpm typecheck` ✅ · `pnpm lint` ✅ · `pnpm test` (145 passing, 26 new) ✅ · `pnpm build` ✅ · demo `/content-os` + detail + regression routes HTTP 200 ✅
 
 **To reach VERIFIED:**
-1. Apply `0017_content_os.sql` to prod Supabase; confirm bucket is private + RLS rejects cross-workspace reads.
+1. ~~Apply `0017_content_os.sql` to prod Supabase; confirm bucket is private.~~ ✅ Done 2026-06-16 (prod project `izfwasxgfdisvlxjlvzs`; bucket `public=false`, RPCs + constraint verified). Schema `0001–0016` was already live. _Still TODO: a runtime check that RLS rejects cross-workspace reads with two real users._
 2. Run a real source through extract → repackage with `OPENAI_STUB=0` (PDF text + a small audio transcription; confirm >25 MB fails closed). Run a media job with `LUMA_STUB=0` to confirm real `photon-1` stills render.
 3. `curl` `/api/jobs/content-pipeline` with the cron bearer against the real DB for extract/repackage/media ticks; quote responses.
 4. Approve + schedule one social-channel item through live Zernio; confirm brand-safety block keeps a draft editable.
