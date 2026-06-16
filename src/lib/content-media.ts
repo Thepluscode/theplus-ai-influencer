@@ -3,12 +3,23 @@ import { z } from 'zod';
 import { serverEnv } from '@/lib/env';
 import { getLumaClient } from '@/lib/luma';
 import { isLumaStubbed } from '@/lib/luma-stub';
+import { COSTS } from '@/lib/credits';
 import { packItemToPlainText } from '@/lib/content-repackage-schema';
 
 type Aspect = '1:1' | '9:16' | '16:9';
 
-/** Max model-less Luma stills rendered per visual item (bounds cost). */
+/** Max Luma stills rendered per visual item (bounds cost). */
 export const MEDIA_IMAGE_CAP = 3;
+
+/** Channels whose deliverable is short-form video, not a still set. */
+export function isShortFormVideo(channel: string): boolean {
+  return channel === 'tiktok_reels' || channel === 'youtube_short';
+}
+
+/** Total media credit cost for an item: brief + stills (+ video surcharge). */
+export function mediaCostForChannel(channel: string): number {
+  return COSTS.PACK_MEDIA_RENDER + (isShortFormVideo(channel) ? COSTS.PACK_VIDEO_RENDER : 0);
+}
 
 // ---------------------------------------------------------------------------
 // Content OS — media briefs.
@@ -103,16 +114,19 @@ function stubMediaImage(prompt: string, i: number, aspect: Aspect): string {
 }
 
 /**
- * Render up to MEDIA_IMAGE_CAP model-less Luma stills from the brief's scene
- * directions. No character_ref — Content OS sources aren't persona-backed, so
- * these are generic on-brand visuals (text-to-image). LUMA_STUB=1 returns
- * deterministic placeholders so the pipeline stays offline-testable.
+ * Render Luma stills from the brief's scene directions (capped at `limit`).
+ * When `characterRefUrl` is set, the persona is anchored via character_ref
+ * (the workspace AI influencer); otherwise it's model-less text-to-image.
+ * LUMA_STUB=1 returns deterministic placeholders so the pipeline stays
+ * offline-testable.
  */
 export async function renderMediaImages(
   scenes: Array<{ direction: string }>,
   aspect: Aspect,
+  opts: { characterRefUrl?: string | null; limit?: number } = {},
 ): Promise<string[]> {
-  const prompts = scenes.slice(0, MEDIA_IMAGE_CAP).map((s) => s.direction);
+  const limit = opts.limit ?? MEDIA_IMAGE_CAP;
+  const prompts = scenes.slice(0, limit).map((s) => s.direction);
   if (prompts.length === 0) return [];
 
   if (isLumaStubbed()) {
@@ -128,6 +142,9 @@ export async function renderMediaImages(
         aspect_ratio: aspect,
         sync: true,
         sync_timeout: 120,
+        ...(opts.characterRefUrl
+          ? { character_ref: { identity0: { images: [opts.characterRefUrl] } } }
+          : {}),
       }),
     ),
   );

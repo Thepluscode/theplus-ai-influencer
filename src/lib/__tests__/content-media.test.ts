@@ -14,14 +14,32 @@ vi.stubGlobal('fetch', fetchSpy);
 import {
   MEDIA_IMAGE_CAP,
   aspectForChannel,
+  isShortFormVideo,
+  mediaCostForChannel,
   renderMediaImages,
 } from '@/lib/content-media';
+import { COSTS } from '@/lib/credits';
 
 describe('aspectForChannel', () => {
   it('maps short-form video to 9:16 and everything else to 1:1', () => {
     expect(aspectForChannel('tiktok_reels')).toBe('9:16');
     expect(aspectForChannel('youtube_short')).toBe('9:16');
     expect(aspectForChannel('instagram_carousel')).toBe('1:1');
+  });
+});
+
+describe('isShortFormVideo / mediaCostForChannel', () => {
+  it('flags only short-form video channels', () => {
+    expect(isShortFormVideo('tiktok_reels')).toBe(true);
+    expect(isShortFormVideo('youtube_short')).toBe(true);
+    expect(isShortFormVideo('instagram_carousel')).toBe(false);
+  });
+
+  it('adds the video surcharge only for short-form channels', () => {
+    expect(mediaCostForChannel('instagram_carousel')).toBe(COSTS.PACK_MEDIA_RENDER);
+    expect(mediaCostForChannel('tiktok_reels')).toBe(
+      COSTS.PACK_MEDIA_RENDER + COSTS.PACK_VIDEO_RENDER,
+    );
   });
 });
 

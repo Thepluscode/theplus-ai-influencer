@@ -163,7 +163,10 @@ function PackItemCard({
 }) {
   const [scheduleAt, setScheduleAt] = useState('');
   const preview = packItemToPlainText(item.channel, item.body);
-  const mediaImages = ((item.body as Record<string, unknown>)?.mediaImages as string[]) ?? [];
+  const body = (item.body as Record<string, unknown>) ?? {};
+  const mediaImages = (body.mediaImages as string[]) ?? [];
+  const mediaVideo = (body.mediaVideo as string) ?? null;
+  const mediaPersona = (body.mediaPersona as string) ?? null;
   const isVisual = VISUAL_CHANNELS.includes(item.channel as ChannelKey);
   const canApprove = item.status === 'draft' || item.status === 'ready_for_approval';
   const canSchedule = item.status === 'approved';
@@ -195,6 +198,10 @@ function PackItemCard({
         {preview}
       </p>
 
+      {mediaPersona ? (
+        <p className="mt-2 text-[11px] text-[#0099ff]">Persona: {mediaPersona}</p>
+      ) : null}
+
       {mediaImages.length > 0 ? (
         <div className="mt-2 flex flex-wrap gap-2">
           {mediaImages.map((url, i) => (
@@ -207,6 +214,14 @@ function PackItemCard({
             />
           ))}
         </div>
+      ) : null}
+
+      {mediaVideo ? (
+        <video
+          src={mediaVideo}
+          controls
+          className="mt-2 h-40 rounded-[8px] border border-[#262626]"
+        />
       ) : null}
 
       <div className="mt-3 flex flex-wrap items-center gap-2">

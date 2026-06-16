@@ -3,6 +3,7 @@ import { getSupabaseAdminClient } from '@/lib/supabase/admin';
 import { getSupabaseServerClient } from '@/lib/supabase/server';
 import type { Database } from '@/lib/supabase/types';
 import type {
+  AiModelRow,
   ContentAtomRow,
   ContentPackItemRow,
   ContentPackRow,
@@ -305,15 +306,20 @@ export async function updatePackItem(
   if (error) throw new Error(`Failed to update pack item: ${error.message}`);
 }
 
-/** Does a workspace have at least one saved AI model? (media briefs key on it) */
-export async function hasAiModel(workspaceId: string): Promise<boolean> {
+/**
+ * The workspace's default AI influencer (oldest), or null. The media job uses
+ * its portrait as a Luma character_ref so generated visuals feature the
+ * persona; absent a model, media falls back to model-less renders.
+ */
+export async function getWorkspaceModelAdmin(workspaceId: string): Promise<AiModelRow | null> {
   const supabase = getSupabaseAdminClient();
   const { data, error } = await supabase
     .from('ai_models')
-    .select('id')
+    .select('*')
     .eq('workspace_id', workspaceId)
+    .order('created_at', { ascending: true })
     .limit(1)
     .maybeSingle();
-  if (error) throw new Error(`Failed to check AI models: ${error.message}`);
-  return Boolean(data);
+  if (error) throw new Error(`Failed to load workspace model: ${error.message}`);
+  return data;
 }

@@ -7,6 +7,7 @@ import {
   createPack,
   getContentSourceAdmin,
   getPackItemAdmin,
+  getWorkspaceModelAdmin,
   insertAtoms,
   insertPackItems,
   listAtomsForSourceAdmin,
@@ -15,7 +16,14 @@ import {
   setSourceStatus,
   updatePackItem,
 } from '@/lib/content-sources';
-import { aspectForChannel, generateMediaBrief, renderMediaImages } from '@/lib/content-media';
+import {
+  aspectForChannel,
+  generateMediaBrief,
+  isShortFormVideo,
+  mediaCostForChannel,
+  renderMediaImages,
+} from '@/lib/content-media';
+import { animateSingleShot, type RenderedShot } from '@/lib/storyboard';
 import { extractAtoms, extractSourceText } from '@/lib/content-extraction';
 import {
   generateContentPack,
@@ -203,7 +211,8 @@ export async function runMediaJob(job: ContentJobRow): Promise<JobOutcome> {
     return { ok: false, reason: 'error', detail: `pack item ${job.pack_item_id} not found` };
   }
 
-  const amount = COSTS.PACK_MEDIA_RENDER;
+  const isVideo = isShortFormVideo(item.channel);
+  const amount = mediaCostForChannel(item.channel);
   const consume = await consumeCredits({
     workspaceId: job.workspace_id,
     amount,
@@ -221,12 +230,39 @@ export async function runMediaJob(job: ContentJobRow): Promise<JobOutcome> {
   await updatePackItem(item.id, { status: 'media_generating' });
 
   try {
+    // Persona anchor: use the workspace's default AI influencer when present
+    // so visuals feature the persona (character_ref); else model-less.
+    const model = await getWorkspaceModelAdmin(job.workspace_id);
+    const characterRefUrl = model?.portrait_url ?? null;
+
     const brief = await generateMediaBrief(item.channel, item.body);
-    const images = await renderMediaImages(brief.scenes, aspectForChannel(item.channel));
+    // Short-form video animates a single hero still; carousels render up to 3.
+    const images = await renderMediaImages(brief.scenes, aspectForChannel(item.channel), {
+      characterRefUrl,
+      limit: isVideo ? 1 : undefined,
+    });
+
+    let mediaVideo: string | null = null;
+    if (isVideo && images[0]) {
+      const shot: RenderedShot = {
+        index: 0,
+        prompt: brief.scenes[0]?.direction ?? item.channel,
+        hookCaption: '',
+        durationMs: 5000,
+        imageUrl: images[0],
+        generationId: '',
+        generatedAt: new Date().toISOString(),
+      };
+      const animated = await animateSingleShot({ shot, format: 'portrait', durationSeconds: 5 });
+      mediaVideo = animated.videoUrl ?? null;
+    }
+
     const mergedBody = {
       ...(item.body as Record<string, unknown>),
       mediaBrief: brief,
       mediaImages: images,
+      ...(mediaVideo ? { mediaVideo } : {}),
+      ...(model ? { mediaPersona: model.name } : {}),
     };
     await updatePackItem(item.id, { body: mergedBody, status: 'ready_for_approval' });
     await markContentJobCompleted(job.id);
@@ -235,8 +271,13 @@ export async function runMediaJob(job: ContentJobRow): Promise<JobOutcome> {
       itemId: item.id,
       scenes: brief.scenes.length,
       images: images.length,
+      video: Boolean(mediaVideo),
+      persona: model?.name ?? null,
     });
-    return { ok: true, detail: `media brief + ${images.length} images` };
+    return {
+      ok: true,
+      detail: `media brief + ${images.length} image(s)${mediaVideo ? ' + video' : ''}`,
+    };
   } catch (err) {
     const detail = toMessage(err);
     await refundCredits({ workspaceId: job.workspace_id, amount, refKind: 'content_pack_item', refId: item.id });

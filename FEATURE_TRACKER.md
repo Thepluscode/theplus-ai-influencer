@@ -16,7 +16,7 @@ Primary `/content-os` workflow: drop a source (paste / txt / md / pdf / audio / 
 | Source ingest (client-direct upload to private bucket + `createContentSourceAction`) | done | demo page renders, upload composer wired |
 | Extraction (paste/txt/md, PDF via unpdf, audio/video via OpenAI transcribe) + atoms | done | unit tests (stub) pass; **real paid path unrun** |
 | Repurpose engine (10 channels, Zod-validated, stub) | done | unit tests pass; valid 10-channel pack |
-| Media: OpenAI brief + up to 3 model-less Luma `photon-1` stills (no `character_ref`) per visual item | done | stub tested (`LUMA_STUB`); `PACK_MEDIA_RENDER`=60. **Persona-anchored render via `renderShots` DEFERRED** (needs an AI model; see memory) |
+| Media: OpenAI brief + Luma `photon-1` stills (persona-anchored via `character_ref` when the workspace has an AI model, else model-less) + short-form video (`animateSingleShot`, `ray-flash-2`) for TikTok/Reels/Shorts | done | stub tested (`LUMA_STUB`). Cost = `PACK_MEDIA_RENDER`(60) + `PACK_VIDEO_RENDER`(60) surcharge for short-form. Per-item model **selection UI** (vs auto-using the default model) deferred |
 | Approve + schedule (reuse posts / brand-safety gate / Zernio / review links) | done | typecheck green; **live Zernio unrun** |
 | Cron `/api/jobs/content-pipeline` (claim/reclaim, dispatch by kind) | done | compiles; **not curled against real DB** |
 | `/content-os` + `/content-os/[id]` UI + nav (first PRIMARY_NAV item) | done | demo HTTP 200, atoms + pack items + approve render; bad id → 404 |

@@ -21,6 +21,7 @@ import {
 import { enqueueContentJob, getContentJob, requeueContentJob } from '@/lib/content-jobs';
 import { COSTS } from '@/lib/credits';
 import { createDraftFromPackItem } from '@/lib/content-distribution';
+import { mediaCostForChannel } from '@/lib/content-media';
 import { enablePostSharing, getPostById, updatePostSchedule } from '@/lib/posts';
 import { describeSafetyBlock, runPublishBrandSafetyGate } from '@/lib/publish-safety';
 import {
@@ -353,7 +354,7 @@ export async function generateMediaForItemAction(itemId: string): Promise<Simple
       workspaceId: item.workspace_id,
       kind: 'media',
       packItemId: item.id,
-      costCharged: COSTS.PACK_MEDIA_RENDER,
+      costCharged: mediaCostForChannel(item.channel),
     });
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : 'Failed to queue media.' };
