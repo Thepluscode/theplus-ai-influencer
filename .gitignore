@@ -44,3 +44,6 @@ next-env.d.ts
 # local agent / tooling caches
 /graphify-out/
 supabase/.temp/
+
+# Playwright MCP screenshot/snapshot artifacts
+.playwright-mcp/

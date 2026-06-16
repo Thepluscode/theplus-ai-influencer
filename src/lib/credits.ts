@@ -29,6 +29,17 @@ export const COSTS = {
   BRAND_SAFETY_CHECK: 2,
   COMMENT_REPLY_DRAFT: 1,
   DM_TRIAGE: 2,
+  // Content OS — Extract → Repackage → Distribute.
+  /** Extract atoms from a paste/text/markdown/PDF source (one OpenAI call). */
+  SOURCE_EXTRACTION_TEXT: 5,
+  /** Transcribe an audio/video source via OpenAI speech-to-text. */
+  SOURCE_TRANSCRIPTION: 15,
+  /** Repackage a source's atoms into a full multi-channel content pack. */
+  CONTENT_REPACKAGE: 20,
+  /** Media for one pack item: a brief + up to 3 Luma stills. */
+  PACK_MEDIA_RENDER: 60,
+  /** Surcharge when a short-form item also animates a still into Luma video. */
+  PACK_VIDEO_RENDER: 60,
 } as const;
 
 export type CreditReason =
@@ -46,6 +57,10 @@ export type CreditReason =
   | 'brand_safety_check'
   | 'comment_reply_draft'
   | 'dm_triage'
+  | 'source_extraction_text'
+  | 'source_transcription'
+  | 'content_repackage'
+  | 'pack_media_render'
   | 'refund'
   | 'admin_adjustment';
 

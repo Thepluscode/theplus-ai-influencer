@@ -11,6 +11,7 @@ import {
   updateCommentStatus,
 } from '@/lib/comments-engine';
 import { consumeCredits, COSTS, refundCredits } from '@/lib/credits';
+import { isDemoMode } from '@/lib/demo-mode';
 import { serverEnv } from '@/lib/env';
 import { getZernioClient } from '@/lib/zernio';
 import { PLATFORMS } from '@/types/post';
@@ -45,6 +46,10 @@ export async function addPastedCommentAction(
       status: 'error',
       error: parsed.error.issues[0]?.message ?? 'Invalid input.',
     };
+  }
+  if (isDemoMode()) {
+    revalidatePath('/comments');
+    return { status: 'saved', id: '00000000-0000-4000-8000-000000000599' };
   }
 
   try {
@@ -115,6 +120,10 @@ export async function approveCommentAction(formData: FormData): Promise<void> {
   const draftRaw = formData.get('draft');
   if (typeof id !== 'string' || !id) return;
   const draft = typeof draftRaw === 'string' ? draftRaw : undefined;
+  if (isDemoMode()) {
+    revalidatePath('/comments');
+    return;
+  }
 
   const comment = await getCommentById(id);
   if (!comment) return;
@@ -147,6 +156,10 @@ export async function approveCommentAction(formData: FormData): Promise<void> {
 export async function dismissCommentAction(formData: FormData): Promise<void> {
   const id = formData.get('id');
   if (typeof id !== 'string' || !id) return;
+  if (isDemoMode()) {
+    revalidatePath('/comments');
+    return;
+  }
   await updateCommentStatus(id, 'dismissed');
   revalidatePath('/comments');
 }
@@ -154,6 +167,10 @@ export async function dismissCommentAction(formData: FormData): Promise<void> {
 export async function hideCommentAction(formData: FormData): Promise<void> {
   const id = formData.get('id');
   if (typeof id !== 'string' || !id) return;
+  if (isDemoMode()) {
+    revalidatePath('/comments');
+    return;
+  }
   await updateCommentStatus(id, 'hidden');
   revalidatePath('/comments');
 }
@@ -161,6 +178,10 @@ export async function hideCommentAction(formData: FormData): Promise<void> {
 export async function deleteCommentAction(formData: FormData): Promise<void> {
   const id = formData.get('id');
   if (typeof id !== 'string' || !id) return;
+  if (isDemoMode()) {
+    revalidatePath('/comments');
+    return;
+  }
   await removeComment(id);
   revalidatePath('/comments');
 }

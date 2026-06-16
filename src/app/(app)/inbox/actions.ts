@@ -11,6 +11,7 @@ import {
   updateDmStatus,
 } from '@/lib/dm-engine';
 import { consumeCredits, COSTS, refundCredits } from '@/lib/credits';
+import { isDemoMode } from '@/lib/demo-mode';
 import { serverEnv } from '@/lib/env';
 import { getZernioClient } from '@/lib/zernio';
 import { PLATFORMS } from '@/types/post';
@@ -45,6 +46,10 @@ export async function addPastedDmAction(
       status: 'error',
       error: parsed.error.issues[0]?.message ?? 'Invalid input.',
     };
+  }
+  if (isDemoMode()) {
+    revalidatePath('/inbox');
+    return { status: 'saved', id: '00000000-0000-4000-8000-000000000699' };
   }
   try {
     const supabase = await getSupabaseServerClient();
@@ -111,6 +116,10 @@ export async function markDmRepliedAction(formData: FormData): Promise<void> {
   const replyRaw = formData.get('reply');
   if (typeof id !== 'string' || !id) return;
   const reply = typeof replyRaw === 'string' ? replyRaw : undefined;
+  if (isDemoMode()) {
+    revalidatePath('/inbox');
+    return;
+  }
 
   const thread = await getDmThreadById(id);
   if (!thread) return;
@@ -142,6 +151,10 @@ export async function markDmRepliedAction(formData: FormData): Promise<void> {
 export async function archiveDmAction(formData: FormData): Promise<void> {
   const id = formData.get('id');
   if (typeof id !== 'string' || !id) return;
+  if (isDemoMode()) {
+    revalidatePath('/inbox');
+    return;
+  }
   await updateDmStatus(id, 'archived');
   revalidatePath('/inbox');
 }
@@ -149,6 +162,10 @@ export async function archiveDmAction(formData: FormData): Promise<void> {
 export async function snoozeDmAction(formData: FormData): Promise<void> {
   const id = formData.get('id');
   if (typeof id !== 'string' || !id) return;
+  if (isDemoMode()) {
+    revalidatePath('/inbox');
+    return;
+  }
   await updateDmStatus(id, 'snoozed');
   revalidatePath('/inbox');
 }
@@ -156,6 +173,10 @@ export async function snoozeDmAction(formData: FormData): Promise<void> {
 export async function deleteDmAction(formData: FormData): Promise<void> {
   const id = formData.get('id');
   if (typeof id !== 'string' || !id) return;
+  if (isDemoMode()) {
+    revalidatePath('/inbox');
+    return;
+  }
   await removeDm(id);
   revalidatePath('/inbox');
 }

@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { CREDIT_TOPUP, stripePriceForPlan, type PlanId } from '@/lib/billing/plans';
 import { getStripeClient, isStripeConfigured } from '@/lib/billing/stripe';
+import { isDemoMode } from '@/lib/demo-mode';
 import { publicEnv } from '@/lib/env';
 import { getSupabaseServerClient } from '@/lib/supabase/server';
 import { getOrCreateCurrentWorkspace } from '@/lib/workspace';
@@ -56,6 +57,11 @@ export async function startCheckoutAction(formData: FormData) {
   const planId = formData.get('planId');
   if (typeof planId !== 'string' || !['pro', 'studio', 'agency'].includes(planId)) {
     redirect(`/settings?billingError=${encodeURIComponent('Invalid plan id.')}#billing`);
+  }
+  if (isDemoMode()) {
+    redirect(
+      `/settings?billingError=${encodeURIComponent('Demo mode does not open Stripe Checkout.')}#billing`,
+    );
   }
 
   if (!isStripeConfigured()) {
@@ -132,6 +138,11 @@ export async function startCheckoutAction(formData: FormData) {
  * any of that UI.
  */
 export async function openPortalAction() {
+  if (isDemoMode()) {
+    redirect(
+      `/settings?billingError=${encodeURIComponent('Demo mode does not open Stripe Portal.')}#billing`,
+    );
+  }
   if (!isStripeConfigured()) {
     redirect(`/settings?billingError=${encodeURIComponent('Stripe not configured.')}#billing`);
   }
@@ -173,6 +184,11 @@ export async function openPortalAction() {
  * (`checkout.session.completed` with mode=payment) grants the credits.
  */
 export async function topupCreditsAction() {
+  if (isDemoMode()) {
+    redirect(
+      `/settings?billingError=${encodeURIComponent('Demo mode does not open Stripe Checkout.')}#billing`,
+    );
+  }
   if (!isStripeConfigured()) {
     redirect(`/settings?billingError=${encodeURIComponent('Stripe not configured.')}#billing`);
   }
@@ -234,6 +250,9 @@ export async function saveBrandDefaultsAction(formData: FormData) {
   if (!parsed.success) {
     settingsErrorRedirect(parsed.error.issues[0]?.message ?? 'Invalid brand defaults.');
   }
+  if (isDemoMode()) {
+    settingsRedirect('Demo brand defaults previewed — no live workspace was changed.');
+  }
 
   try {
     const { supabase, workspace } = await requireWorkspace();
@@ -263,6 +282,9 @@ export async function inviteTeamMemberAction(formData: FormData) {
   if (!parsed.success) {
     settingsErrorRedirect(parsed.error.issues[0]?.message ?? 'Invalid team invite.');
   }
+  if (isDemoMode()) {
+    settingsRedirect('Demo invite previewed — no email was sent.');
+  }
 
   try {
     const { supabase, user, workspace } = await requireWorkspace();
@@ -284,6 +306,9 @@ export async function revokeTeamInviteAction(formData: FormData) {
   const parsed = RowIdSchema.safeParse(formData.get('inviteId'));
   if (!parsed.success) {
     settingsErrorRedirect('Invalid invite id.');
+  }
+  if (isDemoMode()) {
+    settingsRedirect('Demo invite revoked locally — no live workspace was changed.');
   }
 
   try {
@@ -310,6 +335,9 @@ export async function createWebhookAction(formData: FormData) {
   if (!parsed.success) {
     settingsErrorRedirect(parsed.error.issues[0]?.message ?? 'Invalid webhook.');
   }
+  if (isDemoMode()) {
+    settingsRedirect('Demo webhook previewed — no endpoint was stored.');
+  }
 
   try {
     const { supabase, workspace } = await requireWorkspace();
@@ -331,6 +359,9 @@ export async function deleteWebhookAction(formData: FormData) {
   const parsed = RowIdSchema.safeParse(formData.get('webhookId'));
   if (!parsed.success) {
     settingsErrorRedirect('Invalid webhook id.');
+  }
+  if (isDemoMode()) {
+    settingsRedirect('Demo webhook removed locally — no live workspace was changed.');
   }
 
   try {

@@ -52,18 +52,22 @@ export async function enqueueAnimationJob(input: {
  */
 export async function claimNextRenderJob(): Promise<StoryboardRenderJobRow | null> {
   const supabase = getSupabaseAdminClient();
-  const rpc = supabase.rpc as unknown as (
-    fn: string,
-  ) => Promise<{ data: unknown; error: { message: string } | null }>;
-  const { data, error } = await rpc('claim_storyboard_render_job');
+  // Call rpc as a bound method — detaching it (`const rpc = supabase.rpc`)
+  // loses `this`, so the admin client's internal `this.rest` is undefined.
+  const { data, error } = await (
+    supabase.rpc as unknown as (
+      this: typeof supabase,
+      fn: string,
+    ) => Promise<{ data: unknown; error: { message: string } | null }>
+  ).call(supabase, 'claim_storyboard_render_job');
   if (error) {
     throw new Error(`Failed to claim render job: ${error.message}`);
   }
-  // Postgres SETOF/composite returns shape depends on supabase-js. When
-  // no rows match, data is null. When a row matches, data is the row
-  // object (not an array).
-  if (!data) return null;
-  return data as StoryboardRenderJobRow;
+  // A plpgsql function `returns storyboard_render_jobs` yields a ROW OF NULLS
+  // (not SQL NULL) on an empty queue — guard on a real id, not truthiness.
+  const row = (data ?? null) as StoryboardRenderJobRow | null;
+  if (!row || !row.id) return null;
+  return row;
 }
 
 /** Release a claim without changing status — next cron tick can re-pick. */
@@ -130,10 +134,12 @@ export async function markJobFailed(
 /** Unstick jobs whose worker died mid-shot (claimed_at > 6 min old). */
 export async function reclaimStalledJobs(): Promise<number> {
   const supabase = getSupabaseAdminClient();
-  const rpc = supabase.rpc as unknown as (
-    fn: string,
-  ) => Promise<{ data: unknown; error: { message: string } | null }>;
-  const { data, error } = await rpc('reclaim_stalled_storyboard_render_jobs');
+  const { data, error } = await (
+    supabase.rpc as unknown as (
+      this: typeof supabase,
+      fn: string,
+    ) => Promise<{ data: unknown; error: { message: string } | null }>
+  ).call(supabase, 'reclaim_stalled_storyboard_render_jobs');
   if (error) {
     throw new Error(`Failed to reclaim stalled jobs: ${error.message}`);
   }

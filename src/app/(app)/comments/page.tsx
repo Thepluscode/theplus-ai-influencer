@@ -1,5 +1,6 @@
 import { Inbox, MessageSquare } from 'lucide-react';
 import { listComments } from '@/lib/comments-engine';
+import { getDemoComments, getDemoModels, isDemoMode } from '@/lib/demo-mode';
 import { publicEnv } from '@/lib/env';
 import { listAiModels } from '@/lib/ai-models';
 import { getSupabaseServerClient } from '@/lib/supabase/server';
@@ -8,6 +9,7 @@ import { getOrCreateCurrentWorkspace } from '@/lib/workspace';
 import { CommentsBoard } from './comments-board';
 
 export default async function CommentsPage() {
+  const demoMode = isDemoMode();
   const supabaseConfigured = Boolean(
     publicEnv.NEXT_PUBLIC_SUPABASE_URL && publicEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY,
   );
@@ -15,7 +17,10 @@ export default async function CommentsPage() {
   let comments: CommentRow[] = [];
   let models: AiModelRow[] = [];
   let loadError: string | null = null;
-  if (supabaseConfigured) {
+  if (demoMode) {
+    comments = getDemoComments();
+    models = getDemoModels();
+  } else if (supabaseConfigured) {
     try {
       const supabase = await getSupabaseServerClient();
       const {
@@ -49,6 +54,10 @@ export default async function CommentsPage() {
             paste the reply on the platform. Direct ingest is a v2 wiring.
           </p>
           <div className="mt-5 flex flex-wrap gap-2">
+            {demoMode ? <Pill tone="info">Demo workspace · sample queue</Pill> : null}
+            {!demoMode && !supabaseConfigured ? (
+              <Pill tone="warn">Supabase off · paste flow unavailable</Pill>
+            ) : null}
             <Pill tone="info">
               <Inbox size={11} /> {pending} pending
             </Pill>

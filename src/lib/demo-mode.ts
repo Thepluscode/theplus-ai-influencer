@@ -2,9 +2,20 @@ import 'server-only';
 import { serverEnv } from '@/lib/env';
 import type {
   AiModelRow,
+  CommentRow,
+  ContentAtomRow,
+  ContentJobRow,
+  ContentPackItemRow,
+  ContentPackRow,
+  ContentPlanRow,
+  ContentSourceRow,
+  DmThreadRow,
   PostRow,
+  StoryboardRow,
   WorkspaceBrandDefaultsRow,
+  WorkspaceInviteRow,
   WorkspaceRow,
+  WorkspaceWebhookRow,
 } from '@/lib/supabase/types';
 import type { CaptionsResult, PlatformVariant } from '@/lib/captions';
 import type { InfluencerVisuals, InfluencerWizardInput } from '@/types/influencer';
@@ -15,6 +26,9 @@ export const DEMO_WORKSPACE_ID = '00000000-0000-4000-8000-000000000001';
 export const DEMO_USER_EMAIL = 'demo@theplus.ai';
 export const DEMO_MODEL_ID = '00000000-0000-4000-8000-000000000101';
 export const DEMO_POST_ID = '00000000-0000-4000-8000-000000000201';
+// Content OS deterministic fixtures (see getDemoContent* below).
+export const DEMO_SOURCE_ID = '00000000-0000-4000-8000-000000000901';
+export const DEMO_PACK_ID = '00000000-0000-4000-8000-000000000910';
 
 export function isDemoMode(): boolean {
   return serverEnv.THEPLUS_DEMO_MODE === true && process.env.NODE_ENV !== 'production';
@@ -179,6 +193,230 @@ export function getDemoPosts(): PostRow[] {
   ];
 }
 
+export function getDemoContentPlans(): ContentPlanRow[] {
+  const start = new Date('2026-05-27T09:00:00.000Z').toISOString();
+  const created = new Date('2026-05-25T11:00:00.000Z').toISOString();
+  return [
+    {
+      id: '00000000-0000-4000-8000-000000000301',
+      workspace_id: DEMO_WORKSPACE_ID,
+      model_id: DEMO_MODEL_ID,
+      name: 'Citrus Fuel Launch Arc',
+      goal: 'launch',
+      duration_days: 14,
+      cadence_per_week: 4,
+      start_date: start,
+      seed_inputs: {
+        campaign: 'Launch Citrus Fuel to creator-athletes',
+        platforms: ['instagram', 'tiktok', 'linkedin'],
+        topics: 'morning routines, focus blocks, rooftop training, creator discipline',
+        audience: 'health-conscious creators and founders',
+        brandEntity: 'company',
+        deliverables: ['short_video', 'carousel', 'linkedin_post', 'blog'],
+        contentStyles: ['cinematic', 'educational', 'direct_response'],
+        visualMode: 'face_carousel',
+        summary: 'A two-week launch sequence moving from ritual to proof to conversion.',
+      },
+      items: [
+        demoPlanItem(0, 'Rooftop ritual', 'portrait', ['instagram', 'tiktok']),
+        demoPlanItem(3, 'Desk reset proof', 'square', ['instagram', 'linkedin']),
+        demoPlanItem(7, 'Founder focus block', 'landscape', ['youtube', 'linkedin']),
+        demoPlanItem(11, 'Community routine recap', 'portrait', ['instagram', 'tiktok']),
+      ],
+      created_at: created,
+      updated_at: new Date('2026-05-25T12:30:00.000Z').toISOString(),
+    },
+  ];
+}
+
+export function getDemoStoryboards(): StoryboardRow[] {
+  const shots = [0, 1, 2, 3].map((index) => ({
+    index,
+    prompt: [
+      'Low-angle rooftop gym setup with city sunrise and chilled citrus can in foreground.',
+      'Close product pickup as Aria locks phone to tripod and starts the timer.',
+      'Fast mid-shot transitions between reps, edits, and calendar blocks.',
+      'Hero handoff to camera with skyline behind and product label readable.',
+    ][index],
+    hookCaption: [
+      'Before inbox. Before calls.',
+      'Fuel the ritual.',
+      'Train. Edit. Ship.',
+      'Own the morning.',
+    ][index],
+    durationMs: 2500,
+    imageUrl: `https://picsum.photos/seed/theplus-storyboard-${index}/720/1280`,
+    generationId: `demo_storyboard_shot_${index}`,
+    generatedAt: new Date('2026-05-25T13:0' + index + ':00.000Z').toISOString(),
+  }));
+  return [
+    {
+      id: '00000000-0000-4000-8000-000000000401',
+      workspace_id: DEMO_WORKSPACE_ID,
+      model_id: DEMO_MODEL_ID,
+      name: 'Morning Momentum Reel',
+      brief: 'Show Aria turning an early workout into a focused creator workday for Citrus Fuel.',
+      format: 'portrait',
+      summary: 'A four-shot reel that turns the product into the first action of the day.',
+      shots,
+      review_status: 'approved',
+      review_version: 2,
+      approved_at: new Date('2026-05-25T15:00:00.000Z').toISOString(),
+      finalized_at: null,
+      created_at: new Date('2026-05-25T13:00:00.000Z').toISOString(),
+      updated_at: new Date('2026-05-25T15:00:00.000Z').toISOString(),
+    },
+  ];
+}
+
+export function getDemoComments(): CommentRow[] {
+  const now = new Date('2026-05-26T09:00:00.000Z').toISOString();
+  return [
+    {
+      id: '00000000-0000-4000-8000-000000000501',
+      workspace_id: DEMO_WORKSPACE_ID,
+      post_id: DEMO_POST_ID,
+      platform: 'instagram',
+      author_handle: 'mira.moves',
+      author_avatar: null,
+      comment_text: 'Where can I buy the citrus can from the reel?',
+      status: 'pending',
+      draft_reply:
+        'Link is in bio now — the launch bundle is the one Aria used in the rooftop reel.',
+      classification: 'question',
+      external_id: 'demo_comment_1',
+      zernio_post_id: null,
+      zernio_account_id: null,
+      created_at: now,
+      updated_at: now,
+    },
+    {
+      id: '00000000-0000-4000-8000-000000000502',
+      workspace_id: DEMO_WORKSPACE_ID,
+      post_id: DEMO_POST_ID,
+      platform: 'tiktok',
+      author_handle: 'branddesk.co',
+      author_avatar: null,
+      comment_text: 'Love this look. Open to a paid collab next month?',
+      status: 'pending',
+      draft_reply: 'Appreciate it — DM the brief and timeline and the team will review properly.',
+      classification: 'collab',
+      external_id: 'demo_comment_2',
+      zernio_post_id: null,
+      zernio_account_id: null,
+      created_at: new Date('2026-05-26T08:20:00.000Z').toISOString(),
+      updated_at: new Date('2026-05-26T08:20:00.000Z').toISOString(),
+    },
+    {
+      id: '00000000-0000-4000-8000-000000000503',
+      workspace_id: DEMO_WORKSPACE_ID,
+      post_id: DEMO_POST_ID,
+      platform: 'instagram',
+      author_handle: 'dailyfitnotes',
+      author_avatar: null,
+      comment_text: 'This routine is clean. Saved it for tomorrow.',
+      status: 'replied',
+      draft_reply: 'That is the move — make the morning easy to repeat.',
+      classification: 'fan',
+      external_id: 'demo_comment_3',
+      zernio_post_id: null,
+      zernio_account_id: null,
+      created_at: new Date('2026-05-25T18:00:00.000Z').toISOString(),
+      updated_at: new Date('2026-05-25T18:30:00.000Z').toISOString(),
+    },
+  ];
+}
+
+export function getDemoDmThreads(): DmThreadRow[] {
+  return [
+    {
+      id: '00000000-0000-4000-8000-000000000601',
+      workspace_id: DEMO_WORKSPACE_ID,
+      platform: 'instagram',
+      author_handle: 'atlas_agency',
+      author_avatar: null,
+      last_message: 'We represent a gym wear label. Can Aria shoot a paid launch post in June?',
+      classification: 'collab',
+      summary: 'Agency proposing a paid gym wear launch collaboration.',
+      suggested_reply:
+        'Thanks for reaching out — send the brief, deliverables, and timeline to partnerships@theplus.ai and we will review.',
+      status: 'pending',
+      external_id: 'demo_dm_1',
+      zernio_conversation_id: null,
+      zernio_account_id: null,
+      created_at: new Date('2026-05-26T08:10:00.000Z').toISOString(),
+      updated_at: new Date('2026-05-26T08:10:00.000Z').toISOString(),
+    },
+    {
+      id: '00000000-0000-4000-8000-000000000602',
+      workspace_id: DEMO_WORKSPACE_ID,
+      platform: 'tiktok',
+      author_handle: 'founderfuel',
+      author_avatar: null,
+      last_message: 'Is the citrus drink vegan and caffeine free?',
+      classification: 'lead',
+      summary: 'Potential customer asking product fit questions.',
+      suggested_reply:
+        'It is vegan; it does include caffeine, so check the label if you are limiting stimulants.',
+      status: 'pending',
+      external_id: 'demo_dm_2',
+      zernio_conversation_id: null,
+      zernio_account_id: null,
+      created_at: new Date('2026-05-26T07:40:00.000Z').toISOString(),
+      updated_at: new Date('2026-05-26T07:40:00.000Z').toISOString(),
+    },
+    {
+      id: '00000000-0000-4000-8000-000000000603',
+      workspace_id: DEMO_WORKSPACE_ID,
+      platform: 'instagram',
+      author_handle: 'runclubnorth',
+      author_avatar: null,
+      last_message: 'Thanks for the answer yesterday. We ordered the sample pack.',
+      classification: 'fan',
+      summary: 'Fan follow-up after ordering.',
+      suggested_reply: 'Love that — let me know which flavour wins after the first session.',
+      status: 'replied',
+      external_id: 'demo_dm_3',
+      zernio_conversation_id: null,
+      zernio_account_id: null,
+      created_at: new Date('2026-05-25T16:00:00.000Z').toISOString(),
+      updated_at: new Date('2026-05-25T17:00:00.000Z').toISOString(),
+    },
+  ];
+}
+
+export function getDemoInvites(): WorkspaceInviteRow[] {
+  return [
+    {
+      id: '00000000-0000-4000-8000-000000000701',
+      workspace_id: DEMO_WORKSPACE_ID,
+      email: 'producer@theplus.ai',
+      role: 'editor',
+      status: 'pending',
+      invited_by_user_id: '00000000-0000-4000-8000-000000000011',
+      created_at: new Date('2026-05-25T10:00:00.000Z').toISOString(),
+      updated_at: new Date('2026-05-25T10:00:00.000Z').toISOString(),
+    },
+  ];
+}
+
+export function getDemoWebhooks(): WorkspaceWebhookRow[] {
+  return [
+    {
+      id: '00000000-0000-4000-8000-000000000801',
+      workspace_id: DEMO_WORKSPACE_ID,
+      name: 'Ops listener',
+      url: 'https://demo.theplus.ai/webhooks/social-ops',
+      events: ['post.scheduled', 'review.approved', 'comment.created'],
+      active: true,
+      last_delivery_at: new Date('2026-05-25T12:00:00.000Z').toISOString(),
+      last_delivery_status: 200,
+      created_at: new Date('2026-05-24T12:00:00.000Z').toISOString(),
+      updated_at: new Date('2026-05-25T12:00:00.000Z').toISOString(),
+    },
+  ];
+}
+
 export function getDemoInfluencerVisuals(input: InfluencerWizardInput): InfluencerVisuals {
   return {
     portraitUrl: `https://i.pravatar.cc/900?u=${encodeURIComponent(input.name)}`,
@@ -186,6 +424,70 @@ export function getDemoInfluencerVisuals(input: InfluencerWizardInput): Influenc
     generationIds: {
       portrait: `demo_${input.name.replace(/\W+/g, '_').toLowerCase()}_portrait`,
       fullBody: `demo_${input.name.replace(/\W+/g, '_').toLowerCase()}_fullbody`,
+    },
+  };
+}
+
+function demoPlanItem(
+  day: number,
+  theme: string,
+  format: 'square' | 'portrait' | 'landscape',
+  platforms: Platform[],
+) {
+  return {
+    day,
+    scheduledAt: new Date(Date.UTC(2026, 4, 27 + day, 9, 0, 0)).toISOString(),
+    theme,
+    brief: `${theme} for Citrus Fuel, showing Aria turning product use into a creator routine.`,
+    scene: 'premium London fitness and creator workspace setting',
+    outfit: 'black technical activewear with chrome accessories',
+    props: 'citrus drink can, tripod, laptop, training towel',
+    hook: 'The morning move that protects the whole day.',
+    postGoal: 'launch',
+    lighting: 'golden_hour',
+    platforms,
+    format,
+    brandTone: 'luxe',
+    cta: 'learn_more',
+    contentPackage: {
+      deliverables: ['short_video', 'carousel', 'linkedin_post', 'blog'],
+      style: 'cinematic',
+      visualMode: 'face_carousel',
+      carouselSlides: [
+        {
+          title: 'Hook the ritual',
+          copy: 'Before inbox. Before calls. Protect the first block.',
+          visualBrief: 'Aria on a London rooftop with product foreground.',
+          facePlacement: 'hero',
+        },
+        {
+          title: 'Show the product',
+          copy: 'Citrus Fuel sits inside the routine, not on top of it.',
+          visualBrief: 'Close product detail beside phone timer and towel.',
+          facePlacement: 'supporting',
+        },
+      ],
+      filmingScript: {
+        hook: 'The morning move that protects the whole day.',
+        beats: ['Open on product', 'Cut to training', 'Cut to creator desk', 'Land the CTA'],
+        broll: ['citrus can close-up', 'phone tripod setup', 'calendar focus block'],
+        cta: 'Learn more from the launch page.',
+      },
+      linkedinPost: 'A concise founder-style post about building repeatable morning rituals.',
+      email: {
+        subject: 'Fuel the first block',
+        preview: 'The creator routine behind the Citrus Fuel launch.',
+        body: 'Launch announcement, morning ritual framing, and a clear CTA.',
+      },
+      blog: {
+        title: 'How creators build repeatable morning routines',
+        slug: 'creator-morning-routines',
+        metaDescription: 'A practical guide to creator routines, focus blocks, and energy rituals.',
+        outline: ['Why morning friction matters', 'The repeatable ritual', 'How Citrus Fuel fits'],
+        aeoQuestions: ['What is a creator morning routine?', 'How do creators stay consistent?'],
+        conversionCta: 'Try the Citrus Fuel launch bundle.',
+      },
+      seoKeywords: ['creator morning routine', 'energy drink launch', 'fitness content ritual'],
     },
   };
 }
@@ -234,4 +536,224 @@ export function getDemoPlatformVariants(
     hashtags,
     hook: platform === 'tiktok' || platform === 'youtube' ? 'Morning routine reveal' : undefined,
   }));
+}
+
+// ---------------------------------------------------------------------------
+// Content OS fixtures — deterministic source → atoms → pack → items + jobs.
+// ---------------------------------------------------------------------------
+
+const DEMO_SOURCE_ID_2 = '00000000-0000-4000-8000-000000000902';
+const DEMO_TS = new Date('2026-05-26T09:00:00.000Z').toISOString();
+
+export function getDemoContentSources(): ContentSourceRow[] {
+  return [
+    {
+      id: DEMO_SOURCE_ID,
+      workspace_id: DEMO_WORKSPACE_ID,
+      title: 'Why creators burn out — and the system that fixes it',
+      type: 'paste',
+      status: 'ready',
+      storage_path: null,
+      byte_size: null,
+      mime_type: null,
+      raw_text: 'Most creators burn out because they treat every post as net-new work…',
+      extracted_text:
+        'Most creators burn out because they treat every post as net-new work. The fix is a repurposing system: capture one strong source, extract its reusable atoms, then reshape those atoms into channel-native posts. Volume stops being a grind and becomes a byproduct.',
+      last_error: null,
+      created_at: new Date('2026-05-25T18:00:00.000Z').toISOString(),
+      updated_at: DEMO_TS,
+    },
+    {
+      id: DEMO_SOURCE_ID_2,
+      workspace_id: DEMO_WORKSPACE_ID,
+      title: 'Founder interview — rooftop recording.m4a',
+      type: 'audio',
+      status: 'extracting',
+      storage_path: `${DEMO_WORKSPACE_ID}/demo-interview.m4a`,
+      byte_size: 8_400_000,
+      mime_type: 'audio/m4a',
+      raw_text: null,
+      extracted_text: null,
+      last_error: null,
+      created_at: new Date('2026-05-26T08:50:00.000Z').toISOString(),
+      updated_at: DEMO_TS,
+    },
+  ];
+}
+
+const DEMO_ATOM_SEED: Array<{ kind: ContentAtomRow['kind']; text: string }> = [
+  { kind: 'hook', text: 'Most creators burn out because they treat every post as net-new work.' },
+  { kind: 'claim', text: 'Repurposing turns one strong source into a week of channel-native content.' },
+  { kind: 'framework', text: 'Capture → extract atoms → reshape per channel → distribute.' },
+  { kind: 'objection', text: '"Reposting feels lazy" — but native reshaping is the opposite of copy-paste.' },
+  { kind: 'proof_point', text: 'Teams that systematize repurposing ship 5x more without more ideas.' },
+  { kind: 'story', text: 'A solo founder went from 2 posts a week to 20 by extracting from podcasts.' },
+  { kind: 'audience_insight', text: 'Creators do not lack ideas; they lack a system to multiply them.' },
+  { kind: 'cta', text: 'Drop one source into Content OS and watch it become ten posts.' },
+];
+
+export function getDemoContentAtoms(): ContentAtomRow[] {
+  return DEMO_ATOM_SEED.map((a, i) => ({
+    id: `00000000-0000-4000-8000-0000009200${(i + 1).toString().padStart(2, '0')}`,
+    workspace_id: DEMO_WORKSPACE_ID,
+    source_id: DEMO_SOURCE_ID,
+    kind: a.kind,
+    text: a.text,
+    tags: ['repurposing', 'creator'],
+    source_location: i === 0 ? 'intro' : `point ${i + 1}`,
+    confidence: 0.8,
+    created_at: DEMO_TS,
+    updated_at: DEMO_TS,
+  }));
+}
+
+export function getDemoContentPacks(): ContentPackRow[] {
+  return [
+    {
+      id: DEMO_PACK_ID,
+      workspace_id: DEMO_WORKSPACE_ID,
+      source_id: DEMO_SOURCE_ID,
+      status: 'ready',
+      channels: [
+        'linkedin',
+        'x_thread',
+        'instagram_carousel',
+        'tiktok_reels',
+        'youtube_short',
+        'newsletter',
+        'blog_aeo',
+        'email_sequence',
+        'captions',
+        'sales_snippets',
+      ],
+      last_error: null,
+      created_at: DEMO_TS,
+      updated_at: DEMO_TS,
+    },
+  ];
+}
+
+const DEMO_ITEM_BODIES: Record<string, unknown> = {
+  linkedin: {
+    body: 'Most creators burn out because they treat every post as net-new work.\n\nThe fix is a system: capture one strong source, extract its atoms, reshape per channel.\n\nVolume becomes a byproduct, not a grind.',
+    hashtags: ['contentos', 'repurpose', 'creator'],
+  },
+  x_thread: {
+    tweets: [
+      'Most creators burn out treating every post as net-new work. 🧵',
+      '2/ Repurposing turns one source into a week of native content.',
+      '3/ Capture → extract atoms → reshape per channel → distribute.',
+      "4/ It's not lazy — native reshaping is the opposite of copy-paste.",
+      '5/ Drop one source into Content OS and watch it become ten posts.',
+    ],
+  },
+  instagram_carousel: {
+    caption: 'Stop making every post from scratch. Build a repurposing system instead.',
+    slides: [
+      { title: 'The burnout trap', body: 'Every post = net-new work.' },
+      { title: 'The system', body: 'Capture → extract → reshape → distribute.' },
+      { title: 'The payoff', body: 'One source becomes ten native posts.' },
+    ],
+    hashtags: ['contentos', 'repurpose', 'creator'],
+  },
+  tiktok_reels: {
+    hook: 'You are not out of ideas. You are out of system.',
+    beats: ['Show the burnout grind', 'Reveal the 4-step system', 'Show 1 source → 10 posts'],
+    cta: 'Try it on your last podcast.',
+  },
+  youtube_short: {
+    hook: 'One source. Ten posts. Here is the system.',
+    beats: ['Capture', 'Extract atoms', 'Reshape per channel', 'Distribute'],
+    cta: 'Full workflow in the description.',
+  },
+  newsletter: {
+    subject: 'The repurposing system that ends content burnout',
+    preview: 'One source becomes a week of native content.',
+    body: 'Most creators burn out treating every post as net-new work. Here is the system that fixes it…',
+  },
+  blog_aeo: {
+    title: 'How creators repurpose one source into ten posts',
+    metaDescription: 'A practical repurposing system: capture, extract atoms, reshape per channel, distribute.',
+    outline: ['Why creators burn out', 'The four-step system', 'Atoms explained', 'Distribution'],
+    body: 'Most creators burn out because they treat every post as net-new work…',
+  },
+  email_sequence: {
+    emails: [
+      { subject: 'Why you keep burning out', body: 'Every post as net-new work is the trap…' },
+      { subject: 'The 4-step fix', body: 'Capture → extract → reshape → distribute…' },
+      { subject: 'Your first source', body: 'Pick one podcast or article and run it through…' },
+    ],
+  },
+  captions: {
+    variants: [
+      'You are not out of ideas — you are out of system.',
+      'One source. Ten posts. Zero new ideas required.',
+      'Repurposing is not lazy. It is leverage.',
+    ],
+  },
+  sales_snippets: {
+    snippets: [
+      'Teams that systematize repurposing ship 5x more without more ideas.',
+      'Content OS turns one source into a week of native posts.',
+    ],
+  },
+};
+
+export function getDemoContentPackItems(): ContentPackItemRow[] {
+  const channels = Object.keys(DEMO_ITEM_BODIES);
+  const formatFor = (c: string): string =>
+    c === 'linkedin'
+      ? 'post'
+      : c === 'x_thread'
+        ? 'thread'
+        : c === 'instagram_carousel'
+          ? 'carousel'
+          : c === 'tiktok_reels' || c === 'youtube_short'
+            ? 'video_script'
+            : c === 'newsletter'
+              ? 'newsletter'
+              : c === 'blog_aeo'
+                ? 'article'
+                : c === 'email_sequence'
+                  ? 'email_sequence'
+                  : c === 'captions'
+                    ? 'captions'
+                    : 'snippets';
+  return channels.map((channel, i) => ({
+    id: `00000000-0000-4000-8000-0000009300${(i + 1).toString().padStart(2, '0')}`,
+    workspace_id: DEMO_WORKSPACE_ID,
+    pack_id: DEMO_PACK_ID,
+    channel,
+    format: formatFor(channel),
+    body: DEMO_ITEM_BODIES[channel],
+    status: i === 0 ? 'scheduled' : i === 1 ? 'approved' : 'draft',
+    post_id: i <= 1 ? DEMO_POST_ID : null,
+    storyboard_id: null,
+    last_error: null,
+    created_at: DEMO_TS,
+    updated_at: DEMO_TS,
+  }));
+}
+
+export function getDemoContentJobs(): ContentJobRow[] {
+  return [
+    {
+      id: '00000000-0000-4000-8000-000000009400',
+      workspace_id: DEMO_WORKSPACE_ID,
+      kind: 'extract',
+      source_id: DEMO_SOURCE_ID_2,
+      pack_id: null,
+      pack_item_id: null,
+      status: 'processing',
+      attempts: 1,
+      last_error: null,
+      cost_charged: 15,
+      cost_refunded: 0,
+      claimed_at: DEMO_TS,
+      started_at: DEMO_TS,
+      completed_at: null,
+      created_at: new Date('2026-05-26T08:50:00.000Z').toISOString(),
+      updated_at: DEMO_TS,
+    },
+  ];
 }

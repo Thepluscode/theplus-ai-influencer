@@ -4,7 +4,7 @@ import { ThePlusTechBrand } from '@/components/brand/theplus-tech-logo';
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
-    <main className="grid min-h-dvh bg-[#070707] text-ink lg:grid-cols-[minmax(0,1fr)_420px]">
+    <main className="grid min-h-dvh bg-[#070707] text-ink lg:grid-cols-2 xl:grid-cols-[1.1fr_0.9fr]">
       <section className="relative hidden overflow-hidden border-r border-[#171717] bg-[radial-gradient(circle_at_20%_10%,rgba(0,153,255,0.16),transparent_28%),linear-gradient(180deg,#070707,#0b0b0b)] px-10 py-8 lg:flex lg:flex-col">
         <Link
           href="/"
@@ -13,7 +13,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           <ThePlusTechBrand />
         </Link>
 
-        <div className="mt-auto max-w-xl pb-8">
+        <div className="my-auto max-w-xl">
           <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-[#666]">
             Review-grade creative ops
           </p>
