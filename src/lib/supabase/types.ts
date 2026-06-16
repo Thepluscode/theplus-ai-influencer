@@ -999,6 +999,347 @@ export type Database = {
           },
         ];
       };
+      content_sources: {
+        Row: {
+          id: string;
+          workspace_id: string;
+          title: string;
+          type: 'paste' | 'txt' | 'md' | 'pdf' | 'audio' | 'video';
+          status: 'uploaded' | 'extracting' | 'extracted' | 'repackaging' | 'ready' | 'failed';
+          storage_path: string | null;
+          byte_size: number | null;
+          mime_type: string | null;
+          raw_text: string | null;
+          extracted_text: string | null;
+          last_error: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          workspace_id: string;
+          title: string;
+          type: 'paste' | 'txt' | 'md' | 'pdf' | 'audio' | 'video';
+          status?: 'uploaded' | 'extracting' | 'extracted' | 'repackaging' | 'ready' | 'failed';
+          storage_path?: string | null;
+          byte_size?: number | null;
+          mime_type?: string | null;
+          raw_text?: string | null;
+          extracted_text?: string | null;
+          last_error?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          workspace_id?: string;
+          title?: string;
+          type?: 'paste' | 'txt' | 'md' | 'pdf' | 'audio' | 'video';
+          status?: 'uploaded' | 'extracting' | 'extracted' | 'repackaging' | 'ready' | 'failed';
+          storage_path?: string | null;
+          byte_size?: number | null;
+          mime_type?: string | null;
+          raw_text?: string | null;
+          extracted_text?: string | null;
+          last_error?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'content_sources_workspace_id_fkey';
+            columns: ['workspace_id'];
+            referencedRelation: 'workspaces';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      content_atoms: {
+        Row: {
+          id: string;
+          workspace_id: string;
+          source_id: string;
+          kind:
+            | 'hook'
+            | 'claim'
+            | 'story'
+            | 'quote'
+            | 'framework'
+            | 'objection'
+            | 'proof_point'
+            | 'cta'
+            | 'audience_insight';
+          text: string;
+          tags: string[];
+          source_location: string | null;
+          confidence: number | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          workspace_id: string;
+          source_id: string;
+          kind:
+            | 'hook'
+            | 'claim'
+            | 'story'
+            | 'quote'
+            | 'framework'
+            | 'objection'
+            | 'proof_point'
+            | 'cta'
+            | 'audience_insight';
+          text: string;
+          tags?: string[];
+          source_location?: string | null;
+          confidence?: number | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          workspace_id?: string;
+          source_id?: string;
+          kind?:
+            | 'hook'
+            | 'claim'
+            | 'story'
+            | 'quote'
+            | 'framework'
+            | 'objection'
+            | 'proof_point'
+            | 'cta'
+            | 'audience_insight';
+          text?: string;
+          tags?: string[];
+          source_location?: string | null;
+          confidence?: number | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'content_atoms_workspace_id_fkey';
+            columns: ['workspace_id'];
+            referencedRelation: 'workspaces';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'content_atoms_source_id_fkey';
+            columns: ['source_id'];
+            referencedRelation: 'content_sources';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      content_packs: {
+        Row: {
+          id: string;
+          workspace_id: string;
+          source_id: string;
+          status: 'draft' | 'generating' | 'ready' | 'failed';
+          channels: string[];
+          last_error: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          workspace_id: string;
+          source_id: string;
+          status?: 'draft' | 'generating' | 'ready' | 'failed';
+          channels?: string[];
+          last_error?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          workspace_id?: string;
+          source_id?: string;
+          status?: 'draft' | 'generating' | 'ready' | 'failed';
+          channels?: string[];
+          last_error?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'content_packs_workspace_id_fkey';
+            columns: ['workspace_id'];
+            referencedRelation: 'workspaces';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'content_packs_source_id_fkey';
+            columns: ['source_id'];
+            referencedRelation: 'content_sources';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      content_pack_items: {
+        Row: {
+          id: string;
+          workspace_id: string;
+          pack_id: string;
+          channel: string;
+          format: string;
+          body: unknown;
+          status:
+            | 'draft'
+            | 'media_generating'
+            | 'ready_for_approval'
+            | 'approved'
+            | 'scheduled'
+            | 'published'
+            | 'failed';
+          post_id: string | null;
+          storyboard_id: string | null;
+          last_error: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          workspace_id: string;
+          pack_id: string;
+          channel: string;
+          format: string;
+          body?: unknown;
+          status?:
+            | 'draft'
+            | 'media_generating'
+            | 'ready_for_approval'
+            | 'approved'
+            | 'scheduled'
+            | 'published'
+            | 'failed';
+          post_id?: string | null;
+          storyboard_id?: string | null;
+          last_error?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          workspace_id?: string;
+          pack_id?: string;
+          channel?: string;
+          format?: string;
+          body?: unknown;
+          status?:
+            | 'draft'
+            | 'media_generating'
+            | 'ready_for_approval'
+            | 'approved'
+            | 'scheduled'
+            | 'published'
+            | 'failed';
+          post_id?: string | null;
+          storyboard_id?: string | null;
+          last_error?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'content_pack_items_workspace_id_fkey';
+            columns: ['workspace_id'];
+            referencedRelation: 'workspaces';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'content_pack_items_pack_id_fkey';
+            columns: ['pack_id'];
+            referencedRelation: 'content_packs';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'content_pack_items_post_id_fkey';
+            columns: ['post_id'];
+            referencedRelation: 'posts';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'content_pack_items_storyboard_id_fkey';
+            columns: ['storyboard_id'];
+            referencedRelation: 'storyboards';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      content_jobs: {
+        Row: {
+          id: string;
+          workspace_id: string;
+          kind: 'extract' | 'repackage' | 'media';
+          source_id: string | null;
+          pack_id: string | null;
+          pack_item_id: string | null;
+          status: 'pending' | 'processing' | 'completed' | 'failed';
+          attempts: number;
+          last_error: string | null;
+          cost_charged: number;
+          cost_refunded: number;
+          claimed_at: string | null;
+          started_at: string | null;
+          completed_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          workspace_id: string;
+          kind: 'extract' | 'repackage' | 'media';
+          source_id?: string | null;
+          pack_id?: string | null;
+          pack_item_id?: string | null;
+          status?: 'pending' | 'processing' | 'completed' | 'failed';
+          attempts?: number;
+          last_error?: string | null;
+          cost_charged?: number;
+          cost_refunded?: number;
+          claimed_at?: string | null;
+          started_at?: string | null;
+          completed_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          workspace_id?: string;
+          kind?: 'extract' | 'repackage' | 'media';
+          source_id?: string | null;
+          pack_id?: string | null;
+          pack_item_id?: string | null;
+          status?: 'pending' | 'processing' | 'completed' | 'failed';
+          attempts?: number;
+          last_error?: string | null;
+          cost_charged?: number;
+          cost_refunded?: number;
+          claimed_at?: string | null;
+          started_at?: string | null;
+          completed_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'content_jobs_workspace_id_fkey';
+            columns: ['workspace_id'];
+            referencedRelation: 'workspaces';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'content_jobs_source_id_fkey';
+            columns: ['source_id'];
+            referencedRelation: 'content_sources';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
     };
     Views: Record<never, never>;
     Functions: {
@@ -1050,3 +1391,8 @@ export type DmThreadRow = Database['public']['Tables']['dm_threads']['Row'];
 export type SocialAccountRow = Database['public']['Tables']['social_accounts']['Row'];
 export type SafetyAuditRow = Database['public']['Tables']['safety_audits']['Row'];
 export type StoryboardRenderJobRow = Database['public']['Tables']['storyboard_render_jobs']['Row'];
+export type ContentSourceRow = Database['public']['Tables']['content_sources']['Row'];
+export type ContentAtomRow = Database['public']['Tables']['content_atoms']['Row'];
+export type ContentPackRow = Database['public']['Tables']['content_packs']['Row'];
+export type ContentPackItemRow = Database['public']['Tables']['content_pack_items']['Row'];
+export type ContentJobRow = Database['public']['Tables']['content_jobs']['Row'];

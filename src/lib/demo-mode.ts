@@ -3,7 +3,12 @@ import { serverEnv } from '@/lib/env';
 import type {
   AiModelRow,
   CommentRow,
+  ContentAtomRow,
+  ContentJobRow,
+  ContentPackItemRow,
+  ContentPackRow,
   ContentPlanRow,
+  ContentSourceRow,
   DmThreadRow,
   PostRow,
   StoryboardRow,
@@ -21,6 +26,9 @@ export const DEMO_WORKSPACE_ID = '00000000-0000-4000-8000-000000000001';
 export const DEMO_USER_EMAIL = 'demo@theplus.ai';
 export const DEMO_MODEL_ID = '00000000-0000-4000-8000-000000000101';
 export const DEMO_POST_ID = '00000000-0000-4000-8000-000000000201';
+// Content OS deterministic fixtures (see getDemoContent* below).
+export const DEMO_SOURCE_ID = '00000000-0000-4000-8000-000000000901';
+export const DEMO_PACK_ID = '00000000-0000-4000-8000-000000000910';
 
 export function isDemoMode(): boolean {
   return serverEnv.THEPLUS_DEMO_MODE === true && process.env.NODE_ENV !== 'production';
@@ -528,4 +536,224 @@ export function getDemoPlatformVariants(
     hashtags,
     hook: platform === 'tiktok' || platform === 'youtube' ? 'Morning routine reveal' : undefined,
   }));
+}
+
+// ---------------------------------------------------------------------------
+// Content OS fixtures — deterministic source → atoms → pack → items + jobs.
+// ---------------------------------------------------------------------------
+
+const DEMO_SOURCE_ID_2 = '00000000-0000-4000-8000-000000000902';
+const DEMO_TS = new Date('2026-05-26T09:00:00.000Z').toISOString();
+
+export function getDemoContentSources(): ContentSourceRow[] {
+  return [
+    {
+      id: DEMO_SOURCE_ID,
+      workspace_id: DEMO_WORKSPACE_ID,
+      title: 'Why creators burn out — and the system that fixes it',
+      type: 'paste',
+      status: 'ready',
+      storage_path: null,
+      byte_size: null,
+      mime_type: null,
+      raw_text: 'Most creators burn out because they treat every post as net-new work…',
+      extracted_text:
+        'Most creators burn out because they treat every post as net-new work. The fix is a repurposing system: capture one strong source, extract its reusable atoms, then reshape those atoms into channel-native posts. Volume stops being a grind and becomes a byproduct.',
+      last_error: null,
+      created_at: new Date('2026-05-25T18:00:00.000Z').toISOString(),
+      updated_at: DEMO_TS,
+    },
+    {
+      id: DEMO_SOURCE_ID_2,
+      workspace_id: DEMO_WORKSPACE_ID,
+      title: 'Founder interview — rooftop recording.m4a',
+      type: 'audio',
+      status: 'extracting',
+      storage_path: `${DEMO_WORKSPACE_ID}/demo-interview.m4a`,
+      byte_size: 8_400_000,
+      mime_type: 'audio/m4a',
+      raw_text: null,
+      extracted_text: null,
+      last_error: null,
+      created_at: new Date('2026-05-26T08:50:00.000Z').toISOString(),
+      updated_at: DEMO_TS,
+    },
+  ];
+}
+
+const DEMO_ATOM_SEED: Array<{ kind: ContentAtomRow['kind']; text: string }> = [
+  { kind: 'hook', text: 'Most creators burn out because they treat every post as net-new work.' },
+  { kind: 'claim', text: 'Repurposing turns one strong source into a week of channel-native content.' },
+  { kind: 'framework', text: 'Capture → extract atoms → reshape per channel → distribute.' },
+  { kind: 'objection', text: '"Reposting feels lazy" — but native reshaping is the opposite of copy-paste.' },
+  { kind: 'proof_point', text: 'Teams that systematize repurposing ship 5x more without more ideas.' },
+  { kind: 'story', text: 'A solo founder went from 2 posts a week to 20 by extracting from podcasts.' },
+  { kind: 'audience_insight', text: 'Creators do not lack ideas; they lack a system to multiply them.' },
+  { kind: 'cta', text: 'Drop one source into Content OS and watch it become ten posts.' },
+];
+
+export function getDemoContentAtoms(): ContentAtomRow[] {
+  return DEMO_ATOM_SEED.map((a, i) => ({
+    id: `00000000-0000-4000-8000-0000009200${(i + 1).toString().padStart(2, '0')}`,
+    workspace_id: DEMO_WORKSPACE_ID,
+    source_id: DEMO_SOURCE_ID,
+    kind: a.kind,
+    text: a.text,
+    tags: ['repurposing', 'creator'],
+    source_location: i === 0 ? 'intro' : `point ${i + 1}`,
+    confidence: 0.8,
+    created_at: DEMO_TS,
+    updated_at: DEMO_TS,
+  }));
+}
+
+export function getDemoContentPacks(): ContentPackRow[] {
+  return [
+    {
+      id: DEMO_PACK_ID,
+      workspace_id: DEMO_WORKSPACE_ID,
+      source_id: DEMO_SOURCE_ID,
+      status: 'ready',
+      channels: [
+        'linkedin',
+        'x_thread',
+        'instagram_carousel',
+        'tiktok_reels',
+        'youtube_short',
+        'newsletter',
+        'blog_aeo',
+        'email_sequence',
+        'captions',
+        'sales_snippets',
+      ],
+      last_error: null,
+      created_at: DEMO_TS,
+      updated_at: DEMO_TS,
+    },
+  ];
+}
+
+const DEMO_ITEM_BODIES: Record<string, unknown> = {
+  linkedin: {
+    body: 'Most creators burn out because they treat every post as net-new work.\n\nThe fix is a system: capture one strong source, extract its atoms, reshape per channel.\n\nVolume becomes a byproduct, not a grind.',
+    hashtags: ['contentos', 'repurpose', 'creator'],
+  },
+  x_thread: {
+    tweets: [
+      'Most creators burn out treating every post as net-new work. 🧵',
+      '2/ Repurposing turns one source into a week of native content.',
+      '3/ Capture → extract atoms → reshape per channel → distribute.',
+      "4/ It's not lazy — native reshaping is the opposite of copy-paste.",
+      '5/ Drop one source into Content OS and watch it become ten posts.',
+    ],
+  },
+  instagram_carousel: {
+    caption: 'Stop making every post from scratch. Build a repurposing system instead.',
+    slides: [
+      { title: 'The burnout trap', body: 'Every post = net-new work.' },
+      { title: 'The system', body: 'Capture → extract → reshape → distribute.' },
+      { title: 'The payoff', body: 'One source becomes ten native posts.' },
+    ],
+    hashtags: ['contentos', 'repurpose', 'creator'],
+  },
+  tiktok_reels: {
+    hook: 'You are not out of ideas. You are out of system.',
+    beats: ['Show the burnout grind', 'Reveal the 4-step system', 'Show 1 source → 10 posts'],
+    cta: 'Try it on your last podcast.',
+  },
+  youtube_short: {
+    hook: 'One source. Ten posts. Here is the system.',
+    beats: ['Capture', 'Extract atoms', 'Reshape per channel', 'Distribute'],
+    cta: 'Full workflow in the description.',
+  },
+  newsletter: {
+    subject: 'The repurposing system that ends content burnout',
+    preview: 'One source becomes a week of native content.',
+    body: 'Most creators burn out treating every post as net-new work. Here is the system that fixes it…',
+  },
+  blog_aeo: {
+    title: 'How creators repurpose one source into ten posts',
+    metaDescription: 'A practical repurposing system: capture, extract atoms, reshape per channel, distribute.',
+    outline: ['Why creators burn out', 'The four-step system', 'Atoms explained', 'Distribution'],
+    body: 'Most creators burn out because they treat every post as net-new work…',
+  },
+  email_sequence: {
+    emails: [
+      { subject: 'Why you keep burning out', body: 'Every post as net-new work is the trap…' },
+      { subject: 'The 4-step fix', body: 'Capture → extract → reshape → distribute…' },
+      { subject: 'Your first source', body: 'Pick one podcast or article and run it through…' },
+    ],
+  },
+  captions: {
+    variants: [
+      'You are not out of ideas — you are out of system.',
+      'One source. Ten posts. Zero new ideas required.',
+      'Repurposing is not lazy. It is leverage.',
+    ],
+  },
+  sales_snippets: {
+    snippets: [
+      'Teams that systematize repurposing ship 5x more without more ideas.',
+      'Content OS turns one source into a week of native posts.',
+    ],
+  },
+};
+
+export function getDemoContentPackItems(): ContentPackItemRow[] {
+  const channels = Object.keys(DEMO_ITEM_BODIES);
+  const formatFor = (c: string): string =>
+    c === 'linkedin'
+      ? 'post'
+      : c === 'x_thread'
+        ? 'thread'
+        : c === 'instagram_carousel'
+          ? 'carousel'
+          : c === 'tiktok_reels' || c === 'youtube_short'
+            ? 'video_script'
+            : c === 'newsletter'
+              ? 'newsletter'
+              : c === 'blog_aeo'
+                ? 'article'
+                : c === 'email_sequence'
+                  ? 'email_sequence'
+                  : c === 'captions'
+                    ? 'captions'
+                    : 'snippets';
+  return channels.map((channel, i) => ({
+    id: `00000000-0000-4000-8000-0000009300${(i + 1).toString().padStart(2, '0')}`,
+    workspace_id: DEMO_WORKSPACE_ID,
+    pack_id: DEMO_PACK_ID,
+    channel,
+    format: formatFor(channel),
+    body: DEMO_ITEM_BODIES[channel],
+    status: i === 0 ? 'scheduled' : i === 1 ? 'approved' : 'draft',
+    post_id: i <= 1 ? DEMO_POST_ID : null,
+    storyboard_id: null,
+    last_error: null,
+    created_at: DEMO_TS,
+    updated_at: DEMO_TS,
+  }));
+}
+
+export function getDemoContentJobs(): ContentJobRow[] {
+  return [
+    {
+      id: '00000000-0000-4000-8000-000000009400',
+      workspace_id: DEMO_WORKSPACE_ID,
+      kind: 'extract',
+      source_id: DEMO_SOURCE_ID_2,
+      pack_id: null,
+      pack_item_id: null,
+      status: 'processing',
+      attempts: 1,
+      last_error: null,
+      cost_charged: 15,
+      cost_refunded: 0,
+      claimed_at: DEMO_TS,
+      started_at: DEMO_TS,
+      completed_at: null,
+      created_at: new Date('2026-05-26T08:50:00.000Z').toISOString(),
+      updated_at: DEMO_TS,
+    },
+  ];
 }

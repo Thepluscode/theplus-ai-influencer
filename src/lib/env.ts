@@ -42,10 +42,18 @@ const ServerEnvSchema = z.object({
   // the UI without burning credits.
   OPENAI_API_KEY: z.string().min(1).optional(),
   OPENAI_CAPTION_MODEL: z.string().default('gpt-4o-mini'),
+  // Speech-to-text model for Content OS audio/video source transcription
+  // (OpenAI /v1/audio/transcriptions). OPENAI_STUB=1 returns a canned
+  // transcript so dev can exercise the pipeline without paid calls.
+  OPENAI_TRANSCRIBE_MODEL: z.string().default('gpt-4o-transcribe'),
   OPENAI_STUB: z
     .string()
     .optional()
     .transform((v) => v === '1' || v?.toLowerCase() === 'true'),
+  // Hard ceiling on a Content OS source file (paste/upload). Matches the
+  // OpenAI speech-to-text 25 MB limit by default. Enforced before upload
+  // and re-checked server-side at extraction time.
+  CONTENT_SOURCE_MAX_BYTES: z.coerce.number().int().positive().default(26214400),
   // Shared secret used to authenticate cron-driven worker invocations of
   // /api/jobs/storyboard-animate. Required for production; if absent in
   // dev, the route still accepts SUPABASE_SERVICE_ROLE_KEY as a bearer

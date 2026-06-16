@@ -8,6 +8,7 @@ import {
   Home,
   ImageIcon,
   Inbox,
+  Layers,
   LinkIcon,
   MessageCircle,
   PlusSquare,
@@ -27,6 +28,13 @@ export type AppNavItem = {
 };
 
 export const PRIMARY_NAV: readonly AppNavItem[] = [
+  {
+    href: '/content-os',
+    label: 'Content OS',
+    section: 'Workflow',
+    description: 'Extract → repackage → distribute',
+    icon: Layers,
+  },
   {
     href: '/dashboard',
     label: 'Dashboard',
