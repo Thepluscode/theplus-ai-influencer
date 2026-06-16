@@ -47,22 +47,31 @@ export async function enqueueContentJob(input: {
 /** Atomic claim via the SECURITY DEFINER RPC from 0017. Null when empty. */
 export async function claimContentJob(): Promise<ContentJobRow | null> {
   const supabase = getSupabaseAdminClient();
-  const rpc = supabase.rpc as unknown as (
-    fn: string,
-  ) => Promise<{ data: unknown; error: { message: string } | null }>;
-  const { data, error } = await rpc('claim_content_job');
+  // Call rpc as a bound method — detaching it (`const rpc = supabase.rpc`)
+  // loses `this`, so supabase-js's internal `this.rest` is undefined.
+  const { data, error } = await (
+    supabase.rpc as unknown as (
+      this: typeof supabase,
+      fn: string,
+    ) => Promise<{ data: unknown; error: { message: string } | null }>
+  ).call(supabase, 'claim_content_job');
   if (error) throw new Error(`Failed to claim content job: ${error.message}`);
-  if (!data) return null;
-  return data as ContentJobRow;
+  // A plpgsql function `returns content_jobs` yields a ROW OF NULLS (not SQL
+  // NULL) when nothing matched — so guard on a real id, not just truthiness.
+  const row = (data ?? null) as ContentJobRow | null;
+  if (!row || !row.id) return null;
+  return row;
 }
 
 /** Free jobs whose worker died mid-run (claimed_at > 6 min old). */
 export async function reclaimStalledContentJobs(): Promise<number> {
   const supabase = getSupabaseAdminClient();
-  const rpc = supabase.rpc as unknown as (
-    fn: string,
-  ) => Promise<{ data: unknown; error: { message: string } | null }>;
-  const { data, error } = await rpc('reclaim_stalled_content_jobs');
+  const { data, error } = await (
+    supabase.rpc as unknown as (
+      this: typeof supabase,
+      fn: string,
+    ) => Promise<{ data: unknown; error: { message: string } | null }>
+  ).call(supabase, 'reclaim_stalled_content_jobs');
   if (error) throw new Error(`Failed to reclaim stalled content jobs: ${error.message}`);
   return typeof data === 'number' ? data : 0;
 }

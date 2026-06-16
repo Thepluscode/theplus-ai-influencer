@@ -24,7 +24,7 @@ Primary `/content-os` workflow: drop a source (paste / txt / md / pdf / audio / 
 | Repurpose engine (10 channels, Zod-validated, stub) | done | unit tests pass; valid 10-channel pack |
 | Media: OpenAI brief + Luma `photon-1` stills (persona-anchored via `character_ref` when the workspace has an AI model, else model-less) + short-form video (`animateSingleShot`, `ray-flash-2`) for TikTok/Reels/Shorts | done | stub tested (`LUMA_STUB`). Cost = `PACK_MEDIA_RENDER`(60) + `PACK_VIDEO_RENDER`(60) surcharge for short-form. Per-item model **selection UI** (vs auto-using the default model) deferred |
 | Approve + schedule (reuse posts / brand-safety gate / Zernio / review links) | done | typecheck green; **live Zernio unrun** |
-| Cron `/api/jobs/content-pipeline` (claim/reclaim, dispatch by kind) | done | compiles; **not curled against real DB** |
+| Cron `/api/jobs/content-pipeline` (claim/reclaim, dispatch by kind) | done | **curled against prod DB**: 401 unauthorized + `{ran:false,empty queue}` authorized. Fixed 2 runtime bugs found here — detached `supabase.rpc` (lost `this`) and plpgsql row-of-NULLs treated as a job. Regression test added. |
 | `/content-os` + `/content-os/[id]` UI + nav (first PRIMARY_NAV item) | done | demo HTTP 200, atoms + pack items + approve render; bad id → 404 |
 | Demo fixtures | done | `THEPLUS_DEMO_MODE=1` page renders deterministic source/atoms/pack/jobs |
 
@@ -33,5 +33,5 @@ Primary `/content-os` workflow: drop a source (paste / txt / md / pdf / audio / 
 **To reach VERIFIED:**
 1. ~~Apply `0017_content_os.sql` to prod Supabase; confirm bucket is private.~~ ✅ Done 2026-06-16 (prod project `izfwasxgfdisvlxjlvzs`; bucket `public=false`, RPCs + constraint verified). Schema `0001–0016` was already live. _Still TODO: a runtime check that RLS rejects cross-workspace reads with two real users._
 2. Run a real source through extract → repackage with `OPENAI_STUB=0` (PDF text + a small audio transcription; confirm >25 MB fails closed). Run a media job with `LUMA_STUB=0` to confirm real `photon-1` stills render.
-3. `curl` `/api/jobs/content-pipeline` with the cron bearer against the real DB for extract/repackage/media ticks; quote responses.
+3. ~~`curl` `/api/jobs/content-pipeline` auth + empty-queue against real DB.~~ ✅ Done 2026-06-16 (401 unauth, `{ran:false}` authed). _Still TODO: a tick that actually processes a real extract/repackage/media job._
 4. Approve + schedule one social-channel item through live Zernio; confirm brand-safety block keeps a draft editable.
