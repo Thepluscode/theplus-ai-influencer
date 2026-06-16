@@ -36,8 +36,8 @@ export const COSTS = {
   SOURCE_TRANSCRIPTION: 15,
   /** Repackage a source's atoms into a full multi-channel content pack. */
   CONTENT_REPACKAGE: 20,
-  /** Render media (carousel/short-form visuals) for one pack item. */
-  PACK_MEDIA_RENDER: 20,
+  /** Media for one pack item: a brief + up to 3 model-less Luma stills. */
+  PACK_MEDIA_RENDER: 60,
 } as const;
 
 export type CreditReason =

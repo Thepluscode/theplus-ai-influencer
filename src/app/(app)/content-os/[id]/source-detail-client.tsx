@@ -163,6 +163,7 @@ function PackItemCard({
 }) {
   const [scheduleAt, setScheduleAt] = useState('');
   const preview = packItemToPlainText(item.channel, item.body);
+  const mediaImages = ((item.body as Record<string, unknown>)?.mediaImages as string[]) ?? [];
   const isVisual = VISUAL_CHANNELS.includes(item.channel as ChannelKey);
   const canApprove = item.status === 'draft' || item.status === 'ready_for_approval';
   const canSchedule = item.status === 'approved';
@@ -193,6 +194,20 @@ function PackItemCard({
       <p className="line-clamp-3 whitespace-pre-wrap text-[12px] leading-relaxed text-ink-muted">
         {preview}
       </p>
+
+      {mediaImages.length > 0 ? (
+        <div className="mt-2 flex flex-wrap gap-2">
+          {mediaImages.map((url, i) => (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              key={i}
+              src={url}
+              alt=""
+              className="h-16 w-16 rounded-[8px] border border-[#262626] object-cover"
+            />
+          ))}
+        </div>
+      ) : null}
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
         {canMedia ? (

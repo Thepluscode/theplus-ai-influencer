@@ -15,7 +15,7 @@ import {
   setSourceStatus,
   updatePackItem,
 } from '@/lib/content-sources';
-import { generateMediaBrief } from '@/lib/content-media';
+import { aspectForChannel, generateMediaBrief, renderMediaImages } from '@/lib/content-media';
 import { extractAtoms, extractSourceText } from '@/lib/content-extraction';
 import {
   generateContentPack,
@@ -222,15 +222,21 @@ export async function runMediaJob(job: ContentJobRow): Promise<JobOutcome> {
 
   try {
     const brief = await generateMediaBrief(item.channel, item.body);
-    const mergedBody = { ...(item.body as Record<string, unknown>), mediaBrief: brief };
+    const images = await renderMediaImages(brief.scenes, aspectForChannel(item.channel));
+    const mergedBody = {
+      ...(item.body as Record<string, unknown>),
+      mediaBrief: brief,
+      mediaImages: images,
+    };
     await updatePackItem(item.id, { body: mergedBody, status: 'ready_for_approval' });
     await markContentJobCompleted(job.id);
     console.info('[content-pipeline] media done', {
       jobId: job.id,
       itemId: item.id,
       scenes: brief.scenes.length,
+      images: images.length,
     });
-    return { ok: true, detail: `media brief with ${brief.scenes.length} scenes` };
+    return { ok: true, detail: `media brief + ${images.length} images` };
   } catch (err) {
     const detail = toMessage(err);
     await refundCredits({ workspaceId: job.workspace_id, amount, refKind: 'content_pack_item', refId: item.id });

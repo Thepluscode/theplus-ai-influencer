@@ -16,7 +16,7 @@ Primary `/content-os` workflow: drop a source (paste / txt / md / pdf / audio / 
 | Source ingest (client-direct upload to private bucket + `createContentSourceAction`) | done | demo page renders, upload composer wired |
 | Extraction (paste/txt/md, PDF via unpdf, audio/video via OpenAI transcribe) + atoms | done | unit tests (stub) pass; **real paid path unrun** |
 | Repurpose engine (10 channels, Zod-validated, stub) | done | unit tests pass; valid 10-channel pack |
-| Media briefs (visual channels) | done | stub tested. **Storyboard auto-render DEFERRED** (see memory) |
+| Media: OpenAI brief + up to 3 model-less Luma `photon-1` stills (no `character_ref`) per visual item | done | stub tested (`LUMA_STUB`); `PACK_MEDIA_RENDER`=60. **Persona-anchored render via `renderShots` DEFERRED** (needs an AI model; see memory) |
 | Approve + schedule (reuse posts / brand-safety gate / Zernio / review links) | done | typecheck green; **live Zernio unrun** |
 | Cron `/api/jobs/content-pipeline` (claim/reclaim, dispatch by kind) | done | compiles; **not curled against real DB** |
 | `/content-os` + `/content-os/[id]` UI + nav (first PRIMARY_NAV item) | done | demo HTTP 200, atoms + pack items + approve render; bad id → 404 |
@@ -26,6 +26,6 @@ Primary `/content-os` workflow: drop a source (paste / txt / md / pdf / audio / 
 
 **To reach VERIFIED:**
 1. Apply `0017_content_os.sql` to prod Supabase; confirm bucket is private + RLS rejects cross-workspace reads.
-2. Run a real source through extract → repackage with `OPENAI_STUB=0` (PDF text + a small audio transcription; confirm >25 MB fails closed).
+2. Run a real source through extract → repackage with `OPENAI_STUB=0` (PDF text + a small audio transcription; confirm >25 MB fails closed). Run a media job with `LUMA_STUB=0` to confirm real `photon-1` stills render.
 3. `curl` `/api/jobs/content-pipeline` with the cron bearer against the real DB for extract/repackage/media ticks; quote responses.
 4. Approve + schedule one social-channel item through live Zernio; confirm brand-safety block keeps a draft editable.

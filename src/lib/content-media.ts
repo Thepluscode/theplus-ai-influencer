@@ -1,7 +1,14 @@
 import 'server-only';
 import { z } from 'zod';
 import { serverEnv } from '@/lib/env';
+import { getLumaClient } from '@/lib/luma';
+import { isLumaStubbed } from '@/lib/luma-stub';
 import { packItemToPlainText } from '@/lib/content-repackage-schema';
+
+type Aspect = '1:1' | '9:16' | '16:9';
+
+/** Max model-less Luma stills rendered per visual item (bounds cost). */
+export const MEDIA_IMAGE_CAP = 3;
 
 // ---------------------------------------------------------------------------
 // Content OS — media briefs.
@@ -82,6 +89,58 @@ export async function generateMediaBrief(channel: string, body: unknown): Promis
     throw new Error('Media brief failed validation.');
   }
   return parsed.data;
+}
+
+/** Carousel renders square; short-form video renders 9:16. */
+export function aspectForChannel(channel: string): Aspect {
+  return channel === 'tiktok_reels' || channel === 'youtube_short' ? '9:16' : '1:1';
+}
+
+function stubMediaImage(prompt: string, i: number, aspect: Aspect): string {
+  const dims = aspect === '9:16' ? '720/1280' : aspect === '16:9' ? '1280/720' : '900/900';
+  const slug = encodeURIComponent(`contentos-media-${i}-${prompt.slice(0, 24)}`);
+  return `https://picsum.photos/seed/${slug}/${dims}`;
+}
+
+/**
+ * Render up to MEDIA_IMAGE_CAP model-less Luma stills from the brief's scene
+ * directions. No character_ref — Content OS sources aren't persona-backed, so
+ * these are generic on-brand visuals (text-to-image). LUMA_STUB=1 returns
+ * deterministic placeholders so the pipeline stays offline-testable.
+ */
+export async function renderMediaImages(
+  scenes: Array<{ direction: string }>,
+  aspect: Aspect,
+): Promise<string[]> {
+  const prompts = scenes.slice(0, MEDIA_IMAGE_CAP).map((s) => s.direction);
+  if (prompts.length === 0) return [];
+
+  if (isLumaStubbed()) {
+    return prompts.map((p, i) => stubMediaImage(p, i, aspect));
+  }
+
+  const client = getLumaClient();
+  const results = await Promise.all(
+    prompts.map((prompt) =>
+      client.generations.image.create({
+        model: 'photon-1',
+        prompt,
+        aspect_ratio: aspect,
+        sync: true,
+        sync_timeout: 120,
+      }),
+    ),
+  );
+
+  const urls: string[] = [];
+  for (let i = 0; i < results.length; i++) {
+    const url = results[i].assets?.image;
+    if (!url) {
+      throw new Error(`Media image ${i} failed: ${results[i].failure_reason ?? 'no image URL'}`);
+    }
+    urls.push(url);
+  }
+  return urls;
 }
 
 function stubBrief(channel: string, copy: string): MediaBrief {
