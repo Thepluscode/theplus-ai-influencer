@@ -11,7 +11,7 @@ Never mark `VERIFIED` without production evidence (logs, API response, observed 
 >
 > **`0018_lock_job_rpcs.sql` applied** (2026-06-16): revoked EXECUTE on `claim_content_job` / `reclaim_stalled_content_jobs` from `public/anon/authenticated`, re-granted to `service_role` only. Verified: svc=true, anon/authenticated=false. (`consume_credits`/`grant_credits` left open to `authenticated` by design.)
 >
-> **Pre-existing prod discrepancy found (not fixed here):** `reclaim_stalled_storyboard_render_jobs()` from local `0011` does **not exist in prod**, yet `storyboard-jobs.ts` calls it — the storyboard animate cron's reclaim step would throw in prod. Separate from Content OS; worth a dedicated fix.
+> **Storyboard cron fixed** (`0019` + `storyboard-jobs.ts`, 2026-06-16): had the same two bugs as the Content OS cron (detached `supabase.rpc`, row-of-NULLs treated as a job) **plus** a missing prod RPC (`reclaim_stalled_storyboard_render_jobs`, never applied from `0011`). `0019` backfills the RPC + locks both storyboard worker RPCs to `service_role`; code fixes mirror the Content OS ones. Verified against prod: `/api/jobs/storyboard-animate` now returns 401 unauth / `{ran:false,"empty queue"}` authed (was 500). +4 regression tests.
 
 Primary `/content-os` workflow: drop a source (paste / txt / md / pdf / audio / video) → extract reusable atoms → repackage into 10 channel-native outputs → approval-gated distribution through the existing posts / brand-safety / Calendar / Zernio path.
 
