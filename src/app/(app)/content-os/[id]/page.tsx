@@ -68,27 +68,29 @@ export default async function ContentSourceDetailPage({ params }: Props) {
 
   return (
     <div className="app-page text-ink">
-      <header className="app-page-header">
-        <Link
-          href="/content-os"
-          className="inline-flex items-center gap-1.5 text-[12px] text-ink-muted transition hover:text-ink"
-        >
-          <ArrowLeft size={13} />
-          Content OS
-        </Link>
-        <h1 className="mt-2 text-[20px] font-semibold">{source.title}</h1>
-        <p className="mt-1 text-[12px] uppercase tracking-wider text-ink-muted">
-          {source.type} · {source.status}
-        </p>
-      </header>
+      <div className="app-page-inner">
+        <header className="app-page-header">
+          <Link
+            href="/content-os"
+            className="inline-flex items-center gap-1.5 text-[12px] text-ink-muted transition hover:text-ink"
+          >
+            <ArrowLeft size={13} />
+            Content OS
+          </Link>
+          <h1 className="mt-2 text-[20px] font-semibold">{source.title}</h1>
+          <p className="mt-1 text-[12px] uppercase tracking-wider text-ink-muted">
+            {source.type} · {source.status}
+          </p>
+        </header>
 
-      <SourceDetailClient
-        source={source}
-        atoms={atoms}
-        pack={pack}
-        items={items}
-        demoMode={demoMode}
-      />
+        <SourceDetailClient
+          source={source}
+          atoms={atoms}
+          pack={pack}
+          items={items}
+          demoMode={demoMode}
+        />
+      </div>
     </div>
   );
 }
