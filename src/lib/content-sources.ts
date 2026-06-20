@@ -1,5 +1,4 @@
 import 'server-only';
-import { getSupabaseAdminClient } from '@/lib/supabase/admin';
 import { getSupabaseServerClient } from '@/lib/supabase/server';
 import type { Database } from '@/lib/supabase/types';
 import type {
@@ -20,6 +19,11 @@ import type { AtomKind, SourceType } from '@/lib/content-sources-schema';
 // ---------------------------------------------------------------------------
 
 type SourceStatus = ContentSourceRow['status'];
+
+async function getAdminClient() {
+  const { getSupabaseAdminClient } = await import('@/lib/supabase/admin');
+  return getSupabaseAdminClient();
+}
 
 /** Insert a new source row (status defaults to 'uploaded'). Server client so
  *  the workspace INSERT policy applies. */
@@ -66,7 +70,7 @@ export async function getContentSource(sourceId: string): Promise<ContentSourceR
 
 /** Service-role read for the cron worker (bypasses RLS). */
 export async function getContentSourceAdmin(sourceId: string): Promise<ContentSourceRow | null> {
-  const supabase = getSupabaseAdminClient();
+  const supabase = await getAdminClient();
   const { data, error } = await supabase
     .from('content_sources')
     .select('*')
@@ -94,7 +98,7 @@ export async function setSourceStatus(
   status: SourceStatus,
   extra?: { extractedText?: string | null; lastError?: string | null },
 ): Promise<void> {
-  const supabase = getSupabaseAdminClient();
+  const supabase = await getAdminClient();
   const patch: Database['public']['Tables']['content_sources']['Update'] = { status };
   if (extra && 'extractedText' in extra) patch.extracted_text = extra.extractedText ?? null;
   if (extra && 'lastError' in extra) patch.last_error = extra.lastError?.slice(0, 1000) ?? null;
@@ -120,7 +124,7 @@ export async function insertAtoms(
   }>,
 ): Promise<number> {
   if (atoms.length === 0) return 0;
-  const supabase = getSupabaseAdminClient();
+  const supabase = await getAdminClient();
   const { error } = await supabase.from('content_atoms').insert(
     atoms.map((a) => ({
       workspace_id: workspaceId,
@@ -149,7 +153,7 @@ export async function listAtomsForSource(sourceId: string): Promise<ContentAtomR
 
 /** Service-role atom read for the cron worker (repackage needs the atoms). */
 export async function listAtomsForSourceAdmin(sourceId: string): Promise<ContentAtomRow[]> {
-  const supabase = getSupabaseAdminClient();
+  const supabase = await getAdminClient();
   const { data, error } = await supabase
     .from('content_atoms')
     .select('*')
@@ -170,7 +174,7 @@ export async function createPack(input: {
   status?: PackStatus;
   channels?: string[];
 }): Promise<ContentPackRow> {
-  const supabase = getSupabaseAdminClient();
+  const supabase = await getAdminClient();
   const { data, error } = await supabase
     .from('content_packs')
     .insert({
@@ -190,7 +194,7 @@ export async function setPackStatus(
   status: PackStatus,
   extra?: { channels?: string[]; lastError?: string | null },
 ): Promise<void> {
-  const supabase = getSupabaseAdminClient();
+  const supabase = await getAdminClient();
   const patch: Database['public']['Tables']['content_packs']['Update'] = { status };
   if (extra && 'channels' in extra) patch.channels = extra.channels ?? [];
   if (extra && 'lastError' in extra) patch.last_error = extra.lastError?.slice(0, 1000) ?? null;
@@ -205,7 +209,7 @@ export async function insertPackItems(
   items: Array<{ channel: string; format: string; body: unknown }>,
 ): Promise<ContentPackItemRow[]> {
   if (items.length === 0) return [];
-  const supabase = getSupabaseAdminClient();
+  const supabase = await getAdminClient();
   const { data, error } = await supabase
     .from('content_pack_items')
     .insert(
@@ -272,7 +276,7 @@ export async function getPackItem(itemId: string): Promise<ContentPackItemRow | 
 
 /** Service-role pack item read for the cron worker. */
 export async function getPackItemAdmin(itemId: string): Promise<ContentPackItemRow | null> {
-  const supabase = getSupabaseAdminClient();
+  const supabase = await getAdminClient();
   const { data, error } = await supabase
     .from('content_pack_items')
     .select('*')
@@ -295,7 +299,7 @@ export async function updatePackItem(
     lastError?: string | null;
   },
 ): Promise<void> {
-  const supabase = getSupabaseAdminClient();
+  const supabase = await getAdminClient();
   const update: Database['public']['Tables']['content_pack_items']['Update'] = {};
   if ('status' in patch && patch.status) update.status = patch.status;
   if ('body' in patch) update.body = patch.body;
@@ -312,7 +316,7 @@ export async function updatePackItem(
  * persona; absent a model, media falls back to model-less renders.
  */
 export async function getWorkspaceModelAdmin(workspaceId: string): Promise<AiModelRow | null> {
-  const supabase = getSupabaseAdminClient();
+  const supabase = await getAdminClient();
   const { data, error } = await supabase
     .from('ai_models')
     .select('*')

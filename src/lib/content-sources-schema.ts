@@ -22,6 +22,7 @@ export const UPLOAD_MIME_TO_TYPE: Readonly<Record<string, SourceType>> = {
   'text/markdown': 'md',
   'application/pdf': 'pdf',
   'audio/mpeg': 'audio',
+  'audio/mpga': 'audio',
   'audio/mp4': 'audio',
   'audio/x-m4a': 'audio',
   'audio/m4a': 'audio',
