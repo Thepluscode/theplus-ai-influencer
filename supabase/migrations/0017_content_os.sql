@@ -361,7 +361,7 @@ values (
   array[
     'text/plain', 'text/markdown',
     'application/pdf',
-    'audio/mpeg', 'audio/mp4', 'audio/x-m4a', 'audio/m4a',
+    'audio/mpeg', 'audio/mpga', 'audio/mp4', 'audio/x-m4a', 'audio/m4a',
     'audio/wav', 'audio/x-wav', 'audio/webm',
     'video/mp4', 'video/mpeg', 'video/webm'
   ]

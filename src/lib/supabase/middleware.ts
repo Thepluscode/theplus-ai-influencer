@@ -3,10 +3,18 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { publicEnv } from '@/lib/env';
 
 const PROTECTED_PREFIXES = [
+  '/content-os',
   '/dashboard',
   '/studio',
   '/create-post',
+  '/series',
+  '/storyboard',
   '/calendar',
+  '/comments',
+  '/inbox',
+  '/analytics',
+  '/safety',
+  '/agents',
   '/accounts',
   '/settings',
 ];

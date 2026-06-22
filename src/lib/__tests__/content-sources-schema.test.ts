@@ -67,6 +67,7 @@ describe('sourceTypeFromMime', () => {
     expect(sourceTypeFromMime('application/pdf')).toBe('pdf');
     expect(sourceTypeFromMime('text/markdown')).toBe('md');
     expect(sourceTypeFromMime('audio/mpeg')).toBe('audio');
+    expect(sourceTypeFromMime('audio/mpga')).toBe('audio');
     expect(sourceTypeFromMime('video/mp4')).toBe('video');
   });
 

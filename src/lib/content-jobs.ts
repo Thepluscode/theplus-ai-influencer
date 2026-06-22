@@ -1,5 +1,4 @@
 import 'server-only';
-import { getSupabaseAdminClient } from '@/lib/supabase/admin';
 import { getSupabaseServerClient } from '@/lib/supabase/server';
 import type { ContentJobRow } from '@/lib/supabase/types';
 
@@ -14,6 +13,11 @@ import type { ContentJobRow } from '@/lib/supabase/types';
 
 type JobKind = ContentJobRow['kind'];
 
+async function getAdminClient() {
+  const { getSupabaseAdminClient } = await import('@/lib/supabase/admin');
+  return getSupabaseAdminClient();
+}
+
 /** Insert a new pending job. Caller charges credits separately (cost_charged
  *  is bookkeeping for refunds, not a ledger write). */
 export async function enqueueContentJob(input: {
@@ -24,7 +28,7 @@ export async function enqueueContentJob(input: {
   packItemId?: string | null;
   costCharged?: number;
 }): Promise<ContentJobRow> {
-  const supabase = getSupabaseAdminClient();
+  const supabase = await getAdminClient();
   const { data, error } = await supabase
     .from('content_jobs')
     .insert({
@@ -46,7 +50,7 @@ export async function enqueueContentJob(input: {
 
 /** Atomic claim via the SECURITY DEFINER RPC from 0017. Null when empty. */
 export async function claimContentJob(): Promise<ContentJobRow | null> {
-  const supabase = getSupabaseAdminClient();
+  const supabase = await getAdminClient();
   // Call rpc as a bound method — detaching it (`const rpc = supabase.rpc`)
   // loses `this`, so supabase-js's internal `this.rest` is undefined.
   const { data, error } = await (
@@ -65,7 +69,7 @@ export async function claimContentJob(): Promise<ContentJobRow | null> {
 
 /** Free jobs whose worker died mid-run (claimed_at > 6 min old). */
 export async function reclaimStalledContentJobs(): Promise<number> {
-  const supabase = getSupabaseAdminClient();
+  const supabase = await getAdminClient();
   const { data, error } = await (
     supabase.rpc as unknown as (
       this: typeof supabase,
@@ -78,7 +82,7 @@ export async function reclaimStalledContentJobs(): Promise<number> {
 
 /** Release a claim without changing status — next tick re-picks it. */
 export async function releaseContentJobClaim(jobId: string): Promise<void> {
-  const supabase = getSupabaseAdminClient();
+  const supabase = await getAdminClient();
   const { error } = await supabase
     .from('content_jobs')
     .update({ claimed_at: null })
@@ -87,7 +91,7 @@ export async function releaseContentJobClaim(jobId: string): Promise<void> {
 }
 
 export async function markContentJobCompleted(jobId: string): Promise<void> {
-  const supabase = getSupabaseAdminClient();
+  const supabase = await getAdminClient();
   const { error } = await supabase
     .from('content_jobs')
     .update({ status: 'completed', claimed_at: null, completed_at: new Date().toISOString() })
@@ -100,7 +104,7 @@ export async function markContentJobFailed(
   errorMessage: string,
   costRefunded = 0,
 ): Promise<void> {
-  const supabase = getSupabaseAdminClient();
+  const supabase = await getAdminClient();
   const { error } = await supabase
     .from('content_jobs')
     .update({
@@ -116,7 +120,7 @@ export async function markContentJobFailed(
 
 /** Re-queue a failed job (retry). Resets status + clears error/claim. */
 export async function requeueContentJob(jobId: string): Promise<void> {
-  const supabase = getSupabaseAdminClient();
+  const supabase = await getAdminClient();
   const { error } = await supabase
     .from('content_jobs')
     .update({ status: 'pending', claimed_at: null, started_at: null, completed_at: null })

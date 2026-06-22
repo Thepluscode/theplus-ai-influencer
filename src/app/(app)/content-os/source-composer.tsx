@@ -9,8 +9,8 @@ import {
   CONTENT_SOURCE_MAX_BYTES,
   UPLOAD_ACCEPT,
   sourceTypeFromMime,
+  type CreateContentSourceInput,
 } from '@/lib/content-sources-schema';
-import { createContentSourceAction } from './actions';
 
 interface Props {
   workspaceId: string | null;
@@ -61,7 +61,7 @@ export function SourceComposer({ workspaceId, demoMode }: Props) {
         return;
       }
       startTransition(async () => {
-        const res = await createContentSourceAction({
+        const res = await createSource({
           mode: 'paste',
           text,
           title: title.trim() || undefined,
@@ -86,7 +86,7 @@ export function SourceComposer({ workspaceId, demoMode }: Props) {
     // short-circuits to the deterministic demo source.
     if (demoMode) {
       startTransition(async () => {
-        const res = await createContentSourceAction({
+        const res = await createSource({
           mode: 'upload',
           storagePath: `demo/${file.name}`,
           mimeType: file.type,
@@ -120,7 +120,7 @@ export function SourceComposer({ workspaceId, demoMode }: Props) {
 
       const captured = { path, type: file.type, size: file.size, name: file.name };
       startTransition(async () => {
-        const res = await createContentSourceAction({
+        const res = await createSource({
           mode: 'upload',
           storagePath: captured.path,
           mimeType: captured.type,
@@ -188,7 +188,9 @@ export function SourceComposer({ workspaceId, demoMode }: Props) {
         <div className="flex items-center gap-3 rounded-[10px] border border-[#262626] bg-[#0c0c0c] px-3 py-3 text-[13px] text-ink">
           <FileText size={16} className="text-[#0099ff]" />
           <span className="min-w-0 flex-1 truncate">{file.name}</span>
-          <span className="text-[11px] text-ink-muted">{(file.size / 1024 / 1024).toFixed(1)} MB</span>
+          <span className="text-[11px] text-ink-muted">
+            {(file.size / 1024 / 1024).toFixed(1)} MB
+          </span>
           <button type="button" onClick={() => setFile(null)} aria-label="Remove file">
             <X size={14} className="text-ink-muted hover:text-ink" />
           </button>
@@ -230,4 +232,17 @@ export function SourceComposer({ workspaceId, demoMode }: Props) {
       </div>
     </div>
   );
+}
+
+async function createSource(input: CreateContentSourceInput) {
+  const res = await fetch('/api/content-os/sources', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  const data = (await res.json()) as { ok: true; sourceId: string } | { ok: false; error: string };
+  if (!res.ok && data.ok) {
+    return { ok: false as const, error: 'Source creation failed.' };
+  }
+  return data;
 }
