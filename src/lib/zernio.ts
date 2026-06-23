@@ -1,6 +1,7 @@
 import 'server-only';
 import { serverEnv } from '@/lib/env';
 import { isDemoMode } from '@/lib/demo-mode';
+import { fetchWithRetry } from '@/lib/fetch-retry';
 
 /**
  * Thrown when a mutating Zernio method is called while THEPLUS_DEMO_MODE is
@@ -155,6 +156,14 @@ export interface CreatePostInput {
   profileId?: string;
 }
 
+// Short TTL cache for analytics reads. The analytics surface re-fetches on
+// every page load and Zernio metrics don't move minute-to-minute, so 60s
+// collapses a burst of loads (or a launch-day spike) into one upstream call.
+// `null` is cached too, so a flaky endpoint isn't hammered. Module-level →
+// shared across Fluid Compute instance reuse.
+const ANALYTICS_TTL_MS = 60_000;
+const analyticsCache = new Map<string, { value: ZernioPostMetrics | null; expires: number }>();
+
 export class ZernioClient {
   private readonly baseUrl: string;
   private readonly apiKey: string;
@@ -168,17 +177,26 @@ export class ZernioClient {
   }
 
   private async request<T>(path: string, init: RequestInit = {}): Promise<T> {
-    const res = await fetch(`${this.baseUrl}${path}`, {
-      ...init,
-      // Don't cache anything; Zernio is a writable remote.
-      cache: 'no-store',
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${this.apiKey}`,
-        ...init.headers,
+    // Retry rate limits / transient failures with backoff. Only retry 5xx for
+    // GETs — a retried POST/DELETE on a 5xx could double-post (the first write
+    // may have landed server-side). A 429 is always safe to retry: it means
+    // the request was rejected before processing.
+    const method = (init.method ?? 'GET').toUpperCase();
+    const res = await fetchWithRetry(
+      `${this.baseUrl}${path}`,
+      {
+        ...init,
+        // Don't cache anything; Zernio is a writable remote.
+        cache: 'no-store',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${this.apiKey}`,
+          ...init.headers,
+        },
       },
-    });
+      { retryOn5xx: method === 'GET' },
+    );
     if (!res.ok) {
       const text = await res.text().catch(() => '');
       throw new Error(
@@ -257,22 +275,30 @@ export class ZernioClient {
    * placeholder without try/catch noise.
    */
   async getPostAnalytics(zernioPostId: string): Promise<ZernioPostMetrics | null> {
+    const cached = analyticsCache.get(zernioPostId);
+    if (cached && cached.expires > Date.now()) return cached.value;
+
     // Try the dedicated analytics endpoint first, fall back to the
     // post-detail endpoint which may embed metrics inline.
     const endpoints = [
       `/posts/${encodeURIComponent(zernioPostId)}/analytics`,
       `/posts/${encodeURIComponent(zernioPostId)}`,
     ];
+    let result: ZernioPostMetrics | null = null;
     for (const path of endpoints) {
       try {
         const data = await this.request<Record<string, unknown>>(path);
         const m = normalizeZernioMetrics(data);
-        if (m) return m;
+        if (m) {
+          result = m;
+          break;
+        }
       } catch {
         // try next endpoint
       }
     }
-    return null;
+    analyticsCache.set(zernioPostId, { value: result, expires: Date.now() + ANALYTICS_TTL_MS });
+    return result;
   }
 
   async listPosts(

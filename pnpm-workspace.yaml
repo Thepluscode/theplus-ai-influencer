@@ -1,3 +1,11 @@
 allowBuilds:
   sharp: true
   unrs-resolver: true
+
+# Security floors for transitive deps with known CVEs. pnpm reads `overrides`
+# from here (not package.json) when a workspace file exists. Keeps a future
+# install from floating these back below the patched versions.
+overrides:
+  form-data@<4.0.6: '>=4.0.6' # GHSA-qx2v... CRLF injection (via lumaai)
+  postcss@<8.5.10: '>=8.5.10' # CSS-stringify XSS (build-time, via next)
+  '@babel/core@<7.29.1': '>=7.29.1' # file read via sourceMappingURL (build-time)

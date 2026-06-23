@@ -20,6 +20,11 @@ export const maxDuration = 120;
 // Don't cache this — every call must hit the queue fresh.
 export const dynamic = 'force-dynamic';
 
+// A transient Luma failure (429/5xx/network) shouldn't kill the job — the SDK
+// already backs off within a tick; we release for a few more ticks before
+// giving up. `attempts` is bumped on every claim, so this is bounded.
+const MAX_RENDER_ATTEMPTS = 4;
+
 /**
  * Cron worker for animate-to-video.
  *
@@ -109,8 +114,18 @@ export async function POST(req: NextRequest) {
       format: sb.format as PostFormat,
     });
   } catch (err) {
-    const refundAmount = remainingCost(job.shots_total, job.shots_completed, job.cost_per_shot);
     const msg = toMessage(err);
+    // Transient upstream failure → release for a bounded retry instead of
+    // failing + refunding. Only on retryable errors and under the attempt cap;
+    // anything else (or an exhausted job) falls through to the fail path.
+    if (isTransientError(err) && job.attempts < MAX_RENDER_ATTEMPTS) {
+      await releaseJobClaim(job.id);
+      return NextResponse.json(
+        { ran: true, jobId: job.id, status: 'retry', attempts: job.attempts, error: msg },
+        { status: 200 },
+      );
+    }
+    const refundAmount = remainingCost(job.shots_total, job.shots_completed, job.cost_per_shot);
     await markJobFailed(job.id, msg, refundAmount);
     if (refundAmount > 0) {
       await refundCredits({
@@ -177,6 +192,23 @@ function isAuthorized(header: string): boolean {
 
 function remainingCost(shotsTotal: number, shotsCompleted: number, costPerShot: number): number {
   return Math.max(0, (shotsTotal - shotsCompleted) * costPerShot);
+}
+
+/**
+ * Is this a retryable upstream failure (rate limit / transient server / network)
+ * rather than a permanent one? Luma's SDK throws errors carrying an HTTP
+ * `status`; we also sniff the message for connection-level failures.
+ */
+function isTransientError(err: unknown): boolean {
+  const status = (err as { status?: unknown })?.status;
+  if (typeof status === 'number') {
+    if (status === 429 || status === 408 || status >= 500) return true;
+    return false; // a concrete 4xx (bad request, auth) is permanent
+  }
+  const msg = toMessage(err).toLowerCase();
+  return /\b(429|408|5\d\d)\b|rate.?limit|timed?.?out|timeout|econnreset|econnrefused|enotfound|etimedout|network|fetch failed|socket hang up/.test(
+    msg,
+  );
 }
 
 function toMessage(err: unknown): string {

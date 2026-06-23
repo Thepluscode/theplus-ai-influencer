@@ -1,5 +1,6 @@
 import 'server-only';
 import { serverEnv } from '@/lib/env';
+import { fetchWithRetry } from '@/lib/fetch-retry';
 import type { InfluencerWizardInput } from '@/types/influencer';
 import type { PostBriefInput, Platform } from '@/types/post';
 
@@ -95,7 +96,7 @@ export async function generateCaptions(input: GenerateInput): Promise<CaptionsRe
     ],
   };
 
-  const res = await fetch('https://api.openai.com/v1/chat/completions', {
+  const res = await fetchWithRetry('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -162,7 +163,7 @@ Target platforms: ${input.platforms.join(', ')}.
 
 Return JSON: { "perPlatform": [ { "platform": "<one of ${input.platforms.join('|')}>", "caption": "...", "hashtags": ["..."], "hook": "..." }, ... ] }. The "hook" field is only required for TikTok / YouTube / Reels-style platforms.`;
 
-  const res = await fetch('https://api.openai.com/v1/chat/completions', {
+  const res = await fetchWithRetry('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

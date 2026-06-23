@@ -67,6 +67,24 @@ export async function POST(req: NextRequest) {
     { auth: { persistSession: false } },
   );
 
+  // Idempotency claim. Stripe redelivers events on timeout / non-2xx / manual
+  // resend; the topup grant path *increments* credits so a replay would
+  // double-grant. We claim the event id up front — a unique-violation means a
+  // prior delivery already processed it, so we ack without re-running side
+  // effects. On handler failure below we release the claim so a genuine retry
+  // can reprocess (same claim/release shape as the job queue).
+  const claim = await webhookEventTable(admin).insert({
+    provider: 'stripe',
+    event_id: event.id,
+  });
+  if (claim.error) {
+    if (claim.error.code === '23505') {
+      return NextResponse.json({ received: true, duplicate: true });
+    }
+    console.error('[stripe-webhook] idempotency claim failed', claim.error);
+    return NextResponse.json({ error: 'idempotency check failed' }, { status: 500 });
+  }
+
   try {
     switch (event.type) {
       case 'checkout.session.completed': {
@@ -98,10 +116,33 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     const message = err instanceof Error ? err.message : 'webhook handler failed';
     console.error(`[stripe-webhook] ${event.type} → ${message}`, err);
+    // Release the idempotency claim so Stripe's retry reprocesses this event
+    // from scratch — the side effects didn't complete.
+    await webhookEventTable(admin)
+      .delete()
+      .eq('provider', 'stripe')
+      .eq('event_id', event.id);
     // Returning 500 makes Stripe retry, which is what we want for
     // transient errors. Persistent errors will show up in the dashboard.
     return NextResponse.json({ error: message }, { status: 500 });
   }
+}
+
+// The `processed_webhook_events` table isn't in the generated Database types
+// yet, so reach it through a narrow cast rather than widening the whole client.
+function webhookEventTable(admin: AdminClient) {
+  return (
+    admin as unknown as {
+      from: (t: string) => {
+        insert: (v: Record<string, unknown>) => Promise<{
+          error: { code?: string; message: string } | null;
+        }>;
+        delete: () => {
+          eq: (c: string, v: string) => { eq: (c: string, v: string) => Promise<unknown> };
+        };
+      };
+    }
+  ).from('processed_webhook_events');
 }
 
 // ---------------------------------------------------------------------------
@@ -135,7 +176,7 @@ async function handleCheckoutCompleted(
   if (session.metadata?.kind === 'topup') {
     const amount = Number(session.metadata?.credits ?? CREDIT_TOPUP.credits);
     if (Number.isFinite(amount) && amount > 0) {
-      await (
+      const { error } = await (
         admin.rpc as unknown as (
           fn: string,
           params: Record<string, unknown>,
@@ -145,6 +186,12 @@ async function handleCheckoutCompleted(
         p_amount: amount,
         p_reason: 'topup',
       });
+      // Don't swallow a failed grant: the customer paid, so surface it as a
+      // 500 (releases the idempotency claim → Stripe retries the grant)
+      // instead of acking success and silently dropping their credits.
+      if (error) {
+        throw new Error(`grant_credits failed for workspace ${workspaceId}: ${error.message}`);
+      }
     }
   }
 }
