@@ -142,14 +142,14 @@ export function SourceComposer({ workspaceId, demoMode }: Props) {
   }
 
   return (
-    <div className="rounded-[16px] border border-[#262626] bg-surface-2/40 p-5">
+    <div className="source-composer">
       <div className="mb-4 flex items-center gap-2">
         <Sparkles size={15} className="text-[#0099ff]" />
         <h2 className="text-[14px] font-medium text-ink">New source</h2>
         <span className="ml-auto text-[11px] text-ink-muted">Extract → repackage → distribute</span>
       </div>
 
-      <div className="mb-4 inline-flex rounded-full border border-[#262626] bg-[#0c0c0c] p-0.5 text-[12px]">
+      <div className="mb-4 inline-flex rounded-full border border-white/10 bg-black/35 p-0.5 text-[12px]">
         {(['paste', 'upload'] as const).map((m) => (
           <button
             key={m}
@@ -173,7 +173,7 @@ export function SourceComposer({ workspaceId, demoMode }: Props) {
         value={title}
         onChange={(e) => setTitle(e.target.value)}
         placeholder="Title (optional)"
-        className="mb-3 w-full rounded-[10px] border border-[#262626] bg-[#0c0c0c] px-3 py-2 text-[13px] text-ink outline-none placeholder:text-ink-muted focus:border-[#0099ff]/60"
+        className="source-input mb-3 w-full"
       />
 
       {mode === 'paste' ? (
@@ -182,10 +182,10 @@ export function SourceComposer({ workspaceId, demoMode }: Props) {
           onChange={(e) => setText(e.target.value)}
           rows={6}
           placeholder="Paste an article, transcript, notes, or any long-form source…"
-          className="w-full resize-y rounded-[10px] border border-[#262626] bg-[#0c0c0c] px-3 py-2 text-[13px] leading-relaxed text-ink outline-none placeholder:text-ink-muted focus:border-[#0099ff]/60"
+          className="source-input min-h-[190px] w-full resize-y leading-relaxed"
         />
       ) : file ? (
-        <div className="flex items-center gap-3 rounded-[10px] border border-[#262626] bg-[#0c0c0c] px-3 py-3 text-[13px] text-ink">
+        <div className="flex items-center gap-3 border border-white/10 bg-black/32 px-3 py-3 text-[13px] text-ink">
           <FileText size={16} className="text-[#0099ff]" />
           <span className="min-w-0 flex-1 truncate">{file.name}</span>
           <span className="text-[11px] text-ink-muted">
@@ -199,7 +199,7 @@ export function SourceComposer({ workspaceId, demoMode }: Props) {
         <button
           type="button"
           onClick={() => inputRef.current?.click()}
-          className="flex h-[110px] w-full items-center justify-center gap-3 rounded-[10px] border border-dashed border-[#262626] bg-[#0c0c0c] px-4 text-[13px] text-ink-muted transition hover:border-[#444] hover:text-ink"
+          className="flex h-[140px] w-full items-center justify-center gap-3 border border-dashed border-white/14 bg-black/26 px-4 text-[13px] text-ink-muted transition hover:border-[#0099ff]/55 hover:text-ink"
         >
           <Upload size={16} />
           <span>Upload txt, md, pdf, audio, or video · 25 MB max</span>
@@ -224,7 +224,7 @@ export function SourceComposer({ workspaceId, demoMode }: Props) {
           type="button"
           onClick={submit}
           disabled={busy}
-          className="inline-flex items-center gap-2 rounded-full bg-[#0099ff] px-4 py-2 text-[13px] font-medium text-white transition hover:bg-[#0088ee] disabled:cursor-not-allowed disabled:opacity-50"
+          className="inline-flex h-11 items-center gap-2 rounded-full bg-white px-5 text-[13px] font-semibold text-black transition hover:bg-[#dff3ff] disabled:cursor-not-allowed disabled:opacity-50"
         >
           {busy ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
           {busy ? 'Adding…' : 'Add source & extract'}

@@ -119,11 +119,11 @@ export default async function SettingsPage({ searchParams }: PageProps) {
   const controlsDisabled = demoMode || !userId || Boolean(controlsError);
 
   return (
-    <div className="app-page text-ink">
+    <div className="app-page workflow-page text-ink">
       <div className="app-page-inner">
-        <header className="app-page-header">
+        <header className="app-page-header workflow-hero">
           <p className="framer-eyebrow">Settings</p>
-          <h1 className="mt-2 text-[28px] font-medium leading-[1.05] tracking-normal text-balance sm:text-[32px]">
+          <h1 className="workflow-title mt-2">
             Configure the
             <br />
             workspace.
@@ -144,10 +144,7 @@ export default async function SettingsPage({ searchParams }: PageProps) {
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
           <div className="flex min-w-0 flex-col gap-6">
             {/* ---- BILLING ---- */}
-            <section
-              id="billing"
-              className="rounded-[16px] border border-[#262626] bg-surface-1 p-5"
-            >
+            <section id="billing" className="workflow-panel p-5">
               <header className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
                 <h2 className="text-[11px] font-medium uppercase tracking-[0.12em] text-ink-muted">
                   Billing
@@ -210,7 +207,7 @@ export default async function SettingsPage({ searchParams }: PageProps) {
                 ))}
               </div>
 
-              <div className="mt-6 rounded-[12px] border border-[#262626] bg-surface-2 p-4">
+              <div className="workflow-row mt-6 p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="text-[14px] font-medium text-ink">Need more credits?</p>
@@ -362,7 +359,7 @@ export default async function SettingsPage({ searchParams }: PageProps) {
 
           {/* ---- RIGHT RAIL ---- */}
           <aside className="flex flex-col gap-6 lg:sticky lg:top-6 lg:self-start">
-            <div className="rounded-[16px] border border-[#262626] bg-surface-1 p-4">
+            <div className="workflow-panel p-4">
               <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-ink-muted">
                 Build
               </p>
@@ -427,7 +424,7 @@ function CurrentPlanCard({
 }) {
   const plan = getPlan(planId);
   return (
-    <div className="rounded-[14px] border border-[#262626] bg-surface-2 p-4">
+    <div className="workflow-row p-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-ink-muted">
@@ -496,10 +493,8 @@ function PlanUpgradeCard({
   return (
     <div
       className={cn(
-        'relative flex flex-col gap-3 rounded-[14px] border bg-surface-2 p-4 transition',
-        isCurrent
-          ? 'border-[#0099ff]/50 shadow-[0_0_0_1px_rgba(0,153,255,0.18)]'
-          : 'border-[#262626] hover:border-[#444]',
+        'workflow-card relative flex flex-col gap-3 p-4',
+        isCurrent ? 'border-[#0099ff]/50 shadow-[0_0_0_1px_rgba(0,153,255,0.18)]' : '',
       )}
     >
       <div>
@@ -578,14 +573,14 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section id={id} className="rounded-[16px] border border-[#262626] bg-surface-1 p-5">
+    <section id={id} className="workflow-panel p-5">
       <header className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
         <h2 className="text-[11px] font-medium uppercase tracking-[0.12em] text-ink-muted">
           {label}
         </h2>
         {hint ? <span className="text-[11px] text-[#666]">{hint}</span> : null}
       </header>
-      <div className="flex flex-col divide-y divide-[#1a1a1a]">{children}</div>
+      <div className="flex flex-col divide-y divide-white/[0.07]">{children}</div>
     </section>
   );
 }

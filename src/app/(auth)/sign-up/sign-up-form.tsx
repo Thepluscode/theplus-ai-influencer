@@ -11,52 +11,29 @@ export function SignUpForm() {
 
   if (state?.ok) {
     return (
-      <div
-        role="status"
-        className="rounded-[12px] border border-[#22c55e]/30 bg-[#22c55e]/10 px-3 py-3 text-[13px] text-[#86efac]"
-      >
+      <div role="status" className="auth-success">
         Account created. Check your inbox for a confirmation link, then sign in.
       </div>
     );
   }
 
   return (
-    <form action={formAction} className="flex flex-col gap-3 text-[13px]">
-      <label className="flex flex-col gap-1.5">
-        <span className="text-ink-muted">Email</span>
-        <input
-          name="email"
-          type="email"
-          autoComplete="email"
-          required
-          className="h-10 rounded-[10px] border border-[#262626] bg-surface-2 px-3 text-ink outline-none transition focus:border-[#0099ff]"
-        />
+    <form action={formAction} className="auth-form">
+      <label>
+        <span>Email</span>
+        <input name="email" type="email" autoComplete="email" required />
       </label>
-      <label className="flex flex-col gap-1.5">
-        <span className="text-ink-muted">Password</span>
-        <input
-          name="password"
-          type="password"
-          autoComplete="new-password"
-          required
-          minLength={8}
-          className="h-10 rounded-[10px] border border-[#262626] bg-surface-2 px-3 text-ink outline-none transition focus:border-[#0099ff]"
-        />
-        <span className="text-[11px] text-[#666]">Min 8 characters.</span>
+      <label>
+        <span>Password</span>
+        <input name="password" type="password" autoComplete="new-password" required minLength={8} />
+        <small>Min 8 characters.</small>
       </label>
       {state && !state.ok ? (
-        <p
-          className="rounded-[10px] border border-[#ef4444]/30 bg-[#ef4444]/10 px-3 py-2 text-[12px] text-[#fca5a5]"
-          role="alert"
-        >
+        <p className="auth-error" role="alert">
           {state.error}
         </p>
       ) : null}
-      <button
-        type="submit"
-        disabled={pending}
-        className="h-10 rounded-[10px] bg-white px-3 font-medium text-black transition hover:bg-white/90 disabled:opacity-60"
-      >
+      <button type="submit" disabled={pending} className="auth-submit">
         {pending ? 'Creating account…' : 'Create account'}
       </button>
     </form>

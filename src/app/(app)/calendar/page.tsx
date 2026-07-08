@@ -93,11 +93,11 @@ export default async function CalendarPage({
   }
 
   return (
-    <div className="app-page text-ink">
+    <div className="app-page workflow-page text-ink">
       <div className="app-page-inner">
-        <header className="app-page-header">
+        <header className="app-page-header workflow-hero">
           <p className="framer-eyebrow">Calendar</p>
-          <h1 className="mt-2 text-[28px] font-medium leading-[1.05] tracking-normal text-balance sm:text-[32px]">
+          <h1 className="workflow-title mt-2">
             Plan the month.
             <br />
             Ship on cadence.

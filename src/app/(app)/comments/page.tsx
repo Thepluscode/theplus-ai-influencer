@@ -39,11 +39,11 @@ export default async function CommentsPage() {
   const handled = comments.length - pending;
 
   return (
-    <div className="app-page text-ink">
+    <div className="app-page workflow-page text-ink">
       <div className="app-page-inner">
-        <header className="app-page-header">
+        <header className="app-page-header workflow-hero">
           <p className="framer-eyebrow">Comments</p>
-          <h1 className="mt-2 text-[28px] font-medium leading-[1.05] tracking-normal text-balance sm:text-[32px]">
+          <h1 className="workflow-title mt-2">
             Triage at the speed
             <br />
             of community.

@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import { listAiModels } from '@/lib/ai-models';
+import { getDemoModels, isDemoMode } from '@/lib/demo-mode';
 import { publicEnv } from '@/lib/env';
 import { getSupabaseServerClient } from '@/lib/supabase/server';
 import type { AiModelRow } from '@/lib/supabase/types';
@@ -8,11 +9,14 @@ import { getOrCreateCurrentWorkspace } from '@/lib/workspace';
 import { StoryboardForm } from './storyboard-form';
 
 export default async function NewStoryboardPage() {
+  const demoMode = isDemoMode();
   const supabaseConfigured = Boolean(
     publicEnv.NEXT_PUBLIC_SUPABASE_URL && publicEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY,
   );
   let models: AiModelRow[] = [];
-  if (supabaseConfigured) {
+  if (demoMode) {
+    models = getDemoModels();
+  } else if (supabaseConfigured) {
     try {
       const supabase = await getSupabaseServerClient();
       const {
@@ -28,9 +32,9 @@ export default async function NewStoryboardPage() {
   }
 
   return (
-    <div className="app-page text-ink">
+    <div className="app-page workflow-page text-ink">
       <div className="app-page-inner">
-        <header className="app-page-header">
+        <header className="app-page-header workflow-hero">
           <Link
             href="/storyboard"
             className="mb-4 inline-flex items-center gap-1.5 text-[12px] text-ink-muted transition hover:text-ink"
@@ -39,7 +43,7 @@ export default async function NewStoryboardPage() {
             Back to Storyboards
           </Link>
           <p className="framer-eyebrow">New storyboard</p>
-          <h1 className="mt-2 text-[28px] font-medium leading-[1.05] tracking-normal text-balance sm:text-[32px]">
+          <h1 className="workflow-title mt-2">
             Brief the reel.
             <br />
             Render every shot.

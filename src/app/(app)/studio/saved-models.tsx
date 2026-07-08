@@ -24,10 +24,7 @@ function simpleHash(s: string): number {
 export function SavedModels({ models }: { models: AiModelRow[] }) {
   if (models.length === 0) {
     return (
-      <Link
-        href="/studio/new"
-        className="group block rounded-[16px] border border-dashed border-[#262626] bg-surface-1/50 px-6 py-10 text-center transition hover:border-[#0099ff]/50 hover:bg-surface-1"
-      >
+      <Link href="/studio/new" className="workflow-empty-state group block px-6 py-10">
         <span className="mx-auto mb-3 inline-flex h-10 w-10 items-center justify-center rounded-full bg-[#0099ff]/15 text-[#0099ff] ring-1 ring-[#0099ff]/30">
           <Plus size={18} />
         </span>
@@ -45,10 +42,7 @@ export function SavedModels({ models }: { models: AiModelRow[] }) {
         const reach = reachEstimate(m.id);
         const vibe = m.wizard_input?.vibe ?? 'street';
         return (
-          <li
-            key={m.id}
-            className="group relative overflow-hidden rounded-[16px] border border-[#262626] bg-surface-1"
-          >
+          <li key={m.id} className="workflow-media-card group relative overflow-hidden">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={m.portrait_url}

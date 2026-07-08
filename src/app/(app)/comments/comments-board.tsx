@@ -43,8 +43,8 @@ export function CommentsBoard({
             Pending · {pending.length}
           </h2>
           {pending.length === 0 ? (
-            <p className="rounded-[12px] border border-dashed border-[#262626] bg-surface-1/40 px-4 py-8 text-center text-[13px] text-ink-muted">
-              Nothing to triage. Paste a comment on the right →
+            <p className="workflow-empty-state px-4 py-8 text-[13px] text-ink-muted">
+              Nothing to triage. Paste a comment in the composer.
             </p>
           ) : (
             <ul className="grid gap-3">
@@ -62,10 +62,7 @@ export function CommentsBoard({
             </h2>
             <ul className="grid gap-2">
               {handled.map((c) => (
-                <li
-                  key={c.id}
-                  className="flex items-start gap-3 rounded-[12px] border border-[#262626] bg-surface-1 px-3 py-2.5"
-                >
+                <li key={c.id} className="workflow-row flex items-start gap-3 px-3 py-2.5">
                   <span
                     className={cn(
                       'inline-flex h-5 items-center rounded-full px-2 text-[10px] font-medium uppercase tracking-wider ring-1',
@@ -128,7 +125,7 @@ function CommentCard({ comment }: { comment: CommentRow }) {
   }
 
   return (
-    <li className="rounded-[14px] border border-[#262626] bg-surface-1 p-4">
+    <li className="workflow-panel p-4">
       <header className="mb-3 flex flex-wrap items-center gap-2 text-[11px]">
         <span
           className={cn(
@@ -144,7 +141,7 @@ function CommentCard({ comment }: { comment: CommentRow }) {
         </span>
       </header>
 
-      <p className="rounded-[10px] border border-[#262626] bg-surface-2 px-3 py-2 text-[13px] leading-[1.5] text-ink">
+      <p className="rounded-[10px] border border-white/10 bg-black/30 px-3 py-2 text-[13px] leading-[1.5] text-ink">
         {comment.comment_text}
       </p>
 
@@ -157,7 +154,7 @@ function CommentCard({ comment }: { comment: CommentRow }) {
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             rows={2}
-            className="w-full rounded-[10px] border border-[#262626] bg-surface-2 px-3 py-2 text-[13px] text-ink outline-none focus:border-[#0099ff] focus:shadow-[0_0_0_1px_rgba(0,153,255,0.25)]"
+            className="w-full rounded-[10px] border border-white/10 bg-black/30 px-3 py-2 text-[13px] text-ink outline-none focus:border-[#0099ff] focus:shadow-[0_0_0_1px_rgba(0,153,255,0.25)]"
           />
         </div>
       ) : (
@@ -237,7 +234,7 @@ function AddCommentForm({ models }: { models: AiModelRow[] }) {
   }
 
   return (
-    <div className="rounded-[16px] border border-[#262626] bg-surface-1 p-4">
+    <div className="workflow-input-panel p-4">
       <header className="mb-3">
         <h2 className="text-[11px] font-medium uppercase tracking-[0.12em] text-ink-muted">
           Triage a comment

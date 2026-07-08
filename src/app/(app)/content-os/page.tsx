@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { ArrowUpRight, FileText, Layers, Loader2, Mic } from 'lucide-react';
+import { ArrowUpRight, FileText, Layers, Loader2, Mic, RadioTower } from 'lucide-react';
 import { publicEnv } from '@/lib/env';
 import { getSupabaseServerClient } from '@/lib/supabase/server';
 import { getOrCreateCurrentWorkspace } from '@/lib/workspace';
@@ -69,15 +69,25 @@ export default async function ContentOsPage() {
   return (
     <div className="app-page text-ink">
       <div className="app-page-inner">
-        <header className="app-page-header">
-          <div className="flex items-center gap-2">
-            <Layers size={18} className="text-[#0099ff]" />
-            <h1 className="text-[20px] font-semibold">Content OS</h1>
+        <header className="content-os-hero">
+          <div className="content-os-hero-copy">
+            <div className="flex items-center gap-2">
+              <Layers size={18} className="text-[#0099ff]" />
+              <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/42">
+                Extract → repackage → distribute
+              </span>
+            </div>
+            <h1>Drop a source. Build the pack. Approve distribution.</h1>
+            <p>
+              Paste raw material or upload source files, then turn them into approval-gated
+              multi-channel media packs for every connected distribution lane.
+            </p>
           </div>
-          <p className="mt-1 text-[13px] text-ink-muted">
-            Drop in a source, extract its reusable atoms, repackage into 10 channels, and distribute
-            — approval-gated.
-          </p>
+          <div className="content-os-hero-meter">
+            <RadioTower size={18} />
+            <strong>{scheduled.length}</strong>
+            <span>scheduled queue items</span>
+          </div>
         </header>
 
         {loadError ? (
@@ -86,19 +96,24 @@ export default async function ContentOsPage() {
           </p>
         ) : null}
 
-        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="content-os-grid grid gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
           <div className="min-w-0 space-y-5">
             <SourceComposer workspaceId={workspaceId} demoMode={demoMode} />
 
             {/* Recent source library */}
-            <section className="rounded-[16px] border border-[#262626] bg-surface-2/40 p-5">
-              <h2 className="mb-3 text-[14px] font-medium">Recent sources</h2>
+            <section className="app-command-panel p-5">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <h2 className="text-[14px] font-medium">Recent sources</h2>
+                <span className="text-[11px] uppercase tracking-[0.14em] text-white/32">
+                  {sources.length} total
+                </span>
+              </div>
               {sources.length === 0 ? (
                 <p className="text-[13px] text-ink-muted">
                   No sources yet — add one above to start.
                 </p>
               ) : (
-                <ul className="divide-y divide-[#1c1c1c]">
+                <ul className="divide-y divide-white/8">
                   {sources.map((s) => (
                     <li key={s.id}>
                       <Link
@@ -133,7 +148,7 @@ export default async function ContentOsPage() {
 
           <aside className="space-y-5">
             {/* Active jobs */}
-            <section className="rounded-[16px] border border-[#262626] bg-surface-2/40 p-5">
+            <section className="app-command-panel p-5">
               <h2 className="mb-3 flex items-center gap-2 text-[14px] font-medium">
                 Active jobs
                 {activeJobs.length > 0 ? (
@@ -147,7 +162,7 @@ export default async function ContentOsPage() {
                   {activeJobs.map((j) => (
                     <li
                       key={j.id}
-                      className="flex items-center justify-between rounded-[8px] bg-[#0c0c0c] px-3 py-2 text-[12px]"
+                      className="flex items-center justify-between border border-white/8 bg-black/28 px-3 py-2 text-[12px]"
                     >
                       <span className="capitalize text-ink">{j.kind}</span>
                       <span className="text-ink-muted">{j.status}</span>
@@ -158,7 +173,7 @@ export default async function ContentOsPage() {
             </section>
 
             {/* Scheduled distribution queue */}
-            <section className="rounded-[16px] border border-[#262626] bg-surface-2/40 p-5">
+            <section className="app-command-panel p-5">
               <h2 className="mb-3 text-[14px] font-medium">Scheduled queue</h2>
               {scheduled.length === 0 ? (
                 <p className="text-[12px] text-ink-muted">No items scheduled yet.</p>
@@ -167,7 +182,7 @@ export default async function ContentOsPage() {
                   {scheduled.map((it) => (
                     <li
                       key={it.id}
-                      className="flex items-center justify-between rounded-[8px] bg-[#0c0c0c] px-3 py-2 text-[12px]"
+                      className="flex items-center justify-between border border-white/8 bg-black/28 px-3 py-2 text-[12px]"
                     >
                       <span className="min-w-0 truncate text-ink">{channelLabel(it.channel)}</span>
                       <span className="text-[#22c55e]">{it.status}</span>

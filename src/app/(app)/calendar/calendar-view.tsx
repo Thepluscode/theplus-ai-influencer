@@ -71,7 +71,7 @@ export function CalendarView({
         draftCount={drafts.length}
       />
 
-      <div className="overflow-hidden rounded-2xl border border-[#262626] bg-surface-1 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.03)] backdrop-blur">
+      <div className="workflow-panel overflow-hidden backdrop-blur">
         {/* Day-name header row */}
         <div className="grid grid-cols-7 border-b border-[#1a1a1a]">
           {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d) => (
@@ -95,7 +95,7 @@ export function CalendarView({
               <div
                 key={dayKey + i}
                 className={cn(
-                  'group/cell relative min-h-[132px] border-b border-r border-[#1a1a1a] px-3 py-2.5 transition-colors',
+                  'group/cell relative min-h-[132px] border-b border-r border-white/[0.06] px-3 py-2.5 transition-colors',
                   !inMonth && 'opacity-40',
                   'hover:bg-white/[0.015]',
                 )}
@@ -183,21 +183,21 @@ function Toolbar({
         <div className="flex items-center gap-1">
           <Link
             href={`/calendar?month=${format(prevMonth, 'yyyy-MM')}`}
-            className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-[#262626] bg-surface-1 text-ink-muted transition hover:border-[#444] hover:text-ink"
+            className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-white/10 bg-white/[0.045] text-ink-muted transition hover:border-white/25 hover:text-ink"
             aria-label="Previous month"
           >
             <ChevronLeft size={14} />
           </Link>
           <Link
             href={`/calendar?month=${format(nextMonth, 'yyyy-MM')}`}
-            className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-[#262626] bg-surface-1 text-ink-muted transition hover:border-[#444] hover:text-ink"
+            className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-white/10 bg-white/[0.045] text-ink-muted transition hover:border-white/25 hover:text-ink"
             aria-label="Next month"
           >
             <ChevronRight size={14} />
           </Link>
           <Link
             href="/calendar"
-            className="ml-1 inline-flex h-7 items-center rounded-md border border-[#262626] bg-surface-1 px-2.5 text-[11px] font-medium uppercase tracking-wider text-ink transition hover:border-[#444] hover:text-ink"
+            className="ml-1 inline-flex h-7 items-center rounded-md border border-white/10 bg-white/[0.045] px-2.5 text-[11px] font-medium uppercase tracking-wider text-ink transition hover:border-white/25 hover:text-ink"
           >
             Today
           </Link>
@@ -223,7 +223,7 @@ function CountPill({
 }) {
   const dot = tone === 'sky' ? 'bg-[#0099ff]' : 'bg-ink-muted';
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-md border border-[#262626] bg-surface-1 px-2.5 py-1 text-ink-muted">
+    <span className="inline-flex items-center gap-1.5 rounded-md border border-white/10 bg-white/[0.045] px-2.5 py-1 text-ink-muted">
       <span className={cn('h-1.5 w-1.5 rounded-full', dot)} />
       <span className="font-semibold tabular-nums text-ink">{value}</span>
       <span className="uppercase tracking-wider">{label}</span>
@@ -238,7 +238,7 @@ function EventPill({ post, onClick }: { post: PostRow; onClick: () => void }) {
     <button
       type="button"
       onClick={onClick}
-      className="group/pill flex w-full items-center gap-2 overflow-hidden rounded-full border border-[#262626] bg-surface-2 py-1.5 pl-1.5 pr-3 text-left transition hover:border-[#444] hover:bg-[#222]"
+      className="group/pill flex w-full items-center gap-2 overflow-hidden rounded-full border border-white/10 bg-black/30 py-1.5 pl-1.5 pr-3 text-left transition hover:border-[#0099ff]/50 hover:bg-white/[0.06]"
       title={post.name}
     >
       {thumb ? (
@@ -265,7 +265,7 @@ function EventPill({ post, onClick }: { post: PostRow; onClick: () => void }) {
 
 function DraftsShelf({ drafts, onPick }: { drafts: PostRow[]; onPick: (p: PostRow) => void }) {
   return (
-    <section className="mt-6 rounded-xl border border-[#262626] bg-surface-1 p-4 backdrop-blur">
+    <section className="workflow-panel mt-6 p-4 backdrop-blur">
       <header className="mb-3 flex items-baseline justify-between gap-2">
         <div>
           <h3 className="text-[10px] font-semibold uppercase tracking-[0.22em] text-ink-muted">

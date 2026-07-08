@@ -67,9 +67,9 @@ export default async function ContentSourceDetailPage({ params }: Props) {
   }
 
   return (
-    <div className="app-page text-ink">
+    <div className="app-page workflow-page text-ink">
       <div className="app-page-inner">
-        <header className="app-page-header">
+        <header className="app-page-header workflow-hero">
           <Link
             href="/content-os"
             className="inline-flex items-center gap-1.5 text-[12px] text-ink-muted transition hover:text-ink"
@@ -77,7 +77,7 @@ export default async function ContentSourceDetailPage({ params }: Props) {
             <ArrowLeft size={13} />
             Content OS
           </Link>
-          <h1 className="mt-2 text-[20px] font-semibold">{source.title}</h1>
+          <h1 className="workflow-title mt-2">{source.title}</h1>
           <p className="mt-1 text-[12px] uppercase tracking-wider text-ink-muted">
             {source.type} · {source.status}
           </p>

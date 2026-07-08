@@ -34,8 +34,8 @@ export function Sidebar({
   }, [pathname]);
 
   return (
-    <aside className="flex h-dvh w-[76px] shrink-0 flex-col border-r border-[#1b1b1b] bg-[#070707]/96 text-ink-muted shadow-[inset_-1px_0_0_rgba(255,255,255,0.02)] backdrop-blur-xl lg:w-[268px]">
-      <div className="border-b border-[#1b1b1b] px-3 py-4 lg:px-4">
+    <aside className="app-sidebar flex h-dvh w-[76px] shrink-0 flex-col text-ink-muted lg:w-[286px]">
+      <div className="app-sidebar-brand px-3 py-4 lg:px-4">
         <Link
           href="/dashboard"
           className="group flex items-center justify-center gap-2.5 text-[14px] font-medium tracking-tight text-ink lg:justify-start"
@@ -49,7 +49,7 @@ export function Sidebar({
 
       <nav className="flex flex-1 flex-col overflow-y-auto px-2 py-4 lg:px-3">
         <div>
-          <p className="mb-2 hidden px-3 text-[10px] font-medium uppercase tracking-[0.18em] text-[#5d5d5d] lg:block">
+          <p className="mb-2 hidden px-3 text-[10px] font-medium uppercase tracking-[0.18em] text-white/32 lg:block">
             Core workflow
           </p>
           <div className="grid gap-1">
@@ -62,10 +62,8 @@ export function Sidebar({
                   href={item.href}
                   title={item.label}
                   className={cn(
-                    'group relative flex h-11 items-center justify-center gap-3 overflow-hidden rounded-[12px] px-3 text-[13px] transition lg:justify-start',
-                    active
-                      ? 'bg-[#151515] text-ink ring-1 ring-[#2c2c2c]'
-                      : 'text-ink-muted hover:bg-[#111] hover:text-ink',
+                    'app-sidebar-link group relative flex h-11 items-center justify-center gap-3 overflow-hidden px-3 text-[13px] transition lg:justify-start',
+                    active ? 'app-sidebar-link-active text-ink' : 'text-ink-muted hover:text-ink',
                   )}
                 >
                   <span
@@ -93,15 +91,15 @@ export function Sidebar({
           </div>
 
           <details
-            className="group/tools mt-5 hidden rounded-[14px] border border-[#1f1f1f] bg-[#0c0c0c] p-2 lg:block"
+            className="app-sidebar-tools group/tools mt-5 hidden p-2 lg:block"
             open={secondaryActive}
           >
-            <summary className="flex h-9 cursor-pointer list-none items-center justify-between rounded-[10px] px-2 text-[12px] font-medium text-ink-muted transition hover:bg-[#121212] hover:text-ink [&::-webkit-details-marker]:hidden">
+            <summary className="flex h-9 cursor-pointer list-none items-center justify-between rounded-[10px] px-2 text-[12px] font-medium text-ink-muted transition hover:bg-white/[0.045] hover:text-ink [&::-webkit-details-marker]:hidden">
               <span className="flex items-center gap-2">
-                <Sparkles size={13} className="text-[#777]" />
+                <Sparkles size={13} className="text-[#0099ff]" />
                 Tools
               </span>
-              <span className="rounded-full border border-[#2a2a2a] px-2 py-0.5 text-[10px] text-[#777]">
+              <span className="rounded-full border border-white/10 px-2 py-0.5 text-[10px] text-white/42">
                 {SECONDARY_NAV.length}
               </span>
             </summary>
@@ -114,10 +112,10 @@ export function Sidebar({
                     key={item.href}
                     href={item.href}
                     className={cn(
-                      'group flex min-h-10 items-center gap-2 rounded-[10px] border px-2.5 py-2 text-[11px] font-medium transition',
+                      'group flex min-h-10 items-center gap-2 border px-2.5 py-2 text-[11px] font-medium transition',
                       active
                         ? 'border-[#285f8a] bg-[#082235] text-[#bde8ff]'
-                        : 'border-transparent bg-[#111] text-[#8b8b8b] hover:border-[#2a2a2a] hover:text-ink',
+                        : 'border-transparent bg-white/[0.035] text-[#8b8b8b] hover:border-white/12 hover:text-ink',
                     )}
                   >
                     <Icon
@@ -136,8 +134,8 @@ export function Sidebar({
         </div>
       </nav>
 
-      <div className="border-t border-[#1b1b1b] px-2 py-4 lg:px-4">
-        <div className="mb-3 hidden rounded-[14px] border border-[#232323] bg-[#101010] p-3 lg:block">
+      <div className="app-sidebar-footer px-2 py-4 lg:px-4">
+        <div className="app-sidebar-status mb-3 hidden p-3 lg:block">
           <div className="flex items-center gap-2">
             <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-[#22c55e]/12 text-[#86efac] ring-1 ring-[#22c55e]/25">
               <CheckCircle2 size={13} />
@@ -156,10 +154,8 @@ export function Sidebar({
           href={SETTINGS_NAV.href}
           title={SETTINGS_NAV.label}
           className={cn(
-            'mb-3 flex h-10 items-center justify-center gap-3 rounded-[12px] px-3 text-[13px] transition lg:justify-start',
-            settingsActive
-              ? 'bg-[#151515] text-ink ring-1 ring-[#2c2c2c]'
-              : 'text-ink-muted hover:bg-[#111] hover:text-ink',
+            'app-sidebar-link mb-3 flex h-10 items-center justify-center gap-3 px-3 text-[13px] transition lg:justify-start',
+            settingsActive ? 'app-sidebar-link-active text-ink' : 'text-ink-muted hover:text-ink',
           )}
         >
           <SettingsIcon

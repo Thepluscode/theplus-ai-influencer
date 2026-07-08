@@ -24,6 +24,7 @@ import {
 } from '@/lib/content-plan-review-links';
 import { publicEnv } from '@/lib/env';
 import { listAiModels } from '@/lib/ai-models';
+import { getDemoContentPlans, getDemoModels, isDemoMode } from '@/lib/demo-mode';
 import { getSupabaseServerClient } from '@/lib/supabase/server';
 import type { AiModelRow } from '@/lib/supabase/types';
 import { getOrCreateCurrentWorkspace } from '@/lib/workspace';
@@ -37,23 +38,38 @@ interface Props {
 
 export default async function SeriesPlanDetailPage({ params }: Props) {
   const { id } = await params;
+  const demoMode = isDemoMode();
+
   const supabaseConfigured = Boolean(
     publicEnv.NEXT_PUBLIC_SUPABASE_URL && publicEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY,
   );
-  if (!supabaseConfigured) notFound();
 
-  const supabase = await getSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) notFound();
+  let plan = null as Awaited<ReturnType<typeof getContentPlan>>;
+  let postReviewLinks: ReviewLinkLookup = new Map();
+  let models: AiModelRow[] = [];
 
-  const ws = await getOrCreateCurrentWorkspace(user);
-  const plan = await getContentPlan(id);
-  if (!plan || plan.workspace_id !== ws.id) notFound();
+  if (demoMode) {
+    plan = getDemoContentPlans().find((p) => p.id === id) ?? null;
+    models = getDemoModels();
+  } else {
+    if (!supabaseConfigured) notFound();
 
+    const supabase = await getSupabaseServerClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) notFound();
+
+    const ws = await getOrCreateCurrentWorkspace(user);
+    plan = await getContentPlan(id);
+    if (!plan || plan.workspace_id !== ws.id) notFound();
+    models = await listAiModels(ws.id);
+  }
+  if (!plan) notFound();
   const items = (Array.isArray(plan.items) ? plan.items : []) as PlanItem[];
-  const postReviewLinks = await getPostReviewLinksForItems(ws.id, items);
+  if (!demoMode) {
+    postReviewLinks = await getPostReviewLinksForItems(plan.workspace_id, items);
+  }
   const seed = (plan.seed_inputs ?? {}) as {
     campaign?: string;
     summary?: string;
@@ -61,15 +77,14 @@ export default async function SeriesPlanDetailPage({ params }: Props) {
     audience?: string;
     deliverables?: string[];
   };
-  const models = await listAiModels(ws.id);
   const model: AiModelRow | undefined = plan.model_id
     ? models.find((m) => m.id === plan.model_id)
     : undefined;
 
   return (
-    <div className="app-page text-ink">
+    <div className="app-page workflow-page text-ink">
       <div className="app-page-inner">
-        <header className="app-page-header">
+        <header className="app-page-header workflow-hero">
           <Link
             href="/series"
             className="mb-4 inline-flex items-center gap-1.5 text-[12px] text-ink-muted transition hover:text-ink"
@@ -80,9 +95,7 @@ export default async function SeriesPlanDetailPage({ params }: Props) {
           <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_280px] lg:items-end">
             <div className="max-w-2xl">
               <p className="framer-eyebrow">{plan.goal} · content engine</p>
-              <h1 className="mt-2 text-[28px] font-medium leading-[1.05] tracking-normal text-balance sm:text-[32px]">
-                {plan.name}
-              </h1>
+              <h1 className="workflow-title mt-2">{plan.name}</h1>
               {seed.summary ? (
                 <p className="mt-3 max-w-2xl text-[13px] leading-[1.5] text-ink-muted">
                   {seed.summary}
@@ -115,7 +128,7 @@ export default async function SeriesPlanDetailPage({ params }: Props) {
               </div>
             </div>
             {model ? (
-              <aside className="relative w-full max-w-[280px] overflow-hidden rounded-[16px] border border-[#262626] bg-surface-1">
+              <aside className="workflow-media-card relative w-full max-w-[280px] overflow-hidden">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={model.portrait_url}
@@ -151,7 +164,7 @@ export default async function SeriesPlanDetailPage({ params }: Props) {
 
 function Pill({ children }: { children: React.ReactNode }) {
   return (
-    <span className="inline-flex h-7 items-center gap-1.5 rounded-full bg-surface-1 px-3 text-[12px] text-ink ring-1 ring-[#262626]">
+    <span className="inline-flex h-7 items-center gap-1.5 rounded-full bg-white/[0.045] px-3 text-[12px] text-ink ring-1 ring-white/10">
       {children}
     </span>
   );
@@ -182,11 +195,11 @@ function PlanItemCard({
   if (modelId) briefParams.set('modelId', modelId);
 
   return (
-    <li className="rounded-[14px] border border-[#262626] bg-surface-1 p-4 transition hover:border-[#0099ff]/40">
+    <li className="workflow-panel p-4">
       <div className="grid gap-4 lg:grid-cols-[88px_minmax(0,1fr)_auto] lg:items-start">
         {/* Date badge */}
         <div className="flex items-center gap-3 lg:flex-col lg:items-start">
-          <div className="inline-flex flex-col items-center justify-center rounded-[10px] border border-[#262626] bg-surface-2 px-3 py-2">
+          <div className="inline-flex flex-col items-center justify-center rounded-[10px] border border-white/10 bg-black/30 px-3 py-2">
             <span className="text-[10px] font-medium uppercase tracking-wider text-ink-muted">
               {format(date, 'EEE')}
             </span>
@@ -279,7 +292,7 @@ function ContentPackagePreview({
 }) {
   return (
     <div className="mt-4 grid items-start gap-3 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
-      <section className="self-start rounded-[12px] border border-[#262626] bg-[#090909] p-3">
+      <section className="workflow-row self-start p-3">
         <div className="mb-3 flex items-center justify-between gap-3">
           <p className="inline-flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-[0.12em] text-ink-muted">
             <Images size={12} />
@@ -336,7 +349,7 @@ function CarouselSlidePreview({
 }) {
   const showFace = model && slide.facePlacement !== 'none';
   return (
-    <article className="relative min-h-[172px] overflow-hidden rounded-[10px] border border-[#262626] bg-surface-2 p-3">
+    <article className="relative min-h-[172px] overflow-hidden rounded-[10px] border border-white/10 bg-black/30 p-3">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_75%_15%,rgba(0,153,255,0.24),transparent_34%)]" />
       {showFace ? (
         <>
@@ -373,7 +386,7 @@ function MiniOutput({
   children: React.ReactNode;
 }) {
   return (
-    <div className="rounded-[12px] border border-[#262626] bg-[#090909] p-3">
+    <div className="workflow-row p-3">
       <p className="mb-2 inline-flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-[0.12em] text-ink-muted">
         <Icon size={12} />
         {label}
@@ -394,7 +407,7 @@ function DetailRow({ label, value }: { label: string; value: string }) {
 
 function Tag({ children }: { children: React.ReactNode }) {
   return (
-    <span className="inline-flex items-center rounded-full bg-surface-2 px-2 py-0.5 capitalize text-ink-muted ring-1 ring-[#262626]">
+    <span className="inline-flex items-center rounded-full bg-white/[0.045] px-2 py-0.5 capitalize text-ink-muted ring-1 ring-white/10">
       {children}
     </span>
   );

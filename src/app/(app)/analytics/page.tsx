@@ -104,11 +104,11 @@ export default async function AnalyticsPage() {
   );
 
   return (
-    <div className="app-page text-ink">
+    <div className="app-page workflow-page text-ink">
       <div className="app-page-inner">
-        <header className="app-page-header">
+        <header className="app-page-header workflow-hero">
           <p className="framer-eyebrow">Analytics</p>
-          <h1 className="mt-2 text-[28px] font-medium leading-[1.05] tracking-normal text-balance sm:text-[32px]">
+          <h1 className="workflow-title mt-2">
             What worked.
             <br />
             What to ship next.
@@ -170,7 +170,7 @@ export default async function AnalyticsPage() {
 
         {/* Top posts + Insights */}
         <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
-          <section className="rounded-[16px] border border-[#262626] bg-surface-1 p-4">
+          <section className="workflow-panel p-4">
             <header className="mb-3 flex items-end justify-between">
               <div>
                 <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-ink-muted">
@@ -262,7 +262,7 @@ function MetricTile({
   accent: string;
 }) {
   return (
-    <div className="flex items-end justify-between gap-3 rounded-[16px] border border-[#262626] bg-surface-1 px-5 py-4">
+    <div className="workflow-panel flex items-end justify-between gap-3 px-5 py-4">
       <div>
         <span
           className="inline-flex h-7 w-7 items-center justify-center rounded-full"
@@ -294,10 +294,7 @@ function TopPostRow({
   const thumb = post.variants[0]?.url;
   return (
     <li>
-      <Link
-        href="/calendar"
-        className="group flex items-center gap-3 rounded-[12px] border border-[#262626] bg-surface-2 p-2.5 transition hover:border-[#0099ff]/50"
-      >
+      <Link href="/calendar" className="workflow-row group flex items-center gap-3 p-2.5">
         {thumb ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -348,7 +345,7 @@ function MetricInline({ icon, value }: { icon: React.ReactNode; value: number })
 
 function CoachCard({ title, body }: { title: string; body: string }) {
   return (
-    <div className="rounded-[16px] border border-[#262626] bg-surface-1 p-4">
+    <div className="workflow-panel p-4">
       <div className="mb-2 flex items-center gap-2">
         <span className="inline-flex h-7 items-center gap-1.5 rounded-full bg-[#0099ff]/10 px-2.5 text-[11px] font-medium text-[#0099ff] ring-1 ring-[#0099ff]/30">
           <Sparkles size={11} />

@@ -38,12 +38,12 @@ export default async function StoryboardIndexPage() {
   }
 
   return (
-    <div className="app-page text-ink">
+    <div className="app-page workflow-page text-ink">
       <div className="app-page-inner">
-        <header className="app-page-header flex flex-wrap items-end justify-between gap-4">
+        <header className="app-page-header workflow-hero flex flex-wrap items-end justify-between gap-4">
           <div className="max-w-2xl">
             <p className="framer-eyebrow">Storyboard</p>
-            <h1 className="mt-2 text-[28px] font-medium leading-[1.05] tracking-normal text-balance sm:text-[32px]">
+            <h1 className="workflow-title mt-2">
               From brief to reel.
               <br />
               In a single shot.
@@ -73,20 +73,14 @@ export default async function StoryboardIndexPage() {
               ) : null}
             </div>
           </div>
-          <Link
-            href="/storyboard/new"
-            className="inline-flex h-11 items-center gap-2 rounded-[12px] bg-[#0099ff] px-4 text-[14px] font-medium text-white shadow-[0_8px_24px_-6px_rgba(0,153,255,0.45)] transition hover:bg-[#1aa6ff] active:scale-[0.99]"
-          >
+          <Link href="/storyboard/new" className="workflow-primary-action">
             <Plus size={14} />
             New storyboard
           </Link>
         </header>
 
         {storyboards.length === 0 ? (
-          <Link
-            href="/storyboard/new"
-            className="group block rounded-[16px] border border-dashed border-[#262626] bg-surface-1/50 px-6 py-12 text-center transition hover:border-[#0099ff]/50 hover:bg-surface-1"
-          >
+          <Link href="/storyboard/new" className="workflow-empty-state group block">
             <span className="mx-auto mb-3 inline-flex h-10 w-10 items-center justify-center rounded-full bg-[#0099ff]/15 text-[#0099ff] ring-1 ring-[#0099ff]/30">
               <Film size={16} />
             </span>
@@ -138,10 +132,7 @@ function StoryboardCard({ sb }: { sb: StoryboardRow }) {
         : 'aspect-[16/9]';
   return (
     <li className="group relative">
-      <Link
-        href={`/storyboard/${sb.id}`}
-        className="block overflow-hidden rounded-[16px] border border-[#262626] bg-surface-1 transition hover:border-[#0099ff]/40"
-      >
+      <Link href={`/storyboard/${sb.id}`} className="workflow-media-card block overflow-hidden">
         <div className={cn('relative overflow-hidden bg-surface-2', aspect)}>
           {cover ? (
             // eslint-disable-next-line @next/next/no-img-element

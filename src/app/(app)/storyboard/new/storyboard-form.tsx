@@ -25,7 +25,7 @@ export function StoryboardForm({ models }: { models: AiModelRow[] }) {
 
   if (models.length === 0) {
     return (
-      <div className="rounded-[16px] border border-[#ff7a3d]/40 bg-[#ff7a3d]/[0.07] p-5">
+      <div className="workflow-panel border-[#ff7a3d]/40 bg-[#ff7a3d]/[0.07] p-5">
         <p className="text-[14px] font-medium text-ink">No influencers yet</p>
         <p className="mt-1 text-[13px] text-ink-muted">
           Cast at least one persona in Studio before generating a storyboard — each shot is
@@ -200,7 +200,7 @@ export function StoryboardForm({ models }: { models: AiModelRow[] }) {
         </button>
       </div>
 
-      <aside className="rounded-[16px] border border-[#262626] bg-surface-1 p-5 xl:sticky xl:top-0 xl:self-start">
+      <aside className="workflow-panel p-5 xl:sticky xl:top-0 xl:self-start">
         <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-ink-muted">
           How this works
         </p>
@@ -226,7 +226,7 @@ export function StoryboardForm({ models }: { models: AiModelRow[] }) {
 
 function Panel({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-[16px] border border-[#262626] bg-surface-1 p-4">
+    <div className="workflow-panel p-4">
       <p className="mb-3 text-[11px] font-medium uppercase tracking-[0.12em] text-ink-muted">
         {label}
       </p>

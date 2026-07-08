@@ -44,12 +44,12 @@ export default async function SeriesIndexPage() {
   }
 
   return (
-    <div className="app-page text-ink">
+    <div className="app-page workflow-page text-ink">
       <div className="app-page-inner">
-        <header className="app-page-header flex flex-wrap items-end justify-between gap-4">
+        <header className="app-page-header workflow-hero flex flex-wrap items-end justify-between gap-4">
           <div className="max-w-2xl">
             <p className="framer-eyebrow">Content Engine</p>
-            <h1 className="mt-2 text-[28px] font-medium leading-[1.05] tracking-normal text-balance sm:text-[32px]">
+            <h1 className="workflow-title mt-2">
               Campaigns, scripts,
               <br />
               carousels, and SEO.
@@ -79,20 +79,14 @@ export default async function SeriesIndexPage() {
               ) : null}
             </div>
           </div>
-          <Link
-            href="/series/new"
-            className="inline-flex h-11 items-center gap-2 rounded-[12px] bg-[#0099ff] px-4 text-[14px] font-medium text-white shadow-[0_8px_24px_-6px_rgba(0,153,255,0.45)] transition hover:bg-[#1aa6ff] active:scale-[0.99]"
-          >
+          <Link href="/series/new" className="workflow-primary-action">
             <Plus size={14} />
             New campaign
           </Link>
         </header>
 
         {plans.length === 0 ? (
-          <Link
-            href="/series/new"
-            className="group block rounded-[16px] border border-dashed border-[#262626] bg-surface-1/50 px-6 py-12 text-center transition hover:border-[#0099ff]/50 hover:bg-surface-1"
-          >
+          <Link href="/series/new" className="workflow-empty-state group block">
             <span className="mx-auto mb-3 inline-flex h-10 w-10 items-center justify-center rounded-full bg-[#0099ff]/15 text-[#0099ff] ring-1 ring-[#0099ff]/30">
               <Sparkles size={16} />
             </span>
@@ -147,10 +141,7 @@ function PlanCard({
   const review = getPlanReviewSummary(plan, postReviewLinks);
   return (
     <li className="group relative">
-      <Link
-        href={`/series/${plan.id}`}
-        className="group block rounded-[16px] border border-[#262626] bg-surface-1 p-5 transition hover:border-[#0099ff]/50"
-      >
+      <Link href={`/series/${plan.id}`} className="workflow-card group block p-5">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap gap-1.5">

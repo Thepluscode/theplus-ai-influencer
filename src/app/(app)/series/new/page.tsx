@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import { listAiModels } from '@/lib/ai-models';
+import { getDemoModels, isDemoMode } from '@/lib/demo-mode';
 import { publicEnv } from '@/lib/env';
 import { getSupabaseServerClient } from '@/lib/supabase/server';
 import type { AiModelRow } from '@/lib/supabase/types';
@@ -8,13 +9,16 @@ import { getOrCreateCurrentWorkspace } from '@/lib/workspace';
 import { SeriesPlanForm } from './series-plan-form';
 
 export default async function NewSeriesPlanPage() {
+  const demoMode = isDemoMode();
   const supabaseConfigured = Boolean(
     publicEnv.NEXT_PUBLIC_SUPABASE_URL && publicEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY,
   );
 
   let models: AiModelRow[] = [];
   let loadError: string | null = null;
-  if (supabaseConfigured) {
+  if (demoMode) {
+    models = getDemoModels();
+  } else if (supabaseConfigured) {
     try {
       const supabase = await getSupabaseServerClient();
       const {
@@ -30,9 +34,9 @@ export default async function NewSeriesPlanPage() {
   }
 
   return (
-    <div className="app-page text-ink">
+    <div className="app-page workflow-page text-ink">
       <div className="app-page-inner">
-        <header className="app-page-header">
+        <header className="app-page-header workflow-hero">
           <Link
             href="/series"
             className="mb-4 inline-flex items-center gap-1.5 text-[12px] text-ink-muted transition hover:text-ink"
@@ -41,7 +45,7 @@ export default async function NewSeriesPlanPage() {
             Back to Content Engine
           </Link>
           <p className="framer-eyebrow">New Campaign</p>
-          <h1 className="mt-2 text-[28px] font-medium leading-[1.05] tracking-normal text-balance sm:text-[32px]">
+          <h1 className="workflow-title mt-2">
             Brief the topics.
             <br />
             Generate the campaign.

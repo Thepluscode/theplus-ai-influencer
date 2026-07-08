@@ -130,19 +130,20 @@ export default async function DashboardPage() {
     : '/storyboard';
 
   return (
-    <div className="app-page text-ink">
+    <div className="app-page dashboard-page text-ink">
       <div className="grid min-h-[calc(100dvh-65px)] xl:grid-cols-[minmax(0,1fr)_390px]">
-        <section className="min-w-0 border-r border-[#1b1b1b]">
-          <header className="app-detail-header flex flex-wrap items-center justify-between gap-3 px-5 py-4 lg:px-6">
+        <section className="dashboard-stage min-w-0">
+          <header className="dashboard-hero flex flex-wrap items-center justify-between gap-4 px-5 py-5 lg:px-8">
             <div className="min-w-0">
-              <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-[#666]">
-                {heroEyebrow}
-              </p>
-              <h1 className="mt-1 truncate text-[21px] font-medium tracking-tight text-ink">
+              <p className="dashboard-kicker">{heroEyebrow}</p>
+              <h1 className="mt-2 truncate text-[28px] font-medium leading-none tracking-tight text-ink md:text-[34px]">
                 {heroTitle}
               </h1>
+              <p className="mt-3 max-w-xl text-[13px] leading-[1.6] text-ink-muted">
+                Review the active asset, resolve approvals, and keep scheduled distribution moving.
+              </p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               {demoMode ? (
                 <StatusPill tone="warning">Demo · publish disabled</StatusPill>
               ) : loadError ? (
@@ -152,7 +153,7 @@ export default async function DashboardPage() {
               ) : (
                 <StatusPill tone="success">Review desk</StatusPill>
               )}
-              <span className="inline-flex h-9 items-center gap-1.5 rounded-full bg-surface-1 px-3 text-[11px] uppercase tracking-wider text-ink-muted ring-1 ring-[#262626]">
+              <span className="inline-flex h-9 items-center gap-1.5 rounded-full bg-white/[0.06] px-3 text-[11px] uppercase tracking-wider text-ink-muted ring-1 ring-white/10">
                 <Clock3 size={12} />V{reviewVersion}
               </span>
             </div>
@@ -161,10 +162,7 @@ export default async function DashboardPage() {
           <div className="px-5 py-6 lg:px-8 lg:py-8">
             <div className={cn('mx-auto w-full', heroMax)}>
               <figure
-                className={cn(
-                  'relative w-full overflow-hidden rounded-[14px] border border-[#262626] bg-[#101010] shadow-[0_30px_90px_-50px_rgba(0,153,255,0.45)]',
-                  heroAspect,
-                )}
+                className={cn('dashboard-asset-frame relative w-full overflow-hidden', heroAspect)}
               >
                 {heroUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -193,7 +191,7 @@ export default async function DashboardPage() {
             </div>
           </div>
 
-          <div className="border-t border-[#1b1b1b] px-5 py-4 lg:px-6">
+          <div className="dashboard-metrics px-5 py-4 lg:px-8">
             <div className="grid gap-3 md:grid-cols-3">
               <MetricTile
                 href="/studio"
@@ -271,12 +269,10 @@ function DashboardInspector({
   const activeStatus: ReviewDecision = featuredPost?.review_status ?? 'needs_changes';
 
   return (
-    <aside className="flex min-h-0 flex-col gap-5 px-5 py-5 xl:sticky xl:top-0 xl:max-h-[calc(100dvh-65px)] xl:overflow-y-auto">
+    <aside className="dashboard-inspector-rail flex min-h-0 flex-col gap-5 px-5 py-5 xl:sticky xl:top-0 xl:max-h-[calc(100dvh-65px)] xl:overflow-y-auto">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-[#666]">
-            Command rail
-          </p>
+          <p className="dashboard-kicker">Command rail</p>
           <h2 className="mt-1 text-[16px] font-medium tracking-tight text-ink">
             {firstName ? `${firstName}'s queue` : 'Review queue'}
           </h2>
@@ -287,7 +283,7 @@ function DashboardInspector({
             'inline-flex h-9 items-center gap-1.5 rounded-full px-3 text-[11px] font-medium uppercase tracking-wider ring-1 transition',
             featuredPost?.share_token
               ? 'bg-[#22c55e]/12 text-[#86efac] ring-[#22c55e]/30 hover:bg-[#22c55e]/18'
-              : 'border border-[#262626] bg-surface-1 text-ink-muted ring-[#262626] hover:border-[#444] hover:text-ink',
+              : 'border border-white/10 bg-white/[0.04] text-ink-muted ring-white/10 hover:border-white/25 hover:text-ink',
           )}
         >
           <CheckCircle2 size={12} />
@@ -295,7 +291,7 @@ function DashboardInspector({
         </Link>
       </div>
 
-      <section className="rounded-[16px] border border-[#262626] bg-surface-1 p-4">
+      <section className="dashboard-panel p-4">
         <div className="mb-4 flex items-center justify-between gap-3">
           <h3 className="text-[11px] font-medium uppercase tracking-[0.14em] text-ink-muted">
             Launch checklist
@@ -315,7 +311,7 @@ function DashboardInspector({
         </div>
       </section>
 
-      <section className="rounded-[16px] border border-[#262626] bg-surface-1 p-4">
+      <section className="dashboard-panel p-4">
         <div className="mb-4 flex items-center justify-between gap-3">
           <div>
             <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-[#666]">
@@ -328,7 +324,7 @@ function DashboardInspector({
           <PanelRight size={15} className="text-[#0099ff]" />
         </div>
 
-        <div className="grid grid-cols-3 gap-1 rounded-[10px] border border-[#262626] bg-[#0c0c0c] p-1">
+        <div className="grid grid-cols-3 gap-1 rounded-[10px] border border-white/10 bg-black/35 p-1">
           <DecisionCount
             label="Needs changes"
             value={needsChangesCount}
@@ -342,7 +338,7 @@ function DashboardInspector({
           <DecisionCount label="Final" value={finalCount} active={activeStatus === 'final'} />
         </div>
 
-        <div className="mt-3 rounded-[10px] border border-[#262626] bg-surface-2 px-3 py-2">
+        <div className="mt-3 rounded-[10px] border border-white/10 bg-white/[0.035] px-3 py-2">
           <div className="flex items-center justify-between gap-3">
             <span className="text-[10px] font-medium uppercase tracking-[0.14em] text-[#666]">
               Review-ready links
@@ -351,7 +347,7 @@ function DashboardInspector({
           </div>
         </div>
 
-        <div className="mt-3 rounded-[12px] border border-[#262626] bg-surface-2 p-3">
+        <div className="mt-3 rounded-[12px] border border-white/10 bg-white/[0.035] p-3">
           <p className="text-[12px] leading-[1.5] text-ink-muted">
             {featuredPost
               ? featuredPost.caption || 'No approval note has been added to this asset yet.'
@@ -370,7 +366,7 @@ function DashboardInspector({
           {heroUrl ? (
             <a
               href={heroUrl}
-              className="inline-flex h-10 items-center justify-center gap-1.5 rounded-[10px] border border-[#262626] bg-surface-2 text-[12px] font-medium text-ink-muted transition hover:border-[#444] hover:text-ink"
+              className="inline-flex h-10 items-center justify-center gap-1.5 rounded-[10px] border border-white/10 bg-white/[0.045] text-[12px] font-medium text-ink-muted transition hover:border-white/25 hover:text-ink"
             >
               <Download size={13} />
               Download
@@ -378,7 +374,7 @@ function DashboardInspector({
           ) : (
             <Link
               href="/studio"
-              className="inline-flex h-10 items-center justify-center gap-1.5 rounded-[10px] border border-[#262626] bg-surface-2 text-[12px] font-medium text-ink-muted transition hover:border-[#444] hover:text-ink"
+              className="inline-flex h-10 items-center justify-center gap-1.5 rounded-[10px] border border-white/10 bg-white/[0.045] text-[12px] font-medium text-ink-muted transition hover:border-white/25 hover:text-ink"
             >
               <ImageIcon size={13} />
               Studio
@@ -387,7 +383,7 @@ function DashboardInspector({
         </div>
       </section>
 
-      <section className="rounded-[16px] border border-[#262626] bg-surface-1 p-4">
+      <section className="dashboard-panel p-4">
         <div className="mb-4 flex items-center justify-between gap-3">
           <h3 className="text-[11px] font-medium uppercase tracking-[0.14em] text-ink-muted">
             Review queue
@@ -413,7 +409,7 @@ function DashboardInspector({
         )}
       </section>
 
-      <section className="rounded-[16px] border border-[#262626] bg-surface-1 p-4">
+      <section className="dashboard-panel p-4">
         <div className="mb-4 flex items-center justify-between gap-3">
           <h3 className="text-[11px] font-medium uppercase tracking-[0.14em] text-ink-muted">
             Quick actions
@@ -460,7 +456,7 @@ function ReviewTimeline({
   const connected = connectedPlatforms.length > 0 ? connectedPlatforms.join(', ') : 'No channels';
 
   return (
-    <section className="border-t border-[#1b1b1b] px-5 py-4 lg:px-6">
+    <section className="dashboard-timeline px-5 py-5 lg:px-8">
       <div className="mb-3 flex items-center justify-between gap-3">
         <div>
           <h2 className="text-[11px] font-medium uppercase tracking-[0.14em] text-ink-muted">
@@ -483,7 +479,7 @@ function ReviewTimeline({
           {featuredPost.variants.map((variant, i) => (
             <li
               key={variant.generationId || i}
-              className="w-[148px] shrink-0 overflow-hidden rounded-[12px] border border-[#262626] bg-surface-1"
+              className="dashboard-strip-card w-[148px] shrink-0 overflow-hidden"
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
@@ -503,10 +499,7 @@ function ReviewTimeline({
       ) : models.length > 0 ? (
         <ul className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
           {models.slice(0, 8).map((model) => (
-            <li
-              key={model.id}
-              className="w-[118px] shrink-0 overflow-hidden rounded-[12px] border border-[#262626] bg-surface-1"
-            >
+            <li key={model.id} className="dashboard-strip-card w-[118px] shrink-0 overflow-hidden">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={model.portrait_url}
@@ -522,7 +515,7 @@ function ReviewTimeline({
           ))}
         </ul>
       ) : (
-        <div className="rounded-[12px] border border-[#262626] bg-surface-1 p-4 text-[12px] text-ink-muted">
+        <div className="dashboard-panel p-4 text-[12px] text-ink-muted">
           No timeline assets yet.
         </div>
       )}
@@ -550,7 +543,7 @@ function QueueItem({
     <li>
       <Link
         href={href}
-        className="group flex items-center gap-3 rounded-[12px] border border-[#262626] bg-surface-2 p-2 text-left transition hover:border-[#0099ff]/50 hover:bg-[#1a1a1a]"
+        className="dashboard-queue-item group flex items-center gap-3 p-2 text-left"
       >
         <div className="relative h-[74px] w-[56px] shrink-0 overflow-hidden rounded-[8px] bg-[#101010]">
           {thumb ? (
@@ -618,7 +611,7 @@ function MetricTile({
   return (
     <Link
       href={href}
-      className="group flex min-h-[112px] items-end justify-between gap-4 rounded-[14px] border border-[#262626] bg-surface-1 px-4 py-3 transition hover:border-[#0099ff]/40 hover:bg-[#161616]"
+      className="dashboard-metric group flex min-h-[112px] items-end justify-between gap-4 px-4 py-3"
     >
       <div>
         <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-ink-muted">
@@ -653,10 +646,10 @@ function QuickAction({
   const inner = (
     <div
       className={cn(
-        'group flex items-center gap-3 rounded-[12px] border border-[#262626] bg-surface-2 p-3 transition',
+        'dashboard-quick-action group flex items-center gap-3 p-3',
         disabled
           ? 'pointer-events-none opacity-50'
-          : 'hover:border-[#0099ff]/40 hover:bg-[#161616]',
+          : 'hover:border-[#0099ff]/40 hover:bg-white/[0.075]',
       )}
     >
       <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#0099ff]/10 text-[#0099ff] ring-1 ring-[#0099ff]/30">
@@ -676,7 +669,7 @@ function ChecklistItem({ done, label, href }: { done: boolean; label: string; hr
   return (
     <Link
       href={href}
-      className="flex items-center justify-between gap-3 rounded-[12px] border border-[#262626] bg-surface-2 px-3 py-2.5 text-[12px] transition hover:border-[#0099ff]/40"
+      className="dashboard-checklist-item flex items-center justify-between gap-3 px-3 py-2.5 text-[12px]"
     >
       <span className="flex items-center gap-2 text-ink">
         <span
@@ -722,7 +715,7 @@ function DecisionCount({
 
 function EmptyRail({ modelsCount }: { modelsCount: number }) {
   return (
-    <div className="rounded-[12px] border border-[#262626] bg-surface-2 p-4">
+    <div className="dashboard-empty-rail p-4">
       <p className="text-[13px] font-medium text-ink">
         {modelsCount > 0 ? 'No drafts in review.' : 'No personas yet.'}
       </p>

@@ -87,11 +87,11 @@ export default async function StudioPage() {
   );
 
   return (
-    <div className="app-page text-ink">
+    <div className="app-page workflow-page text-ink">
       <div className="app-page-inner">
-        <header className="app-page-header">
+        <header className="app-page-header workflow-hero">
           <p className="framer-eyebrow">AI Studio</p>
-          <h1 className="mt-2 text-[28px] font-medium leading-[1.05] tracking-normal text-balance sm:text-[32px]">
+          <h1 className="workflow-title mt-2">
             Manage models.
             <br />
             Generate viral content.
@@ -101,7 +101,10 @@ export default async function StudioPage() {
           </p>
           <div className="mt-5 flex flex-wrap gap-2">
             {demoMode ? (
-              <StatusPill tone="warn" title="Demo workspace — Zernio publish, comment reply, and DM reply are blocked at the SDK boundary.">
+              <StatusPill
+                tone="warn"
+                title="Demo workspace — Zernio publish, comment reply, and DM reply are blocked at the SDK boundary."
+              >
                 Demo · publish disabled
               </StatusPill>
             ) : stubbed ? (
@@ -158,7 +161,7 @@ export default async function StudioPage() {
             </section>
 
             {demoMode || supabaseConfigured ? (
-              <section className="rounded-[16px] border border-[#1b1b1b] bg-[#0b0b0b] p-4">
+              <section className="workflow-panel p-4">
                 <header className="mb-4 flex items-end justify-between border-b border-[#1b1b1b] pb-3">
                   <div>
                     <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-[#666]">
@@ -183,7 +186,7 @@ export default async function StudioPage() {
                 {savedModels.length > 0 ? (
                   <SavedModels models={savedModels} />
                 ) : (
-                  <div className="rounded-[14px] border border-dashed border-[#2d2d2d] bg-surface-2/35 p-5">
+                  <div className="workflow-empty-state p-5 text-left">
                     <p className="text-[14px] font-medium text-ink">No persona on the roster.</p>
                     <p className="mt-1 max-w-xl text-[13px] leading-[1.5] text-ink-muted">
                       Start with a face-locked AI model. Once saved, Create Post will use it for
@@ -202,7 +205,7 @@ export default async function StudioPage() {
             ) : null}
           </div>
 
-          <aside className="rounded-[16px] border border-[#262626] bg-surface-1 p-4 xl:sticky xl:top-0 xl:max-h-[calc(100dvh-2rem)] xl:overflow-y-auto">
+          <aside className="workflow-panel p-4 xl:sticky xl:top-0 xl:max-h-[calc(100dvh-2rem)] xl:overflow-y-auto">
             <header className="mb-4 flex items-center justify-between border-b border-[#1b1b1b] pb-3">
               <div>
                 <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-[#666]">
@@ -219,7 +222,7 @@ export default async function StudioPage() {
               </Link>
             </header>
             {recentPosts.length === 0 ? (
-              <p className="rounded-[10px] border border-dashed border-[#262626] bg-surface-2/40 px-3 py-6 text-center text-[12px] text-ink-muted">
+              <p className="workflow-empty-state px-3 py-6 text-[12px] text-ink-muted">
                 Nothing scheduled yet. Brief a campaign and it lands here.
               </p>
             ) : (
@@ -268,7 +271,7 @@ function HubCard({
   const body = (
     <div
       className={cn(
-        'group relative flex h-full min-h-[132px] flex-col justify-between gap-4 rounded-[14px] border border-[#262626] bg-surface-1 p-4 transition',
+        'workflow-card group relative flex h-full min-h-[132px] flex-col justify-between gap-4 p-4',
         disabled ? 'opacity-50' : ring,
       )}
     >

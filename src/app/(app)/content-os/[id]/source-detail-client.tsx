@@ -4,11 +4,7 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { CheckCircle2, Clock, Film, Loader2, RefreshCw, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import {
-  CHANNELS,
-  VISUAL_CHANNELS,
-  type ChannelKey,
-} from '@/lib/content-sources-schema';
+import { CHANNELS, VISUAL_CHANNELS, type ChannelKey } from '@/lib/content-sources-schema';
 import { packItemToPlainText } from '@/lib/content-repackage-schema';
 import type {
   ContentAtomRow,
@@ -61,9 +57,7 @@ export function SourceDetailClient({ source, atoms, pack, items, demoMode }: Pro
   return (
     <div className="space-y-6">
       {banner ? (
-        <p className="rounded-[10px] border border-[#262626] bg-[#0c0c0c] px-3 py-2 text-[12px] text-ink-muted">
-          {banner}
-        </p>
+        <p className="workflow-row px-3 py-2 text-[12px] text-ink-muted">{banner}</p>
       ) : null}
 
       {source.last_error ? (
@@ -74,7 +68,7 @@ export function SourceDetailClient({ source, atoms, pack, items, demoMode }: Pro
 
       {/* Extracted text preview */}
       {source.extracted_text ? (
-        <section className="rounded-[14px] border border-[#262626] bg-surface-2/40 p-4">
+        <section className="workflow-panel p-4">
           <h2 className="mb-2 text-[13px] font-medium">Extracted text</h2>
           <p className="line-clamp-4 whitespace-pre-wrap text-[12px] leading-relaxed text-ink-muted">
             {source.extracted_text}
@@ -83,7 +77,7 @@ export function SourceDetailClient({ source, atoms, pack, items, demoMode }: Pro
       ) : null}
 
       {/* Atoms */}
-      <section className="rounded-[14px] border border-[#262626] bg-surface-2/40 p-4">
+      <section className="workflow-panel p-4">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-[13px] font-medium">Content atoms ({atoms.length})</h2>
           {canExtract ? (
@@ -104,8 +98,10 @@ export function SourceDetailClient({ source, atoms, pack, items, demoMode }: Pro
         ) : (
           <div className="grid gap-2 sm:grid-cols-2">
             {atoms.map((a) => (
-              <div key={a.id} className="rounded-[10px] bg-[#0c0c0c] p-3">
-                <span className="text-[10px] uppercase tracking-wider text-[#0099ff]">{a.kind}</span>
+              <div key={a.id} className="workflow-row p-3">
+                <span className="text-[10px] uppercase tracking-wider text-[#0099ff]">
+                  {a.kind}
+                </span>
                 <p className="mt-1 text-[12px] leading-relaxed text-ink">{a.text}</p>
               </div>
             ))}
@@ -114,7 +110,7 @@ export function SourceDetailClient({ source, atoms, pack, items, demoMode }: Pro
       </section>
 
       {/* Pack */}
-      <section className="rounded-[14px] border border-[#262626] bg-surface-2/40 p-4">
+      <section className="workflow-panel p-4">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-[13px] font-medium">
             Content pack {pack ? `(${items.length} channels)` : ''}
@@ -173,7 +169,7 @@ function PackItemCard({
   const canMedia = isVisual && item.status === 'draft';
 
   return (
-    <li className="rounded-[10px] bg-[#0c0c0c] p-3">
+    <li className="workflow-row p-3">
       <div className="mb-2 flex items-center justify-between">
         <span className="text-[12px] font-medium text-ink">{channelLabel(item.channel)}</span>
         <span

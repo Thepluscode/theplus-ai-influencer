@@ -30,7 +30,7 @@ export function AppTopbar({
     clientPathname.startsWith('/inbox');
 
   return (
-    <header className="sticky top-0 z-40 border-b border-[#1b1b1b] bg-[#070707]/88 px-4 py-3 backdrop-blur-xl lg:px-6">
+    <header className="app-topbar sticky top-0 z-40 px-4 py-3 lg:px-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
           <span
@@ -73,14 +73,18 @@ export function AppTopbar({
                 ? 'border-[#4a3a14] bg-[#241a08] text-[#fbbf24]'
                 : 'hidden border-[#1f3f2a] bg-[#102015] text-[#9bf3b8] md:inline-flex',
             )}
-            title={demoMode ? 'Demo workspace — Zernio publish, comment reply, and DM reply are blocked.' : undefined}
+            title={
+              demoMode
+                ? 'Demo workspace — Zernio publish, comment reply, and DM reply are blocked.'
+                : undefined
+            }
           >
             {demoMode ? <AlertTriangle size={11} /> : <CheckCircle2 size={11} />}
             {demoMode ? 'Demo mode' : 'Review-ready'}
           </span>
           <Link
             href="/storyboard"
-            className="hidden h-8 items-center gap-1.5 rounded-full border border-[#2a2a2a] bg-[#101010] px-3 text-[11px] font-medium text-ink-muted transition hover:border-[#444] hover:text-ink xl:inline-flex"
+            className="hidden h-8 items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.045] px-3 text-[11px] font-medium text-ink-muted transition hover:border-white/22 hover:text-ink xl:inline-flex"
           >
             Review rooms
             <ExternalLink size={11} />

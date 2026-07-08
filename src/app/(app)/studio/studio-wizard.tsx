@@ -357,7 +357,7 @@ function PanelCard({
   children: React.ReactNode;
 }) {
   return (
-    <div className="rounded-[16px] border border-[#262626] bg-surface-1 p-4">
+    <div className="workflow-panel p-4">
       <div className="mb-3 flex items-baseline justify-between gap-2">
         <span className="text-[11px] font-medium uppercase tracking-[0.12em] text-ink-muted">
           {label}
@@ -412,10 +412,10 @@ function Chip({
       onClick={onClick}
       aria-pressed={active}
       className={cn(
-        'group relative flex h-11 items-center gap-2 overflow-hidden rounded-[12px] border bg-surface-1 px-3 text-left text-[13px] transition',
+        'group relative flex h-11 items-center gap-2 overflow-hidden rounded-[12px] border bg-black/30 px-3 text-left text-[13px] transition',
         active
           ? 'border-[#0099ff] text-ink shadow-[0_0_0_1px_rgba(0,153,255,0.25),0_0_18px_-6px_rgba(0,153,255,0.45)]'
-          : 'border-[#262626] text-ink-muted hover:border-[#444] hover:text-ink',
+          : 'border-white/10 text-ink-muted hover:border-white/25 hover:text-ink',
       )}
     >
       {icon ? (
@@ -457,7 +457,7 @@ function TextField({
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         required={required}
-        className="w-full rounded-[12px] border border-[#262626] bg-surface-1 px-3.5 py-2.5 text-[14px] text-ink outline-none placeholder:text-[#666] focus:border-[#0099ff] focus:shadow-[0_0_0_1px_rgba(0,153,255,0.25)]"
+        className="w-full rounded-[12px] border border-white/10 bg-black/30 px-3.5 py-2.5 text-[14px] text-ink outline-none placeholder:text-[#666] focus:border-[#0099ff] focus:shadow-[0_0_0_1px_rgba(0,153,255,0.25)]"
       />
       {error ? <span className="text-[12px] text-[#ff5577]">{error}</span> : null}
     </div>
@@ -480,7 +480,7 @@ function PreviewTile({
   return (
     <figure
       className={cn(
-        'group relative w-full overflow-hidden rounded-[20px] border border-[#262626] bg-surface-1',
+        'workflow-media-card group relative w-full overflow-hidden rounded-[20px]',
         aspectClass,
       )}
     >
@@ -492,7 +492,7 @@ function PreviewTile({
           className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.02]"
         />
       ) : (
-        <div className="absolute inset-0 grid place-items-center bg-surface-1">
+        <div className="absolute inset-0 grid place-items-center bg-black/30">
           {loading ? (
             <div className="flex flex-col items-center gap-2 text-ink-muted">
               <Loader2 size={20} className="animate-spin text-[#0099ff]" />

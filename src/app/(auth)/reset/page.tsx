@@ -24,15 +24,10 @@ export default async function ResetPage() {
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="auth-flow">
       <header>
-        <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-[#666]">
-          Secure reset
-        </p>
-        <h1 className="mt-2 text-[26px] font-medium tracking-normal text-ink">
-          Set a new password
-        </h1>
-        <p className="mt-1 text-[13px] text-ink-muted">
+        <h1>Set a new password</h1>
+        <p>
           You&apos;re signed in via the recovery link. Pick a new password and we&apos;ll finish you
           off at the dashboard.
         </p>
@@ -40,11 +35,8 @@ export default async function ResetPage() {
 
       <ResetForm />
 
-      <p className="text-center text-[12px] text-ink-muted">
-        Changed your mind?{' '}
-        <Link href="/sign-in" className="text-ink underline-offset-2 hover:underline">
-          Back to sign in
-        </Link>
+      <p className="auth-switch-copy">
+        Changed your mind? <Link href="/sign-in">Back to sign in</Link>
       </p>
     </div>
   );

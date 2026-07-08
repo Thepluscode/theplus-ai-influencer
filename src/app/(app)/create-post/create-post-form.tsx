@@ -599,7 +599,7 @@ function PanelCard({
   children: React.ReactNode;
 }) {
   return (
-    <div className="rounded-xl border border-[#262626] bg-surface-1 p-4 backdrop-blur">
+    <div className="workflow-panel p-4 backdrop-blur">
       <div className="mb-3 flex items-baseline justify-between gap-2">
         <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-ink-muted">
           {label}
@@ -651,10 +651,10 @@ function Chip({
       onClick={onClick}
       aria-pressed={active}
       className={cn(
-        'group relative flex h-11 items-center gap-2 overflow-hidden rounded-[12px] border bg-surface-1 px-3 text-left text-[13px] transition',
+        'group relative flex h-11 items-center gap-2 overflow-hidden rounded-[12px] border bg-black/30 px-3 text-left text-[13px] transition',
         active
           ? 'border-[#0099ff] text-ink shadow-[0_0_0_1px_rgba(0,153,255,0.25),0_0_18px_-6px_rgba(0,153,255,0.45)]'
-          : 'border-[#262626] text-ink-muted hover:border-[#444] hover:text-ink',
+          : 'border-white/10 text-ink-muted hover:border-white/25 hover:text-ink',
       )}
     >
       {icon ? (
@@ -691,10 +691,10 @@ function FormatChip({
       onClick={onClick}
       aria-pressed={active}
       className={cn(
-        'group relative flex h-12 items-center gap-2.5 rounded-[12px] border bg-surface-1 px-3 text-left transition',
+        'group relative flex h-12 items-center gap-2.5 rounded-[12px] border bg-black/30 px-3 text-left transition',
         active
           ? 'border-[#0099ff] text-ink shadow-[0_0_0_1px_rgba(0,153,255,0.25),0_0_18px_-6px_rgba(0,153,255,0.45)]'
-          : 'border-[#262626] text-ink-muted hover:border-[#444] hover:text-ink',
+          : 'border-white/10 text-ink-muted hover:border-white/25 hover:text-ink',
       )}
     >
       <span className={active ? 'text-[#0099ff]' : 'text-ink-muted'}>{icon}</span>
@@ -732,7 +732,7 @@ function Input({
         defaultValue={defaultValue}
         placeholder={placeholder}
         required={required}
-        className="w-full rounded-md border border-[#262626] bg-surface-2 px-3 py-2 text-sm text-ink outline-none placeholder:text-[#666] focus:border-[#0099ff] focus:shadow-[0_0_0_1px_rgba(0,153,255,0.25)]"
+        className="w-full rounded-md border border-white/10 bg-black/30 px-3 py-2 text-sm text-ink outline-none placeholder:text-[#666] focus:border-[#0099ff] focus:shadow-[0_0_0_1px_rgba(0,153,255,0.25)]"
       />
       {error ? <span className="text-xs text-red-400">{error}</span> : null}
     </div>
@@ -873,7 +873,7 @@ function CaptionsPanel({
   const activeVariant = perPlatform.find((p) => p.platform === activePlatformValue);
 
   return (
-    <div className="rounded-[16px] border border-[#262626] bg-surface-1 p-4">
+    <div className="workflow-panel p-4">
       <header className="mb-3 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <span className="inline-flex h-7 items-center gap-1.5 rounded-full bg-surface-2 px-2.5 text-[11px] font-medium text-ink ring-1 ring-[#262626]">

@@ -15,6 +15,7 @@ import {
 import { getStoryboard } from '@/lib/storyboards';
 import { publicEnv } from '@/lib/env';
 import { listAiModels } from '@/lib/ai-models';
+import { getDemoModels, getDemoStoryboards, isDemoMode } from '@/lib/demo-mode';
 import { getSupabaseServerClient } from '@/lib/supabase/server';
 import { getOrCreateCurrentWorkspace } from '@/lib/workspace';
 import type { RenderedShot } from '@/lib/storyboard';
@@ -36,39 +37,52 @@ interface Props {
 
 export default async function StoryboardDetailPage({ params }: Props) {
   const { id } = await params;
+  const demoMode = isDemoMode();
   const supabaseConfigured = Boolean(
     publicEnv.NEXT_PUBLIC_SUPABASE_URL && publicEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY,
   );
-  if (!supabaseConfigured) notFound();
 
-  const supabase = await getSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) notFound();
+  let sb = null as Awaited<ReturnType<typeof getStoryboard>>;
+  let models = [] as Awaited<ReturnType<typeof listAiModels>>;
+  let reviewerName = 'Reviewer';
+  if (demoMode) {
+    sb = getDemoStoryboards().find((s) => s.id === id) ?? null;
+    models = getDemoModels();
+    reviewerName = 'demo';
+  } else {
+    if (!supabaseConfigured) notFound();
 
-  const ws = await getOrCreateCurrentWorkspace(user);
-  const sb = await getStoryboard(id);
-  if (!sb || sb.workspace_id !== ws.id) notFound();
+    const supabase = await getSupabaseServerClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) notFound();
+
+    const ws = await getOrCreateCurrentWorkspace(user);
+    sb = await getStoryboard(id);
+    if (!sb || sb.workspace_id !== ws.id) notFound();
+    models = await listAiModels(ws.id);
+    reviewerName = user.email?.split('@')[0] ?? 'Reviewer';
+  }
+  if (!sb) notFound();
 
   const shots = (Array.isArray(sb.shots) ? sb.shots : []) as RenderedShot[];
-  const models = await listAiModels(ws.id);
   const model = sb.model_id ? models.find((m) => m.id === sb.model_id) : undefined;
 
   const animatedCount = shots.filter((s) => Boolean(s.videoUrl)).length;
   const pendingShotCount = shots.length - animatedCount;
   const allAnimated = shots.length > 0 && pendingShotCount === 0;
 
-  const latestJob = await getLatestJobForStoryboard(id);
+  const latestJob = demoMode ? null : await getLatestJobForStoryboard(id);
   let reviewComments: Awaited<ReturnType<typeof listReviewCommentsForStoryboard>> = [];
   let reviewDecisions: Awaited<ReturnType<typeof listReviewDecisionsForStoryboard>> = [];
   try {
-    reviewComments = await listReviewCommentsForStoryboard(sb.id, ws.id);
+    if (!demoMode) reviewComments = await listReviewCommentsForStoryboard(sb.id, sb.workspace_id);
   } catch (err) {
     console.error('Failed to load storyboard review comments', err);
   }
   try {
-    reviewDecisions = await listReviewDecisionsForStoryboard(sb.id, ws.id);
+    if (!demoMode) reviewDecisions = await listReviewDecisionsForStoryboard(sb.id, sb.workspace_id);
   } catch (err) {
     console.error('Failed to load storyboard review decisions', err);
   }
@@ -82,13 +96,13 @@ export default async function StoryboardDetailPage({ params }: Props) {
   );
 
   return (
-    <div className="app-page text-ink">
-      <header className="app-detail-header sticky top-0 z-30 px-6 py-3 backdrop-blur-xl lg:px-8">
+    <div className="app-page workflow-page text-ink">
+      <header className="app-detail-header workflow-hero sticky top-0 z-30 px-6 py-3 backdrop-blur-xl lg:px-8">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
             <Link
               href="/storyboard"
-              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[#262626] bg-surface-1 text-ink-muted transition hover:border-[#444] hover:text-ink"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/[0.045] text-ink-muted transition hover:border-white/25 hover:text-ink"
               aria-label="Back to Storyboards"
             >
               <ArrowLeft size={14} />
@@ -159,14 +173,14 @@ export default async function StoryboardDetailPage({ params }: Props) {
             status={reviewStatus}
             version={reviewVersion}
             decisions={reviewDecisions}
-            defaultReviewerName={user.email?.split('@')[0] ?? 'Reviewer'}
+            defaultReviewerName={reviewerName}
           />
 
           <StoryboardReviewPanel
             storyboardId={sb.id}
             shots={shots}
             comments={reviewComments}
-            defaultAuthorName={user.email?.split('@')[0] ?? 'Reviewer'}
+            defaultAuthorName={reviewerName}
           />
         </aside>
       </div>
@@ -225,7 +239,7 @@ function ReviewSummaryPanel({
   reviewVersion: number;
 }) {
   return (
-    <section className="rounded-[16px] border border-[#262626] bg-surface-1 p-4">
+    <section className="workflow-panel p-4">
       <div className="mb-4 flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <PanelRight size={14} className="text-[#0099ff]" />
@@ -239,7 +253,7 @@ function ReviewSummaryPanel({
       </div>
 
       {summary ? (
-        <p className="rounded-[12px] border border-[#262626] bg-surface-2 px-3 py-2 text-[13px] leading-[1.5] text-ink">
+        <p className="rounded-[12px] border border-white/10 bg-black/30 px-3 py-2 text-[13px] leading-[1.5] text-ink">
           {summary}
         </p>
       ) : null}
@@ -274,7 +288,7 @@ function RenderQueuePanel({
   reviewApproved: boolean;
 }) {
   return (
-    <section className="rounded-[16px] border border-[#262626] bg-surface-1 p-4">
+    <section className="workflow-panel p-4">
       <div className="mb-4 flex items-center gap-2">
         <Film size={14} className="text-[#a855f7]" />
         <h2 className="text-[11px] font-medium uppercase tracking-[0.14em] text-ink-muted">
@@ -306,7 +320,7 @@ function RenderQueuePanel({
 
 function ShotAssetStrip({ shots }: { shots: RenderedShot[] }) {
   return (
-    <section className="rounded-[16px] border border-[#262626] bg-surface-1 p-4">
+    <section className="workflow-panel p-4">
       <div className="mb-3 flex items-center justify-between gap-3">
         <h2 className="text-[11px] font-medium uppercase tracking-[0.14em] text-ink-muted">
           Assets
@@ -319,7 +333,7 @@ function ShotAssetStrip({ shots }: { shots: RenderedShot[] }) {
         {shots.map((s) => (
           <li
             key={s.index}
-            className="group w-[156px] shrink-0 overflow-hidden rounded-[12px] border border-[#262626] bg-surface-2 transition hover:border-[#0099ff]/50"
+            className="workflow-media-card group w-[156px] shrink-0 overflow-hidden"
           >
             <div className="relative aspect-video overflow-hidden bg-canvas">
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -357,7 +371,7 @@ function CompositionTimeline({
 }) {
   let cursor = 0;
   return (
-    <section className="rounded-[16px] border border-[#262626] bg-surface-1 p-4">
+    <section className="workflow-panel p-4">
       <div className="mb-4 flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <Layers3 size={14} className="text-[#0099ff]" />
@@ -375,7 +389,7 @@ function CompositionTimeline({
           return (
             <div key={layer} className="grid grid-cols-[96px_minmax(0,1fr)] items-center gap-3">
               <span className="text-[10px] uppercase tracking-wider text-ink-muted">{layer}</span>
-              <div className="relative h-9 overflow-hidden rounded-[8px] border border-[#262626] bg-surface-2">
+              <div className="relative h-9 overflow-hidden rounded-[8px] border border-white/10 bg-black/30">
                 {shots.map((shot) => {
                   const duration = shot.videoDurationMs ?? shot.durationMs ?? 2500;
                   const start = totalDurationMs > 0 ? (cursor / totalDurationMs) * 100 : 0;
@@ -410,7 +424,7 @@ function Meta({ label, value, wide }: { label: string; value: string; wide?: boo
   return (
     <div
       className={cn(
-        'rounded-[10px] border border-[#262626] bg-surface-2 px-3 py-2',
+        'rounded-[10px] border border-white/10 bg-black/30 px-3 py-2',
         wide && 'col-span-2',
       )}
     >

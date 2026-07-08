@@ -22,9 +22,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   }
 
   return (
-    <div className="relative flex h-dvh overflow-hidden bg-[#050505] text-ink">
+    <div className="app-shell relative flex h-dvh overflow-hidden text-ink">
       <Sidebar userEmail={userEmail} demoMode={demoMode} />
-      <main className="relative min-w-0 flex-1 overflow-hidden">
+      <main className="app-main relative min-w-0 flex-1 overflow-hidden">
         <AppTopbar
           demoMode={demoMode}
           credits={

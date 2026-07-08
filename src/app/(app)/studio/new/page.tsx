@@ -42,9 +42,9 @@ export default async function StudioNewPage() {
   }
 
   return (
-    <div className="app-page text-ink">
+    <div className="app-page workflow-page text-ink">
       <div className="app-page-inner">
-        <header className="app-page-header">
+        <header className="app-page-header workflow-hero">
           <Link
             href="/studio"
             className="mb-4 inline-flex items-center gap-1.5 text-[12px] text-ink-muted transition hover:text-ink"
@@ -53,7 +53,7 @@ export default async function StudioNewPage() {
             Back to AI Studio
           </Link>
           <p className="framer-eyebrow">Create AI Influencer</p>
-          <h1 className="mt-2 text-[28px] font-medium leading-[1.05] tracking-normal text-balance sm:text-[32px]">
+          <h1 className="workflow-title mt-2">
             Cast a model.
             <br />
             Render in seconds.
