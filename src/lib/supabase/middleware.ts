@@ -31,10 +31,21 @@ export async function updateSession(request: NextRequest) {
     return response;
   }
 
+  const { pathname } = request.nextUrl;
+  const isProtected = PROTECTED_PREFIXES.some(
+    (p) => pathname === p || pathname.startsWith(`${p}/`),
+  );
+  const isAuthOnly = AUTH_ONLY_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+
   if (!publicEnv.NEXT_PUBLIC_SUPABASE_URL || !publicEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-    // Supabase not configured yet — let everything through so the dev can
-    // still see scaffold pages without env keys. Real protection kicks in
-    // once the env vars are set.
+    if (process.env.NODE_ENV === 'production' && isProtected) {
+      const url = request.nextUrl.clone();
+      url.pathname = '/sign-in';
+      url.searchParams.set('returnTo', pathname);
+      return NextResponse.redirect(url);
+    }
+    // Supabase not configured yet — in local/test, let everything through so
+    // scaffold pages remain inspectable without env keys.
     return response;
   }
 
@@ -62,12 +73,6 @@ export async function updateSession(request: NextRequest) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-
-  const { pathname } = request.nextUrl;
-  const isProtected = PROTECTED_PREFIXES.some(
-    (p) => pathname === p || pathname.startsWith(`${p}/`),
-  );
-  const isAuthOnly = AUTH_ONLY_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 
   if (!user && isProtected) {
     const url = request.nextUrl.clone();
