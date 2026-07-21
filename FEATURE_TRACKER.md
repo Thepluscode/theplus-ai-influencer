@@ -3,6 +3,13 @@
 Lifecycle: `PLANNED → IN PROGRESS → DEPLOYED → VERIFIED`.
 Never mark `VERIFIED` without production evidence (logs, API response, observed behavior). "Build succeeded" is not verification.
 
+## Billing — Stripe webhook
+
+| Piece | State | Evidence |
+| --- | --- | --- |
+| Dispute/chargeback capture (`charge.dispute.*`) | DEPLOYED | `src/app/api/stripe/webhook/route.ts` — the switch ignored `charge.dispute.*`; now `charge.dispute.created` alerts and `charge.dispute.funds_withdrawn` **revokes access** (workspace → Free; customer resolved via `stripe.charges.retrieve`; unresolvable → ERROR, never silently dropped). Idempotency via the existing `processed_webhook_events` claim + absolute-state write. `route.test.ts` 6 passing (+3); `tsc --noEmit` clean. PR #6 (merged). Not production-verified. |
+| Reconciliation sweep (lost-webhook self-heal) | PLANNED | Flagged by the dispute-readiness sweep — no scheduled pull-verify of stale-pending payments. Needs a cron / edge function (serverless). Deferred. |
+
 ## Content OS — Extract → Repackage → Distribute
 
 **Status: IN PROGRESS** (code complete + demo-verified; `0017` applied to prod 2026-06-16; no live paid-API run yet).
