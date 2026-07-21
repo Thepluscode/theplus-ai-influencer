@@ -15,6 +15,8 @@ const h = vi.hoisted(() => ({
   processedIds: new Set<string>(),
   grantCalls: [] as { fn: string; params: Record<string, unknown> }[],
   workspaceUpdates: [] as Record<string, unknown>[],
+  // Charge → customer map for dispute resolution (null = unresolvable).
+  chargeCustomer: 'cus_1' as string | null,
 }));
 
 vi.mock('@/lib/env', () => ({
@@ -30,6 +32,8 @@ vi.mock('@/lib/billing/stripe', () => ({
   // The raw body IS the event JSON — signature verification is out of scope here.
   getStripeClient: () => ({
     webhooks: { constructEvent: (raw: string) => JSON.parse(raw) },
+    // Dispute resolution retrieves the charge to find the customer.
+    charges: { retrieve: async (id: string) => ({ id, customer: h.chargeCustomer }) },
   }),
 }));
 
@@ -135,5 +139,39 @@ describe('Stripe webhook — topup replay idempotency', () => {
     await POST(topupReq('evt_topup_2'));
 
     expect(h.grantCalls).toHaveLength(2);
+  });
+});
+
+function disputeReq(eventId: string, type: string, customerResolvable = true): NextRequest {
+  h.chargeCustomer = customerResolvable ? 'cus_1' : null;
+  const body = JSON.stringify({
+    id: eventId,
+    type,
+    data: { object: { id: `dp_${eventId}`, charge: 'ch_1', reason: 'fraudulent' } },
+  });
+  return {
+    headers: { get: (k: string) => (k === 'stripe-signature' ? 'sig_x' : null) },
+    text: async () => body,
+  } as unknown as NextRequest;
+}
+
+describe('Stripe webhook — dispute capture', () => {
+  it('funds_withdrawn revokes access (workspace → free)', async () => {
+    const res = await POST(disputeReq('evt_disp_1', 'charge.dispute.funds_withdrawn'));
+    expect(res.status).toBe(200);
+    expect(h.workspaceUpdates).toHaveLength(1);
+    expect(h.workspaceUpdates[0]).toMatchObject({ plan: 'free', stripe_subscription_id: null });
+  });
+
+  it('created alerts but does NOT revoke access', async () => {
+    const res = await POST(disputeReq('evt_disp_2', 'charge.dispute.created'));
+    expect(res.status).toBe(200);
+    expect(h.workspaceUpdates).toHaveLength(0);
+  });
+
+  it('unmatched dispute (unresolvable customer) is acked but revokes nothing', async () => {
+    const res = await POST(disputeReq('evt_disp_3', 'charge.dispute.funds_withdrawn', false));
+    expect(res.status).toBe(200);
+    expect(h.workspaceUpdates).toHaveLength(0);
   });
 });

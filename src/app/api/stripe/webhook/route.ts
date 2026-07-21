@@ -108,6 +108,14 @@ export async function POST(req: NextRequest) {
         await handleInvoicePaid(admin, stripe, invoice);
         break;
       }
+      case 'charge.dispute.created': {
+        await handleDisputeCreated(stripe, event.data.object as Stripe.Dispute);
+        break;
+      }
+      case 'charge.dispute.funds_withdrawn': {
+        await handleDisputeFundsWithdrawn(admin, stripe, event.data.object as Stripe.Dispute);
+        break;
+      }
       default:
         // Ignore — Stripe will still mark the event as received.
         break;
@@ -273,4 +281,60 @@ async function handleInvoicePaid(admin: AdminClient, stripe: Stripe, invoice: St
 
   // Refill to the plan's monthly grant — same shape as plan change.
   await admin.from('workspaces').update({ credits: plan.monthlyCredits }).eq('id', workspaceId);
+}
+
+// A dispute references a charge, not a customer — resolve it via the charge so
+// we can find the workspace. Returns null if it can't be resolved (no charge,
+// or the lookup failed); callers still log the dispute, never drop it silently.
+async function resolveDisputeCustomer(stripe: Stripe, dispute: Stripe.Dispute): Promise<string | null> {
+  const chargeId = typeof dispute.charge === 'string' ? dispute.charge : dispute.charge?.id;
+  if (!chargeId) return null;
+  try {
+    const charge = await stripe.charges.retrieve(chargeId);
+    return typeof charge.customer === 'string' ? charge.customer : (charge.customer?.id ?? null);
+  } catch (err) {
+    console.error(`[stripe-webhook] dispute charge lookup failed for ${chargeId}`, err);
+    return null;
+  }
+}
+
+async function handleDisputeCreated(stripe: Stripe, dispute: Stripe.Dispute) {
+  // A dispute was opened. Alert so a human submits evidence in Stripe before the
+  // deadline; leave access intact — the dispute may be won.
+  const customer = await resolveDisputeCustomer(stripe, dispute);
+  console.error(
+    `[stripe-webhook] DISPUTE OPENED ${dispute.id} (customer=${customer ?? 'UNKNOWN'}, reason=${dispute.reason}) ` +
+      '— submit evidence in Stripe before the deadline; access left intact pending the outcome.',
+  );
+}
+
+async function handleDisputeFundsWithdrawn(admin: AdminClient, stripe: Stripe, dispute: Stripe.Dispute) {
+  // The funds were clawed back. Revoke access: drop the workspace to Free. This
+  // is an absolute-state write and the event-id claim above already dedupes
+  // replays, so it's replay-safe. An unresolvable dispute is logged at ERROR
+  // (never silently dropped) for manual reconciliation.
+  const customer = await resolveDisputeCustomer(stripe, dispute);
+  if (!customer) {
+    console.error(
+      `[stripe-webhook] DISPUTE FUNDS WITHDRAWN ${dispute.id} — could not resolve a customer; reconcile manually.`,
+    );
+    return;
+  }
+  const free = getPlan('free');
+  const { error } = await admin
+    .from('workspaces')
+    .update({
+      plan: 'free',
+      credits: free.monthlyCredits,
+      stripe_subscription_id: null,
+      plan_renews_at: null,
+    })
+    .eq('stripe_customer_id', customer);
+  if (error) {
+    throw new Error(`dispute revoke failed for customer ${customer}: ${error.message}`);
+  }
+  console.error(
+    `[stripe-webhook] DISPUTE FUNDS WITHDRAWN ${dispute.id}: revoked access for customer ${customer} (plan → free). ` +
+      'Submit evidence in Stripe before the deadline.',
+  );
 }
