@@ -26,6 +26,12 @@ import { consumeCredits, refundCredits, getWorkspaceCredits } from '@/lib/credit
 // WHERE clause exists to prevent. Those live in plpgsql (0006) and need a real
 // Postgres (Testcontainers / a Supabase branch) to exercise. Nothing here
 // should be read as evidence that they hold.
+//
+// Refund idempotency is split the same way: these tests prove the audit ref is
+// SENT, which is the half that can break in TypeScript. That a duplicate is
+// actually rejected, and that the rolled-back subtransaction leaves no credit
+// without a matching ledger row, is enforced by the partial unique index and
+// the exception handler in 0021 — provable only against a real database.
 // ---------------------------------------------------------------------------
 
 const WS = '11111111-1111-4111-8111-111111111111';
@@ -141,20 +147,30 @@ describe('refundCredits — reversal path', () => {
     );
   });
 
-  it('KNOWN GAP: the refund ref is dropped, so duplicate refunds are indistinguishable', async () => {
-    // grant_credits (0006:125) has no p_ref_kind/p_ref_id parameters and its
-    // INSERT omits both columns, so every refund row is written with
-    // ref_kind = null, ref_id = null. The doc comment on refundCredits claims a
-    // unique ref_id makes duplicates catchable in the audit log; it does not.
-    // This test pins the CURRENT behaviour so the fix (a migration adding the
-    // ref params) has to update it deliberately rather than silently.
+  it('sends the audit ref, which is what the ledger deduplicates on', async () => {
+    // The refKind/refId are the only thing distinguishing a retried reversal
+    // from a second legitimate one. Dropping them here (as the pre-0021 code
+    // did) silently disables the uniqueness guarantee in the database — the
+    // call still succeeds, it just credits twice.
     rpcMock.mockResolvedValue({ data: 1000, error: null });
 
     await refundCredits({ workspaceId: WS, amount: 50, refKind: 'influencer', refId: 'inf-1' });
 
-    const payload = rpcMock.mock.calls[0][1];
-    expect(payload).not.toHaveProperty('p_ref_kind');
-    expect(payload).not.toHaveProperty('p_ref_id');
+    expect(rpcMock.mock.calls[0][1]).toMatchObject({
+      p_ref_kind: 'influencer',
+      p_ref_id: 'inf-1',
+    });
+  });
+
+  it('sends explicit nulls when the caller has no ref to deduplicate on', async () => {
+    // A null ref is excluded from the partial unique index (0021), so this
+    // reversal is NOT protected against double-crediting. Allowed, but the
+    // payload must say so plainly rather than omitting the keys.
+    rpcMock.mockResolvedValue({ data: 1000, error: null });
+
+    await refundCredits({ workspaceId: WS, amount: 50 });
+
+    expect(rpcMock.mock.calls[0][1]).toMatchObject({ p_ref_kind: null, p_ref_id: null });
   });
 
   it('does not post an entry for a zero-value reversal', async () => {

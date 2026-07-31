@@ -128,8 +128,11 @@ export async function consumeCredits(input: {
 
 /**
  * Refund credits when a post-consume step fails (Luma errors out, OpenAI
- * returns invalid JSON, etc). Idempotent enough — issuing a refund_reason
- * with a unique ref_id in the audit log lets us catch duplicates manually.
+ * returns invalid JSON, etc). Idempotent when the caller passes a refKind +
+ * refId: a partial unique index on those columns (0021) makes a second refund
+ * for the same operation a no-op that returns the unchanged balance. Without
+ * a ref there is nothing to deduplicate on, so a retry credits twice — always
+ * pass the ref of the thing being reversed.
  */
 export async function refundCredits(input: {
   workspaceId: string;
@@ -148,6 +151,8 @@ export async function refundCredits(input: {
     p_workspace_id: input.workspaceId,
     p_amount: input.amount,
     p_reason: 'refund' as CreditReason,
+    p_ref_kind: input.refKind ?? null,
+    p_ref_id: input.refId ?? null,
   });
   if (error) {
     // Log loudly — refund failures shouldn't poison the caller's UX but
