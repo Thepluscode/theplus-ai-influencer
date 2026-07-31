@@ -41,6 +41,23 @@ describe('updateSession auth boundary', () => {
     expect(res.status).toBe(200);
     expect(res.headers.get('location')).toBeNull();
   });
+
+  it('does not contact Supabase for public routes', async () => {
+    const createServerClient = vi.fn();
+    vi.doMock('@supabase/ssr', () => ({ createServerClient }));
+    vi.doMock('@/lib/env', () => ({
+      publicEnv: {
+        NEXT_PUBLIC_SUPABASE_URL: 'https://supabase.test',
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: 'anon-key',
+      },
+    }));
+
+    const { updateSession } = await import('../middleware');
+    const res = await updateSession(new NextRequest('https://app.test/'));
+
+    expect(res.status).toBe(200);
+    expect(createServerClient).not.toHaveBeenCalled();
+  });
 });
 
 function setNodeEnv(value: string | undefined) {

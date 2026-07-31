@@ -37,6 +37,10 @@ export async function updateSession(request: NextRequest) {
   );
   const isAuthOnly = AUTH_ONLY_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 
+  if (!isProtected && !isAuthOnly) {
+    return response;
+  }
+
   if (!publicEnv.NEXT_PUBLIC_SUPABASE_URL || !publicEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
     if (process.env.NODE_ENV === 'production' && isProtected) {
       const url = request.nextUrl.clone();
