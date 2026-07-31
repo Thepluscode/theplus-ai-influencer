@@ -308,7 +308,7 @@ export default async function SettingsPage({ searchParams }: PageProps) {
                 statusLabel={demoMode ? 'demo' : zernioConfigured ? 'connected' : 'missing'}
                 value={
                   demoMode
-                    ? 'Instagram · TikTok · YouTube'
+                    ? 'Instagram · TikTok · YouTube · X · LinkedIn · Threads · Facebook · Pinterest · Reddit'
                     : zernioConfigured
                       ? maskKey(serverEnv.ZERNIO_API_KEY ?? '')
                       : '—'

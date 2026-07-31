@@ -2,7 +2,7 @@
 
 import { useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { FileText, Loader2, Sparkles, Upload, X } from 'lucide-react';
+import { FileText, Loader2, Plus, Sparkles, Upload, X, Zap } from 'lucide-react';
 import { getSupabaseBrowserClient } from '@/lib/supabase/client';
 import { cn } from '@/lib/utils';
 import {
@@ -27,6 +27,7 @@ export function SourceComposer({ workspaceId, demoMode }: Props) {
   const [title, setTitle] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState(false);
   const [pending, startTransition] = useTransition();
   const [uploading, setUploading] = useState(false);
 
@@ -43,6 +44,8 @@ export function SourceComposer({ workspaceId, demoMode }: Props) {
       return;
     }
     setFile(f);
+    setMode('upload');
+    setExpanded(true);
   }
 
   function reset() {
@@ -50,6 +53,7 @@ export function SourceComposer({ workspaceId, demoMode }: Props) {
     setTitle('');
     setFile(null);
     setError(null);
+    setExpanded(false);
   }
 
   async function submit() {
@@ -141,12 +145,68 @@ export function SourceComposer({ workspaceId, demoMode }: Props) {
     }
   }
 
+  if (!expanded) {
+    return (
+      <div
+        className="source-composer source-composer-command"
+        onDragOver={(event) => event.preventDefault()}
+        onDrop={(event) => {
+          event.preventDefault();
+          const droppedFile = event.dataTransfer.files[0];
+          if (droppedFile) pickFile(droppedFile);
+        }}
+      >
+        <div className="source-command-mark" aria-hidden="true">
+          <Upload size={20} />
+        </div>
+        <p>
+          <strong>Drag &amp; drop a file here</strong>
+          <span>or paste text</span>
+        </p>
+        <small>PDF, TXT, MD, MP3, MP4, M4A, WAV, WEBM · Max 25MB</small>
+        <div className="source-command-actions">
+          <button
+            type="button"
+            onClick={() => {
+              setMode('paste');
+              setExpanded(true);
+            }}
+          >
+            New source <Plus size={14} />
+          </button>
+          <button type="button" onClick={() => inputRef.current?.click()}>
+            Start source <Zap size={13} />
+          </button>
+        </div>
+        <input
+          ref={inputRef}
+          type="file"
+          accept={UPLOAD_ACCEPT}
+          className="hidden"
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) pickFile(f);
+            e.target.value = '';
+          }}
+        />
+        {error ? <p className="source-command-error">{error}</p> : null}
+      </div>
+    );
+  }
+
   return (
     <div className="source-composer">
       <div className="mb-4 flex items-center gap-2">
         <Sparkles size={15} className="text-[#0099ff]" />
         <h2 className="text-[14px] font-medium text-ink">New source</h2>
-        <span className="ml-auto text-[11px] text-ink-muted">Extract → repackage → distribute</span>
+        <button
+          type="button"
+          onClick={() => setExpanded(false)}
+          className="ml-auto text-ink-muted transition hover:text-ink"
+          aria-label="Close source editor"
+        >
+          <X size={14} />
+        </button>
       </div>
 
       <div className="mb-4 inline-flex rounded-full border border-white/10 bg-black/35 p-0.5 text-[12px]">

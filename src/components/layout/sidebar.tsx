@@ -34,14 +34,15 @@ export function Sidebar({
   }, [pathname]);
 
   return (
-    <aside className="app-sidebar flex h-dvh w-[76px] shrink-0 flex-col text-ink-muted lg:w-[286px]">
+    <aside className="app-sidebar flex h-dvh w-[76px] shrink-0 flex-col text-ink-muted lg:w-[242px]">
       <div className="app-sidebar-brand px-3 py-4 lg:px-4">
         <Link
           href="/dashboard"
           className="group flex items-center justify-center gap-2.5 text-[14px] font-medium tracking-tight text-ink lg:justify-start"
         >
           <ThePlusTechBrand
-            sublabel="Influencer OS"
+            label="ThePlus.AI"
+            sublabel="Influencer"
             className="[&>span:last-child]:hidden lg:[&>span:last-child]:block"
           />
         </Link>

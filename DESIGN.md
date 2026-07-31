@@ -253,6 +253,10 @@ components:
     padding: 64px 32px
 ---
 
+## Canonical interface references
+
+The approved visual targets for the homepage, authentication flow, and Content OS are indexed in [docs/design-references/README.md](docs/design-references/README.md). Review the relevant image before implementation and during screenshot QA.
+
 ## Overview
 
 Framer's marketing canvas is a near-pure black artboard. The dominant surface is `{colors.canvas}` — almost pure black with a faint warmth — and on top of it sits oversized white display type set in **GT Walsheim Medium** with letter-spacing pulled to extreme negative values (-5.5px on the 110px display, -4.25px on the 85px hero). The page reads like a poster: one assertive statement per band, generous breathing room above and below.
