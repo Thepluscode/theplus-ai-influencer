@@ -159,6 +159,66 @@ function webhookEventTable(admin: AdminClient) {
 
 type AdminClient = ReturnType<typeof createClient<Database>>;
 
+/**
+ * Set a workspace's balance to an exact value and record the movement in
+ * credit_transactions atomically (RPC, migration 0024).
+ *
+ * Subscription events must be absolute writes — grant_credits is additive, so
+ * a redelivered event would grant the monthly allowance twice. But writing
+ * `credits` directly left no ledger entry at all, so a plan upgrade moved a
+ * balance with nothing to explain it. The RPC keeps the absolute write and
+ * derives the delta, recording nothing when a replay moves nothing.
+ */
+async function applyPlanCredits(
+  admin: AdminClient,
+  input: {
+    workspaceId: string;
+    credits: number;
+    reason: 'plan_upgrade' | 'monthly_grant' | 'admin_adjustment';
+    plan?: PlanId | null;
+    refKind?: string;
+    refId?: string;
+  },
+): Promise<void> {
+  const { error } = await (
+    admin.rpc as unknown as (
+      fn: string,
+      params: Record<string, unknown>,
+    ) => Promise<{ error: { message: string } | null }>
+  )('apply_plan_credits', {
+    p_workspace_id: input.workspaceId,
+    p_credits: input.credits,
+    p_reason: input.reason,
+    p_plan: input.plan ?? null,
+    p_ref_kind: input.refKind ?? null,
+    p_ref_id: input.refId ?? null,
+  });
+  // Never ack success on a failed credit write — throwing releases the
+  // idempotency claim so Stripe retries.
+  if (error) {
+    throw new Error(
+      `apply_plan_credits failed for workspace ${input.workspaceId}: ${error.message}`,
+    );
+  }
+}
+
+/**
+ * Stripe moved `current_period_end` off the subscription and onto its items.
+ * Reading only the top level silently produced `undefined` on every event, so
+ * plan_renews_at was written as null for every subscriber. Prefer the item,
+ * fall back to the legacy top-level field for older API versions.
+ */
+function subscriptionPeriodEnd(sub: Stripe.Subscription): number | null {
+  const item = sub.items?.data?.[0] as
+    | (Stripe.SubscriptionItem & { current_period_end?: number })
+    | undefined;
+  return (
+    item?.current_period_end ??
+    (sub as Stripe.Subscription & { current_period_end?: number }).current_period_end ??
+    null
+  );
+}
+
 async function handleCheckoutCompleted(
   admin: AdminClient,
   stripe: Stripe,
@@ -225,16 +285,25 @@ async function handleSubscriptionChange(admin: AdminClient, sub: Stripe.Subscrip
   const effectivePlan: PlanId = isActive ? planId : 'free';
   const plan = getPlan(effectivePlan);
 
-  const renewsAt =
-    (sub as Stripe.Subscription & { current_period_end?: number }).current_period_end ?? null;
+  const renewsAt = subscriptionPeriodEnd(sub);
 
   // Snap credit balance to the plan's monthly grant on plan changes.
   // Avoids the operator either losing a fresh top-up or accumulating
   // forever-growing balances on downgrades. Adjust later if churn shows
-  // we want partial credit rollovers.
-  const update: Database['public']['Tables']['workspaces']['Update'] = {
-    plan: effectivePlan,
+  // we want partial credit rollovers. Absolute write + derived ledger delta,
+  // so a redelivered event moves nothing and records nothing.
+  await applyPlanCredits(admin, {
+    workspaceId,
     credits: plan.monthlyCredits,
+    reason: 'plan_upgrade',
+    plan: effectivePlan,
+    refKind: 'stripe_subscription',
+    refId: sub.id,
+  });
+
+  // Stripe bookkeeping only — the plan and balance are already consistent
+  // above, so these columns can lag a failure without misstating entitlement.
+  const update: Database['public']['Tables']['workspaces']['Update'] = {
     stripe_subscription_id: sub.id,
     plan_renews_at: renewsAt ? new Date(renewsAt * 1000).toISOString() : null,
   };
@@ -249,14 +318,17 @@ async function handleSubscriptionDeleted(admin: AdminClient, sub: Stripe.Subscri
   const workspaceId = sub.metadata?.workspaceId;
   if (!workspaceId) return;
   const free = getPlan('free');
+  await applyPlanCredits(admin, {
+    workspaceId,
+    credits: free.monthlyCredits,
+    reason: 'plan_upgrade',
+    plan: 'free',
+    refKind: 'stripe_subscription',
+    refId: sub.id,
+  });
   await admin
     .from('workspaces')
-    .update({
-      plan: 'free',
-      credits: free.monthlyCredits,
-      stripe_subscription_id: null,
-      plan_renews_at: null,
-    })
+    .update({ stripe_subscription_id: null, plan_renews_at: null })
     .eq('id', workspaceId);
 }
 
@@ -279,8 +351,15 @@ async function handleInvoicePaid(admin: AdminClient, stripe: Stripe, invoice: St
   if (!planId) return;
   const plan = getPlan(planId);
 
-  // Refill to the plan's monthly grant — same shape as plan change.
-  await admin.from('workspaces').update({ credits: plan.monthlyCredits }).eq('id', workspaceId);
+  // Refill to the plan's monthly grant — same shape as plan change. p_plan is
+  // omitted so a renewal never rewrites the tier, only the balance.
+  await applyPlanCredits(admin, {
+    workspaceId,
+    credits: plan.monthlyCredits,
+    reason: 'monthly_grant',
+    refKind: 'stripe_invoice',
+    refId: invoice.id,
+  });
 }
 
 // A dispute references a charge, not a customer — resolve it via the charge so
@@ -321,14 +400,34 @@ async function handleDisputeFundsWithdrawn(admin: AdminClient, stripe: Stripe, d
     return;
   }
   const free = getPlan('free');
+  // The credit RPC keys on workspace id, so resolve the customer first. A
+  // customer with no workspace is logged rather than silently dropped.
+  const { data: rows, error: lookupError } = await admin
+    .from('workspaces')
+    .select('id')
+    .eq('stripe_customer_id', customer);
+  if (lookupError) {
+    throw new Error(`dispute revoke lookup failed for customer ${customer}: ${lookupError.message}`);
+  }
+  if (!rows?.length) {
+    console.error(
+      `[stripe-webhook] DISPUTE FUNDS WITHDRAWN ${dispute.id} — no workspace for customer ${customer}; reconcile manually.`,
+    );
+    return;
+  }
+  for (const row of rows) {
+    await applyPlanCredits(admin, {
+      workspaceId: row.id,
+      credits: free.monthlyCredits,
+      reason: 'admin_adjustment',
+      plan: 'free',
+      refKind: 'stripe_dispute',
+      refId: dispute.id,
+    });
+  }
   const { error } = await admin
     .from('workspaces')
-    .update({
-      plan: 'free',
-      credits: free.monthlyCredits,
-      stripe_subscription_id: null,
-      plan_renews_at: null,
-    })
+    .update({ stripe_subscription_id: null, plan_renews_at: null })
     .eq('stripe_customer_id', customer);
   if (error) {
     throw new Error(`dispute revoke failed for customer ${customer}: ${error.message}`);
