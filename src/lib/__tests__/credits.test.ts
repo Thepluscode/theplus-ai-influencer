@@ -12,6 +12,14 @@ vi.mock('@/lib/supabase/server', () => ({
   getSupabaseServerClient: async () => ({ rpc: rpcMock, from: fromMock }),
 }));
 
+// Refunds go through the SERVICE-ROLE client (0025) — consuming still uses the
+// user's session. Separate mocks so a test can tell which client was used.
+const adminRpcMock = vi.fn();
+const adminClientMock = vi.fn(() => ({ rpc: adminRpcMock, from: fromMock }));
+vi.mock('@/lib/supabase/admin', () => ({
+  getSupabaseAdminClient: () => adminClientMock(),
+}));
+
 import { consumeCredits, refundCredits, getWorkspaceCredits } from '@/lib/credits';
 
 // ---------------------------------------------------------------------------
@@ -38,6 +46,8 @@ const WS = '11111111-1111-4111-8111-111111111111';
 
 afterEach(() => {
   rpcMock.mockReset();
+  adminRpcMock.mockReset();
+  adminClientMock.mockClear();
   maybeSingleMock.mockReset();
   fromMock.mockClear();
   vi.restoreAllMocks();
@@ -137,11 +147,11 @@ describe('consumeCredits — debit path', () => {
 
 describe('refundCredits — reversal path', () => {
   it('posts a compensating entry through grant_credits', async () => {
-    rpcMock.mockResolvedValue({ data: 1000, error: null });
+    adminRpcMock.mockResolvedValue({ data: 1000, error: null });
 
     await refundCredits({ workspaceId: WS, amount: 50, refKind: 'influencer', refId: 'inf-1' });
 
-    expect(rpcMock).toHaveBeenCalledWith(
+    expect(adminRpcMock).toHaveBeenCalledWith(
       'grant_credits',
       expect.objectContaining({ p_workspace_id: WS, p_amount: 50, p_reason: 'refund' }),
     );
@@ -152,11 +162,11 @@ describe('refundCredits — reversal path', () => {
     // from a second legitimate one. Dropping them here (as the pre-0021 code
     // did) silently disables the uniqueness guarantee in the database — the
     // call still succeeds, it just credits twice.
-    rpcMock.mockResolvedValue({ data: 1000, error: null });
+    adminRpcMock.mockResolvedValue({ data: 1000, error: null });
 
     await refundCredits({ workspaceId: WS, amount: 50, refKind: 'influencer', refId: 'inf-1' });
 
-    expect(rpcMock.mock.calls[0][1]).toMatchObject({
+    expect(adminRpcMock.mock.calls[0][1]).toMatchObject({
       p_ref_kind: 'influencer',
       p_ref_id: 'inf-1',
     });
@@ -166,16 +176,16 @@ describe('refundCredits — reversal path', () => {
     // A null ref is excluded from the partial unique index (0021), so this
     // reversal is NOT protected against double-crediting. Allowed, but the
     // payload must say so plainly rather than omitting the keys.
-    rpcMock.mockResolvedValue({ data: 1000, error: null });
+    adminRpcMock.mockResolvedValue({ data: 1000, error: null });
 
     await refundCredits({ workspaceId: WS, amount: 50 });
 
-    expect(rpcMock.mock.calls[0][1]).toMatchObject({ p_ref_kind: null, p_ref_id: null });
+    expect(adminRpcMock.mock.calls[0][1]).toMatchObject({ p_ref_kind: null, p_ref_id: null });
   });
 
   it('does not post an entry for a zero-value reversal', async () => {
     await refundCredits({ workspaceId: WS, amount: 0 });
-    expect(rpcMock).not.toHaveBeenCalled();
+    expect(adminRpcMock).not.toHaveBeenCalled();
   });
 
   it('survives an RPC failure without throwing, and logs it for reconciliation', async () => {
@@ -183,7 +193,7 @@ describe('refundCredits — reversal path', () => {
     // handling — but it must be recoverable from the logs, with enough context
     // to identify which operation lost the credits.
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
-    rpcMock.mockResolvedValue({ data: null, error: { message: 'connection reset' } });
+    adminRpcMock.mockResolvedValue({ data: null, error: { message: 'connection reset' } });
 
     await expect(
       refundCredits({ workspaceId: WS, amount: 50, refKind: 'influencer', refId: 'inf-1' }),
@@ -196,6 +206,37 @@ describe('refundCredits — reversal path', () => {
       refKind: 'influencer',
       refId: 'inf-1',
     });
+  });
+});
+
+describe('refundCredits — client isolation (0025)', () => {
+  it('uses the SERVICE-ROLE client, never the user session', async () => {
+    // grant_credits is the only way a balance goes up. While refunds ran on the
+    // session client, `authenticated` needed EXECUTE on it — which let any
+    // signed-in user credit their own workspace. 0025 revokes that grant, so
+    // routing a refund through the session client would now fail outright.
+    adminRpcMock.mockResolvedValue({ data: 1000, error: null });
+
+    await refundCredits({ workspaceId: WS, amount: 50, refKind: 'influencer', refId: 'r-1' });
+
+    expect(adminClientMock).toHaveBeenCalledTimes(1);
+    expect(rpcMock).not.toHaveBeenCalled();
+  });
+
+  it('logs and returns when the admin client cannot be built, never throws', async () => {
+    // This runs inside a catch handler; throwing here would mask the original
+    // error the caller is already handling.
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+    adminClientMock.mockImplementationOnce(() => {
+      throw new Error('Supabase admin client unavailable');
+    });
+
+    await expect(
+      refundCredits({ workspaceId: WS, amount: 50, refKind: 'influencer', refId: 'r-2' }),
+    ).resolves.toBeUndefined();
+
+    expect(adminRpcMock).not.toHaveBeenCalled();
+    expect(consoleError).toHaveBeenCalledTimes(1);
   });
 });
 

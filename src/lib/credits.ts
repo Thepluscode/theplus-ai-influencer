@@ -1,5 +1,6 @@
 import 'server-only';
 import { getSupabaseServerClient } from '@/lib/supabase/server';
+import { getSupabaseAdminClient } from '@/lib/supabase/admin';
 
 // ---------------------------------------------------------------------------
 // Credits — Phase 1 of BUILD_PLAN.md
@@ -141,7 +142,24 @@ export async function refundCredits(input: {
   refId?: string;
 }): Promise<void> {
   if (input.amount === 0) return;
-  const supabase = await getSupabaseServerClient();
+  // Service-role, NOT the user's session client. grant_credits is the only way
+  // a balance goes up, and every caller of this function is server code that
+  // has already decided a refund is owed — no user input reaches the amount.
+  // Running it under the session client is what forced `authenticated` to hold
+  // EXECUTE on grant_credits, which let any signed-in user credit themselves
+  // (0025 revokes it). Failing to build the admin client must not throw: this
+  // runs inside a catch handler and must never mask the original error.
+  let supabase;
+  try {
+    supabase = getSupabaseAdminClient();
+  } catch (err) {
+    console.error(
+      '[credits] refund skipped — admin client unavailable',
+      { workspaceId: input.workspaceId, amount: input.amount, refKind: input.refKind, refId: input.refId },
+      err,
+    );
+    return;
+  }
   const { error } = await (
     supabase.rpc as unknown as (
       fn: string,
