@@ -40,12 +40,13 @@ export default defineConfig({
       // are what actually stop it regressing. Each is set just under its
       // current value.
       thresholds: {
-        // Ratcheted 2026-08-02 after covering lib/billing (was 16/15/10/13):
-        // lines 17.50, statements 17.08, branches 11.49, functions 14.83.
-        lines: 17,
-        statements: 16,
-        branches: 11,
-        functions: 14,
+        // Ratcheted 2026-08-02 after covering lib/billing then brand-safety
+        // (16/15/10/13 -> 17/16/11/14 -> here). Measured: lines 18.33,
+        // statements 17.96, branches 12.45, functions 15.37.
+        lines: 18,
+        statements: 17,
+        branches: 12,
+        functions: 15,
 
         // Measured per metric — line % is NOT a stand-in for statement or
         // function %, which is how a first pass at these numbers failed.
@@ -58,6 +59,13 @@ export default defineConfig({
           lines: 100,
           statements: 100,
           branches: 100,
+          functions: 100,
+        },
+        // The publish gate — every publish path funnels through it.
+        'src/lib/brand-safety.ts': {
+          lines: 99,
+          statements: 98,
+          branches: 87,
           functions: 100,
         },
         'src/lib/credits.ts': { lines: 95, statements: 95, branches: 100, functions: 74 },

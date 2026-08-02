@@ -171,8 +171,27 @@ function normalize(parsed: unknown): SafetyResult {
       suggestion: typeof r.suggestion === 'string' ? r.suggestion : undefined,
     });
   }
-  return { verdict, summary, issues };
+  // The model's verdict is a claim, not evidence. It routinely contradicts its
+  // own instructions — returning verdict="pass" alongside a severity=high
+  // issue it just described. publish-safety.ts gates on `verdict === 'block'`
+  // and nothing else, so an over-generous verdict ships the post.
+  //
+  // Derive the floor from the issues the model actually reported and take
+  // whichever is STRICTER. Escalate only: a model that blocks a post with no
+  // listed issues is still honoured, because being cautious is not the failure
+  // mode worth defending against here. The stub path has always computed its
+  // verdict this way; this makes the real path agree.
+  const implied: SafetyVerdict = issues.some((i) => i.severity === 'high')
+    ? 'block'
+    : issues.some((i) => i.severity === 'medium')
+      ? 'warn'
+      : 'pass';
+  const strictest = VERDICT_RANK[implied] > VERDICT_RANK[verdict] ? implied : verdict;
+
+  return { verdict: strictest, summary, issues };
 }
+
+const VERDICT_RANK: Record<SafetyVerdict, number> = { pass: 0, warn: 1, block: 2 };
 
 // Deterministic stub used when OPENAI_STUB=1. Catches obvious red-flag
 // words so the UI states are exercisable without a real key.
