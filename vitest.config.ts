@@ -13,9 +13,9 @@ export default defineConfig({
       reporter: ['text-summary', 'json-summary', 'html'],
       reportsDirectory: './coverage',
       // Measure the whole of src, not just files a test happened to import —
-      // otherwise an untested module simply vanishes from the denominator and
-      // the percentage flatters itself.
-      all: true,
+      // otherwise an untested module vanishes from the denominator and the
+      // percentage flatters itself. In vitest 4 that is what `include` already
+      // does; the v3 `all: true` flag was removed and is a type error here.
       include: ['src/**/*.{ts,tsx}'],
       exclude: [
         // Every exclusion below is either generated, a type-only declaration,
