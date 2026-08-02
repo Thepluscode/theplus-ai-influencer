@@ -5,7 +5,7 @@ Never mark `VERIFIED` without production evidence (logs, API response, observed 
 
 ## Credits ledger — integrity & access control
 
-| Piece | State | Evidence |
+| Piece | Status | Evidence |
 | --- | --- | --- |
 | `0025_revoke_authenticated_grant_credits.sql` — self-crediting | VERIFIED (applied 2026-08-02, after the deploy) | 0023 stopped cross-tenant access but not self-crediting: `grant_credits` had to stay callable by `authenticated` because `refundCredits` used the user's session client, and `assert_workspace_owner()` passes for an owner by definition. So any signed-in user could credit their own workspace with any amount (a ceiling is not a fix — a capped attacker loops). `refundCredits` now uses the service-role client, which frees the grant to be revoked. Tests 14 → 16; mutation-checked (routing refunds back through the session client fails 6). **ORDERING held**: deployed first (the running build still refunded via the session client and would have started getting `42501`), then applied. Live-verified by impersonating each caller: owner self-credit DENIED `42501`; owner can still spend (360→358, `consume_credits` grant intact); the service-role refund path the new code uses still works — then rolled back (ledger 4 rows, balance 360, 0 residue). `grant_credits` has also disappeared from the Supabase security advisors, where it previously appeared under both the anon and authenticated `SECURITY DEFINER` warnings. |
 | Ledger unit tests (`src/lib/__tests__/credits.test.ts`) | VERIFIED | Money path had zero tests. 14 covering the debit path, both fail-closed branches (`-1` sentinel and non-numeric balance — neither may read as a successful debit), RPC error → throw, zero-cost short circuit, negative amount, and the reversal path. Mutation-checked: widening the sentinel comparison fails 2, making the refund throw fails 1. Scope is the RPC boundary — DB-owned atomicity/debit=credit are NOT covered and the file says so. |
@@ -15,7 +15,7 @@ Never mark `VERIFIED` without production evidence (logs, API response, observed 
 
 ## Billing — Stripe webhook
 
-| Piece | State | Evidence |
+| Piece | Status | Evidence |
 | --- | --- | --- |
 | Live checkout round-trip (test mode) | VERIFIED | Real end-to-end 2026-08-01 via Playwright against the deployed app: password sign-in → `/dashboard`, `/settings` billing rendered live plan data, Upgrade to Pro → `cs_test_a1in5f…` on account "The_plus", card `4242…4242` → paid → webhook → Supabase showed `plan=pro`, `credits=2500`, customer + subscription ids set. The `?billing=success` redirect is Stripe's return URL and proves nothing; the DB row is the evidence. Test user + subscription cleaned up afterwards (0 orphans, ledger back to 4 rows). **This run surfaced the two bugs below** — nothing short of a live checkout would have. |
 | `plan_renews_at` always null | VERIFIED | `route.ts:228` read `sub.current_period_end`, which Stripe moved onto `sub.items.data[0]`. Proven against the live subscription: top-level absent, `items.data[0].current_period_end = 1788279664`. A type cast had silenced the error rather than prompting a check — the type was right. Now reads the item with a legacy fallback. Test asserts the exact ISO timestamp; mutation-checked (reverting to top-level-only fails it). |
@@ -36,9 +36,9 @@ Never mark `VERIFIED` without production evidence (logs, API response, observed 
 
 Primary `/content-os` workflow: drop a source (paste / txt / md / pdf / audio / video) → extract reusable atoms → repackage into 10 channel-native outputs → approval-gated distribution through the existing posts / brand-safety / Calendar / Zernio path.
 
-| Piece | State | Evidence |
+| Piece | Status | Evidence |
 |---|---|---|
-| Migration `0017_content_os.sql` (5 tables, private `content-sources` bucket, claim/reclaim RPCs, RLS, credit-reason CHECK extend) | **APPLIED to prod** (project `izfwasxgfdisvlxjlvzs`, 2026-06-16) | verified: 5 tables present, bucket `public=false` @ 25 MB, 2 RPCs, constraint has new reasons; security advisors = WARN only |
+| Migration `0017_content_os.sql` (5 tables, private `content-sources` bucket, claim/reclaim RPCs, RLS, credit-reason CHECK extend) | VERIFIED (applied to prod 2026-06-16) | project `izfwasxgfdisvlxjlvzs`; verified: 5 tables present, bucket `public=false` @ 25 MB, 2 RPCs, constraint has new reasons; security advisors = WARN only |
 | env: `OPENAI_TRANSCRIBE_MODEL`, `CONTENT_SOURCE_MAX_BYTES`; deps: `unpdf@1.6.2`; credits: 4 COSTS + 4 reasons | done | typecheck/lint green |
 | Source ingest (client-direct upload to private bucket + `createContentSourceAction`) | done | demo page renders, upload composer wired |
 | Extraction (paste/txt/md, PDF via unpdf, audio/video via OpenAI transcribe) + atoms | done | unit tests (stub) pass; **real paid path unrun** |
