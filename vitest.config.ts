@@ -40,15 +40,26 @@ export default defineConfig({
       // are what actually stop it regressing. Each is set just under its
       // current value.
       thresholds: {
-        lines: 16,
-        statements: 15,
-        branches: 10,
-        functions: 13,
+        // Ratcheted 2026-08-02 after covering lib/billing (was 16/15/10/13):
+        // lines 17.50, statements 17.08, branches 11.49, functions 14.83.
+        lines: 17,
+        statements: 16,
+        branches: 11,
+        functions: 14,
 
         // Measured per metric — line % is NOT a stand-in for statement or
         // function %, which is how a first pass at these numbers failed.
         // credits.ts functions is 75% (3/4) because formatCredits is a pure UI
         // helper with no test; that is the honest figure, not 100.
+        // Both were 0% until 2026-08-02. plans.ts decides what a customer
+        // receives for their money, so it is held at 100.
+        'src/lib/billing/plans.ts': { lines: 100, statements: 100, branches: 90, functions: 100 },
+        'src/lib/billing/stripe.ts': {
+          lines: 100,
+          statements: 100,
+          branches: 100,
+          functions: 100,
+        },
         'src/lib/credits.ts': { lines: 95, statements: 95, branches: 100, functions: 74 },
         'src/lib/publish-safety.ts': { lines: 99, statements: 99, branches: 67, functions: 99 },
         'src/lib/zernio-webhooks.ts': { lines: 93, statements: 85, branches: 55, functions: 99 },
