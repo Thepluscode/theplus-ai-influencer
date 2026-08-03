@@ -113,11 +113,17 @@ export async function generateInfluencer(
     };
   }
 
+  // One id per attempt, threaded through the debit AND its refund. It is what
+  // pairs them in credit_transactions, and what lets migration 0021's unique
+  // index reject a second refund for the SAME attempt while still allowing a
+  // genuine retry (new attempt, new id) to be refunded on its own merits.
+  const attemptId = crypto.randomUUID();
   const consume = await consumeCredits({
     workspaceId,
     amount: COSTS.INFLUENCER_RENDER,
     reason: 'influencer_render',
     refKind: 'wizard',
+    refId: attemptId,
   });
   if (!consume.ok) {
     return {
@@ -137,6 +143,7 @@ export async function generateInfluencer(
       workspaceId,
       amount: COSTS.INFLUENCER_RENDER,
       refKind: 'wizard',
+      refId: attemptId,
     });
     const message = err instanceof Error ? err.message : 'Unknown Luma error';
     return { status: 'error', error: message };
