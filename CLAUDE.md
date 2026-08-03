@@ -98,3 +98,65 @@ pnpm exec vitest run -t "test name"
 - Server / SDK integration: mock at the SDK boundary in vitest. Only hit the real Luma / OpenAI / Zernio / Stripe API behind the explicit `*_STUB=0` env or a deliberate manual test — those are paid endpoints.
 - Cron worker (`/api/jobs/storyboard-animate`): `curl` it locally with `Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY` and quote the response.
 - "Build succeeded" ≠ "feature works." If verification can't run (missing env / service down), state explicitly which command was attempted and what blocked it.
+
+## False green — checks that pass while proving nothing
+
+Every rule below is a mistake actually made in this repo, not a hypothetical.
+The failure mode is always the same: something reported success, and the success
+was empty. Assume a green result is lying until it has a control.
+
+- **`$?` after a pipe is the last command's status, not the one you care about.**
+  `python3 x.py | tail -5; echo $?` reports `tail`'s exit code, so a script that
+  exited 7 prints `0`. Two mistakes in this repo were caused by exactly this.
+  **The shell here is zsh**, so the fix is `set -o pipefail`, or don't pipe when
+  the exit code is the evidence (`cmd > /tmp/out; rc=$?; tail /tmp/out`).
+  `${PIPESTATUS[0]}` is bash-only — in zsh it expands to the empty string with no
+  error, which is worse than wrong. zsh's own array is `$pipestatus[1]`
+  (lowercase, 1-indexed) and is clobbered by the very next command, so it must be
+  captured on the same line. Verified in this environment, not assumed.
+- **A command can exit 0 having done nothing.** `railway up` returned 0 while its
+  entire output was `Unauthorized. Please run railway login again.` — no deploy
+  happened, and the site still served 200 from the *old* build. Read what a
+  command printed; never infer success from its exit code alone.
+- **An assertion count below what you expected is a FAILED run.** A status linter
+  reported `0 entries, 0 ok, 0 failed`, exit 0 — it matched a `Status` column and
+  this repo's tracker said `State`. Every scanner and probe must assert a minimum
+  number of things found before asserting that they passed.
+- **An isolation check needs its positive twin.** "B cannot read A's data" proves
+  nothing if the route denies everyone, and "the marker is absent" proves nothing
+  if it was never stored. Assert the allowed case works and the marker exists.
+  See `scripts/probes/` for the shape.
+- **Prove a guard fails.** After writing a test or gate, break the code it
+  protects and confirm it goes red. A gate never observed failing is decoration.
+
+## Environment truths that produce convincing wrong answers
+
+- **A paused Supabase project returns EMPTY result sets without erroring** while
+  status is `COMING_UP`. A `pg_proc` query came back `[]` and nearly became
+  "migration 0006 was never applied." Check `get_project(id).status` is
+  `ACTIVE_HEALTHY` before trusting any empty result.
+- **A 307 to `/sign-in` is NOT proof the auth gate works.** A paused database
+  produces exactly the same redirect: `getUser()` fails, no user, redirect. Prove
+  auth with a real session that reaches `/dashboard`.
+- **`credit_transactions.id` is a uuid, not a sequence.** `order by id desc` returns
+  an arbitrary row. Order by `created_at`, or key on the `ref_id` you just wrote.
+- **A fixture that bypasses the ledger makes a reconciliation check meaningless.**
+  A test simulated a spend with a raw `UPDATE workspaces SET credits`, so
+  `opening + sum(deltas)` could never balance. Fixtures must move money the same
+  way production does.
+
+## Claims and their evidence
+
+- **Do not report an advisor warning as a defect without testing reachability.**
+  `bootstrap_workspace_for_user` and `rls_auto_enable` were called "the same class
+  as the anon credit hole"; both are trigger/event-trigger functions that PostgREST
+  cannot invoke at all (404 / 400). Try the exploit before naming it one.
+- **Verify a migration over the state it will actually meet.** A fresh schema makes
+  `DROP FUNCTION` a no-op and hides overload and grant problems. Replay it against
+  the prior migration's output too.
+- **Coverage: line % is not statement %, branch % or function %.** Thresholds
+  derived from the line figure failed on all three others. Read each metric.
+- **Pin test tooling to one version.** `@vitest/coverage-v8` installed against a
+  different `vitest` printed "Running mixed versions is not supported" and caused
+  one pre-push to fail and an identical re-run to pass — the intermittent failure
+  that teaches people to just push again.
