@@ -6,10 +6,12 @@
     "dev": "next dev --webpack --port 3002",
     "dev:turbo": "next dev --port 3002",
     "build": "next build",
-    "start": "next start --port 3002",
+    "start": "next start --port ${PORT:-3002}",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "lint:tracker": "python3 ~/.claude/skills/deployed-truth-probes/scripts/status_lint.py FEATURE_TRACKER.md --label 'NOT A DEFECT'",
     "test:watch": "vitest",
     "format": "prettier --write \"src/**/*.{ts,tsx,css,md}\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx,css,md}\"",
@@ -47,6 +49,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@vitejs/plugin-react": "^6.0.1",
+    "@vitest/coverage-v8": "^4.1.10",
     "eslint": "^9",
     "eslint-config-next": "16.2.6",
     "husky": "^9.1.7",
@@ -54,6 +57,6 @@
     "prettier": "^3.8.3",
     "tailwindcss": "^4",
     "typescript": "^5",
-    "vitest": "^4.1.5"
+    "vitest": "^4.1.10"
   }
 }

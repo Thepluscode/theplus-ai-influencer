@@ -95,11 +95,17 @@ export async function generateStoryboardAction(
     // so two simultaneous Generate clicks can't double-spend.
     const totalCost =
       COSTS.STORYBOARD_GENERATION + COSTS.STORYBOARD_SHOT_RENDER * parsed.data.shotCount;
+    // One id per attempt, threaded through the debit AND its refund. It is what
+    // pairs them in credit_transactions, and what lets migration 0021's unique
+    // index reject a second refund for the SAME attempt while still allowing a
+    // genuine retry (new attempt, new id) to be refunded on its own merits.
+    const attemptId = crypto.randomUUID();
     const consume = await consumeCredits({
       workspaceId: ws.id,
       amount: totalCost,
       reason: 'storyboard_generation',
       refKind: 'storyboard',
+      refId: attemptId,
     });
     if (!consume.ok) {
       return {
@@ -129,6 +135,7 @@ export async function generateStoryboardAction(
         workspaceId: ws.id,
         amount: totalCost,
         refKind: 'storyboard',
+        refId: attemptId,
       });
       throw err;
     }

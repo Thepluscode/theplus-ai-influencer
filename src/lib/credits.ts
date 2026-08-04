@@ -1,5 +1,6 @@
 import 'server-only';
 import { getSupabaseServerClient } from '@/lib/supabase/server';
+import { getSupabaseAdminClient } from '@/lib/supabase/admin';
 
 // ---------------------------------------------------------------------------
 // Credits — Phase 1 of BUILD_PLAN.md
@@ -128,8 +129,11 @@ export async function consumeCredits(input: {
 
 /**
  * Refund credits when a post-consume step fails (Luma errors out, OpenAI
- * returns invalid JSON, etc). Idempotent enough — issuing a refund_reason
- * with a unique ref_id in the audit log lets us catch duplicates manually.
+ * returns invalid JSON, etc). Idempotent when the caller passes a refKind +
+ * refId: a partial unique index on those columns (0021) makes a second refund
+ * for the same operation a no-op that returns the unchanged balance. Without
+ * a ref there is nothing to deduplicate on, so a retry credits twice — always
+ * pass the ref of the thing being reversed.
  */
 export async function refundCredits(input: {
   workspaceId: string;
@@ -138,7 +142,24 @@ export async function refundCredits(input: {
   refId?: string;
 }): Promise<void> {
   if (input.amount === 0) return;
-  const supabase = await getSupabaseServerClient();
+  // Service-role, NOT the user's session client. grant_credits is the only way
+  // a balance goes up, and every caller of this function is server code that
+  // has already decided a refund is owed — no user input reaches the amount.
+  // Running it under the session client is what forced `authenticated` to hold
+  // EXECUTE on grant_credits, which let any signed-in user credit themselves
+  // (0025 revokes it). Failing to build the admin client must not throw: this
+  // runs inside a catch handler and must never mask the original error.
+  let supabase;
+  try {
+    supabase = getSupabaseAdminClient();
+  } catch (err) {
+    console.error(
+      '[credits] refund skipped — admin client unavailable',
+      { workspaceId: input.workspaceId, amount: input.amount, refKind: input.refKind, refId: input.refId },
+      err,
+    );
+    return;
+  }
   const { error } = await (
     supabase.rpc as unknown as (
       fn: string,
@@ -148,6 +169,8 @@ export async function refundCredits(input: {
     p_workspace_id: input.workspaceId,
     p_amount: input.amount,
     p_reason: 'refund' as CreditReason,
+    p_ref_kind: input.refKind ?? null,
+    p_ref_id: input.refId ?? null,
   });
   if (error) {
     // Log loudly — refund failures shouldn't poison the caller's UX but

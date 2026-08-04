@@ -98,3 +98,32 @@ pnpm exec vitest run -t "test name"
 - Server / SDK integration: mock at the SDK boundary in vitest. Only hit the real Luma / OpenAI / Zernio / Stripe API behind the explicit `*_STUB=0` env or a deliberate manual test — those are paid endpoints.
 - Cron worker (`/api/jobs/storyboard-animate`): `curl` it locally with `Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY` and quote the response.
 - "Build succeeded" ≠ "feature works." If verification can't run (missing env / service down), state explicitly which command was attempted and what blocked it.
+
+## Verification traps
+
+The general rules — pipe exit codes in zsh, commands that exit 0 having done
+nothing, scanners that match zero rows, isolation checks with no positive twin,
+paused-Supabase empty results, claiming a defect before testing reachability —
+live in `~/.claude/rules/verification-traps.md` and apply to every project. Read
+those first. What follows is only what is specific to THIS repo.
+
+- **`credit_transactions.id` is a uuid, not a sequence.** `order by id desc` returns
+  an arbitrary row — it once reported `delta=85` for a row whose delta was 2140.
+  Order by `created_at`, or key on the `ref_id` you just wrote.
+- **Ledger fixtures must move money the way production does.** A test simulated a
+  spend with a raw `UPDATE workspaces SET credits`, bypassing the ledger, so
+  `opening + sum(deltas)` could never reconcile and the check proved nothing. Debit
+  through `consume_credits` / `apply_plan_credits` semantics instead.
+- **A `307 → /sign-in` from this app is not proof the auth gate works** — a paused
+  Supabase produces the identical redirect. Prove it with a real session reaching
+  `/dashboard`.
+- **Every `refundCredits` call needs a `refId`.** Migration 0021's unique index only
+  deduplicates when `ref_kind` AND `ref_id` are both non-null. Mint one attempt id
+  and thread it through the debit and its refund; `src/lib/__tests__/refund-refs.test.ts`
+  fails the build otherwise.
+- **Deployed-truth probes live in `scripts/probes/`** (`error_paths.py`,
+  `cross_user.py`) and `pnpm lint:tracker` checks FEATURE_TRACKER status/evidence.
+  Run them against the DEPLOYED host — they carry their own `--selftest`.
+- **Migration ordering can break the running build.** A grant revoke must ship
+  AFTER the code that stops needing it (0025 vs the service-role refund client), or
+  the deployed app starts failing on the old path.

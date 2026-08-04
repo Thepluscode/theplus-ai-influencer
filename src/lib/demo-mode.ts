@@ -543,6 +543,10 @@ export function getDemoPlatformVariants(
 // ---------------------------------------------------------------------------
 
 const DEMO_SOURCE_ID_2 = '00000000-0000-4000-8000-000000000902';
+const DEMO_SOURCE_ID_3 = '00000000-0000-4000-8000-000000000903';
+const DEMO_SOURCE_ID_4 = '00000000-0000-4000-8000-000000000904';
+const DEMO_SOURCE_ID_5 = '00000000-0000-4000-8000-000000000905';
+const DEMO_SOURCE_ID_6 = '00000000-0000-4000-8000-000000000906';
 const DEMO_TS = new Date('2026-05-26T09:00:00.000Z').toISOString();
 
 export function getDemoContentSources(): ContentSourceRow[] {
@@ -578,17 +582,92 @@ export function getDemoContentSources(): ContentSourceRow[] {
       created_at: new Date('2026-05-26T08:50:00.000Z').toISOString(),
       updated_at: DEMO_TS,
     },
+    {
+      id: DEMO_SOURCE_ID_3,
+      workspace_id: DEMO_WORKSPACE_ID,
+      title: 'Q2 Product Launch Keynote.pdf',
+      type: 'pdf',
+      status: 'repackaging',
+      storage_path: `${DEMO_WORKSPACE_ID}/q2-product-launch.pdf`,
+      byte_size: 18_400_000,
+      mime_type: 'application/pdf',
+      raw_text: null,
+      extracted_text: 'Product launch keynote covering positioning, customer proof, and rollout.',
+      last_error: null,
+      created_at: new Date('2026-05-26T08:20:00.000Z').toISOString(),
+      updated_at: DEMO_TS,
+    },
+    {
+      id: DEMO_SOURCE_ID_4,
+      workspace_id: DEMO_WORKSPACE_ID,
+      title: 'Customer Story Interview.mp4',
+      type: 'video',
+      status: 'extracting',
+      storage_path: `${DEMO_WORKSPACE_ID}/customer-story.mp4`,
+      byte_size: 132_000_000,
+      mime_type: 'video/mp4',
+      raw_text: null,
+      extracted_text: null,
+      last_error: null,
+      created_at: new Date('2026-05-26T07:50:00.000Z').toISOString(),
+      updated_at: DEMO_TS,
+    },
+    {
+      id: DEMO_SOURCE_ID_5,
+      workspace_id: DEMO_WORKSPACE_ID,
+      title: 'Pitch Deck — Acme Corp.pdf',
+      type: 'pdf',
+      status: 'ready',
+      storage_path: `${DEMO_WORKSPACE_ID}/acme-pitch.pdf`,
+      byte_size: 3_600_000,
+      mime_type: 'application/pdf',
+      raw_text: null,
+      extracted_text: 'Acme positioning, problem framing, differentiation, and customer outcomes.',
+      last_error: null,
+      created_at: new Date('2026-05-25T16:00:00.000Z').toISOString(),
+      updated_at: DEMO_TS,
+    },
+    {
+      id: DEMO_SOURCE_ID_6,
+      workspace_id: DEMO_WORKSPACE_ID,
+      title: 'Newsletter Draft — July.md',
+      type: 'md',
+      status: 'ready',
+      storage_path: `${DEMO_WORKSPACE_ID}/newsletter-july.md`,
+      byte_size: 6_000,
+      mime_type: 'text/markdown',
+      raw_text: 'A field note on building a repeatable distribution engine.',
+      extracted_text: 'A field note on building a repeatable distribution engine.',
+      last_error: null,
+      created_at: new Date('2026-05-25T12:00:00.000Z').toISOString(),
+      updated_at: DEMO_TS,
+    },
   ];
 }
 
 const DEMO_ATOM_SEED: Array<{ kind: ContentAtomRow['kind']; text: string }> = [
   { kind: 'hook', text: 'Most creators burn out because they treat every post as net-new work.' },
-  { kind: 'claim', text: 'Repurposing turns one strong source into a week of channel-native content.' },
+  {
+    kind: 'claim',
+    text: 'Repurposing turns one strong source into a week of channel-native content.',
+  },
   { kind: 'framework', text: 'Capture → extract atoms → reshape per channel → distribute.' },
-  { kind: 'objection', text: '"Reposting feels lazy" — but native reshaping is the opposite of copy-paste.' },
-  { kind: 'proof_point', text: 'Teams that systematize repurposing ship 5x more without more ideas.' },
-  { kind: 'story', text: 'A solo founder went from 2 posts a week to 20 by extracting from podcasts.' },
-  { kind: 'audience_insight', text: 'Creators do not lack ideas; they lack a system to multiply them.' },
+  {
+    kind: 'objection',
+    text: '"Reposting feels lazy" — but native reshaping is the opposite of copy-paste.',
+  },
+  {
+    kind: 'proof_point',
+    text: 'Teams that systematize repurposing ship 5x more without more ideas.',
+  },
+  {
+    kind: 'story',
+    text: 'A solo founder went from 2 posts a week to 20 by extracting from podcasts.',
+  },
+  {
+    kind: 'audience_insight',
+    text: 'Creators do not lack ideas; they lack a system to multiply them.',
+  },
   { kind: 'cta', text: 'Drop one source into Content OS and watch it become ten posts.' },
 ];
 
@@ -673,7 +752,8 @@ const DEMO_ITEM_BODIES: Record<string, unknown> = {
   },
   blog_aeo: {
     title: 'How creators repurpose one source into ten posts',
-    metaDescription: 'A practical repurposing system: capture, extract atoms, reshape per channel, distribute.',
+    metaDescription:
+      'A practical repurposing system: capture, extract atoms, reshape per channel, distribute.',
     outline: ['Why creators burn out', 'The four-step system', 'Atoms explained', 'Distribution'],
     body: 'Most creators burn out because they treat every post as net-new work…',
   },
@@ -726,7 +806,7 @@ export function getDemoContentPackItems(): ContentPackItemRow[] {
     channel,
     format: formatFor(channel),
     body: DEMO_ITEM_BODIES[channel],
-    status: i === 0 ? 'scheduled' : i === 1 ? 'approved' : 'draft',
+    status: i < 5 ? 'scheduled' : i === 5 ? 'approved' : 'draft',
     post_id: i <= 1 ? DEMO_POST_ID : null,
     storyboard_id: null,
     last_error: null,
@@ -736,24 +816,29 @@ export function getDemoContentPackItems(): ContentPackItemRow[] {
 }
 
 export function getDemoContentJobs(): ContentJobRow[] {
-  return [
-    {
-      id: '00000000-0000-4000-8000-000000009400',
-      workspace_id: DEMO_WORKSPACE_ID,
-      kind: 'extract',
-      source_id: DEMO_SOURCE_ID_2,
-      pack_id: null,
-      pack_item_id: null,
-      status: 'processing',
-      attempts: 1,
-      last_error: null,
-      cost_charged: 15,
-      cost_refunded: 0,
-      claimed_at: DEMO_TS,
-      started_at: DEMO_TS,
-      completed_at: null,
-      created_at: new Date('2026-05-26T08:50:00.000Z').toISOString(),
-      updated_at: DEMO_TS,
-    },
+  const jobs: Array<[string, ContentJobRow['kind'], string, number]> = [
+    ['00000000-0000-4000-8000-000000009400', 'extract', DEMO_SOURCE_ID_2, 15],
+    ['00000000-0000-4000-8000-000000009401', 'repackage', DEMO_SOURCE_ID_3, 24],
+    ['00000000-0000-4000-8000-000000009402', 'extract', DEMO_SOURCE_ID_4, 18],
+    ['00000000-0000-4000-8000-000000009403', 'media', DEMO_SOURCE_ID_6, 12],
   ];
+
+  return jobs.map(([id, kind, sourceId, cost], index) => ({
+    id,
+    workspace_id: DEMO_WORKSPACE_ID,
+    kind,
+    source_id: sourceId,
+    pack_id: null,
+    pack_item_id: null,
+    status: 'processing',
+    attempts: 1,
+    last_error: null,
+    cost_charged: cost,
+    cost_refunded: 0,
+    claimed_at: DEMO_TS,
+    started_at: DEMO_TS,
+    completed_at: null,
+    created_at: new Date(`2026-05-26T0${8 - index}:50:00.000Z`).toISOString(),
+    updated_at: DEMO_TS,
+  }));
 }
