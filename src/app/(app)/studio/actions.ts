@@ -195,3 +195,86 @@ export async function saveGeneratedInfluencer(
     return { status: 'error', error: message };
   }
 }
+
+// ---------------------------------------------------------------------------
+// Replace a saved persona's identity image.
+// ---------------------------------------------------------------------------
+// The wizard only ever GENERATES a face, so an operator with their own shoot
+// had no way to make it the persona. This swaps the stored URL on an existing
+// model. `portrait_url` is what the whole pipeline passes to Luma as
+// `character_ref` (luma-post.ts, content-media.ts, storyboard.ts,
+// content-pipeline.ts), so replacing it re-points every future render.
+// ---------------------------------------------------------------------------
+
+export type ReplaceImageState =
+  | { status: 'idle' }
+  | { status: 'saved'; kind: 'portrait' | 'full_body' }
+  | { status: 'error'; error: string };
+
+const PERSONA_REF_PREFIX = '/storage/v1/object/public/persona-refs/';
+
+export async function replacePersonaImage(
+  _prev: ReplaceImageState | null,
+  formData: FormData,
+): Promise<ReplaceImageState> {
+  const modelId = formData.get('modelId');
+  const kind = formData.get('kind');
+  const url = formData.get('url');
+
+  if (typeof modelId !== 'string' || !modelId) {
+    return { status: 'error', error: 'Missing persona id.' };
+  }
+  if (kind !== 'portrait' && kind !== 'full_body') {
+    return { status: 'error', error: 'Unknown image kind.' };
+  }
+  // Only accept a URL this app just wrote. Without this the field is an open
+  // redirect into Luma: any attacker-supplied URL would be fetched server-side
+  // during the next render (SSRF), and would silently become the persona.
+  if (typeof url !== 'string' || !url.includes(PERSONA_REF_PREFIX)) {
+    return { status: 'error', error: 'Image must be uploaded through this form.' };
+  }
+
+  if (isDemoMode()) {
+    return { status: 'saved', kind };
+  }
+
+  try {
+    const supabase = await getSupabaseServerClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) {
+      return { status: 'error', error: 'Not signed in.' };
+    }
+    const workspace = await getOrCreateCurrentWorkspace(user);
+
+    // Scope the write to the caller's workspace. RLS covers this too; the
+    // explicit filter means a mismatched id updates zero rows instead of
+    // relying on the policy alone.
+    // Branch rather than a computed key: a `{ [column]: url }` object widens to
+    // Record<string, string> and loses the Update type entirely, so a typo in a
+    // column name would compile.
+    const patch = kind === 'portrait' ? { portrait_url: url } : { full_body_url: url };
+    const { data, error } = await supabase
+      .from('ai_models')
+      .update(patch)
+      .eq('id', modelId)
+      .eq('workspace_id', workspace.id)
+      .select('id');
+    if (error) {
+      return { status: 'error', error: error.message };
+    }
+    if (!data?.length) {
+      // Zero rows means the persona is not in this workspace. Do not say which.
+      return { status: 'error', error: 'Persona not found.' };
+    }
+
+    revalidatePath('/studio');
+    return { status: 'saved', kind };
+  } catch (err) {
+    return {
+      status: 'error',
+      error: err instanceof Error ? err.message : 'Could not replace the image.',
+    };
+  }
+}
