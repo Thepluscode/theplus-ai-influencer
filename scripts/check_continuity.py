@@ -147,10 +147,9 @@ SECRET_ENV = re.compile(r"SERVICE_ROLE_KEY|_SECRET_KEY|_API_KEY|WEBHOOK_SECRET|C
 #   module itself. It also exports publicEnv, which exists to be imported from
 #   client code — a server-only guard here would defeat the serverEnv/publicEnv
 #   split the whole convention rests on.
-#   A REAL GAP: stripe.ts builds `new Stripe(STRIPE_SECRET_KEY)` and omits the
-#   guard while billing/stripe.ts declares it. Recorded in PARKING_LOT.md.
+#   stripe.ts was the one real gap; guarded 2026-09-23 (see PARKING_LOT.md).
 EXEMPT_BY_DESIGN = {"env.ts"}
-KNOWN_UNGUARDED = {"stripe.ts"}
+KNOWN_UNGUARDED: set[str] = set()
 
 lib_modules = [p for p in LIB.rglob("*.ts") if "__tests__" not in p.parts]
 check("lib modules were read", len(lib_modules) >= 20, f"{len(lib_modules)} found")
@@ -170,10 +169,6 @@ check("the known gap has not been closed without updating this check",
       gaps == KNOWN_UNGUARDED or not gaps,
       f"gaps are now {sorted(gaps)} — if stripe.ts was fixed, remove it from "
       f"KNOWN_UNGUARDED and from PARKING_LOT.md")
-
-check("the stripe.ts server-only gap is still recorded as known",
-      "stripe.ts" in _read(ROOT / "PARKING_LOT.md") or not gaps,
-      "a known gap with no record is an unknown gap")
 
 check("env access is centralised", (LIB / "env.ts").exists())
 check("the env module validates with Zod", "zod" in _read(LIB / "env.ts").lower())

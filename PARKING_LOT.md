@@ -11,37 +11,14 @@ The two open pull requests are the active task and are recorded in
 
 ---
 
-## P1 — found, verified, and deliberately NOT fixed
+## P1 — resolved 2026-09-23
 
-### `src/lib/stripe.ts` omits `server-only` while holding the Stripe secret key
-
-It calls `new Stripe(serverEnv.STRIPE_SECRET_KEY, …)` and does not
-`import 'server-only'`. Its sibling `src/lib/billing/stripe.ts` does declare it.
-
-`CLAUDE-OPERATING.md` states the rule in this repository's own words: *any module
-that imports an SDK secret or `supabase/server.ts` must import `'server-only'` at
-the top so accidental client imports fail at build time.* This module is exactly
-that case and is the exception.
-
-**Nothing is leaking today.** Every importer of `@/lib/stripe` was checked and
-all of them are server files — no `'use client'` tree reaches it. The guard's
-purpose is to make a *future* accidental import fail at build instead of shipping
-the key into the browser bundle, so its absence is invisible until the day it
-matters.
-
-**Why it was not fixed here**, having been written and then reverted: the fix is
-one line, but **dependencies are not installed anywhere in this workspace**, so
-neither `pnpm typecheck` nor `pnpm test` could be run against it. This project
-has **no remote CI** — `.husky/pre-push` is the only gate — so an unverified
-one-line change to a module in the Stripe path would have shipped with nothing
-at all having checked it. `src/lib/billing/plans.ts` also imports `serverEnv`,
-but only for `STRIPE_PRICE_*` identifiers, which are not secrets; it was left
-alone.
-
-**Becomes the task when:** someone has `pnpm install` run. Add
-`import 'server-only';` as the first line, run typecheck and tests, then add
-`stripe.ts` to the named list in `scripts/check_continuity.py` and delete the
-check that records this gap.
+`src/lib/stripe.ts` held the Stripe secret key without `import 'server-only'`. Founder-approved fix
+on 2026-09-23: the guard is now its first line. Before the fix the module had **zero importers** on
+`main`, `origin/main` and the feature branch (every caller uses `@/lib/billing/stripe`, which already
+had the guard), so nothing leaked. The guard stops a future client import at build time.
+Verified by `pnpm typecheck` and `pnpm test`, installed from the frozen lockfile with scripts disabled. Vitest
+stubs `server-only`, so the tests show no regression; they do not show that the guard blocks a client import.
 
 ---
 

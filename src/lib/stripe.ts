@@ -1,3 +1,4 @@
+import 'server-only';
 import Stripe from 'stripe';
 import { serverEnv } from '@/lib/env';
 
