@@ -1,0 +1,113 @@
+# The authorised current task. This file decides what a session works on.
+#
+# Counts, SHAs, migration numbers and test totals do NOT belong here — they go
+# stale and this file is hand-edited. They live in PROJECT_STATE.json.
+
+schema: active-work/1
+repository: theplus-ai-influencer
+canonical_remote: https://github.com/Thepluscode/theplus-ai-influencer.git
+
+gates:
+  enforced: >
+    .husky/pre-push — typecheck, lint, test. It is the ONLY enforced gate in
+    this project. GitHub Actions is unavailable on this account, so there is no
+    remote CI behind it to catch what it misses.
+  consequence: >
+    A --no-verify push has nothing checking it at all. Treat the hook as the
+    pipeline rather than a convenience.
+
+active:
+  task: >
+    Land the two open pull requests. Main is missing a security fix, four
+    credits-ledger defect fixes, deployed-truth probes and the operating rules
+    written from real mistakes — all of it sitting on branches.
+  status: stalled
+  claim_level: tested
+  source: the open pull requests
+  corroborated_by: FEATURE_TRACKER.md
+  why_this_and_not_new_features: >
+    PR #9 has been open since 2026-08-01 and PR #8 since 2026-07-22. Everything
+    they carry was written, reviewed by pre-push and then left. Building on main
+    means building on a branch that lacks a security grant revoke and a refund
+    dedupe fix, and every further commit widens the merge.
+  what_main_is_missing:
+    - A security fix revoking a helper grant an earlier migration introduced.
+    - The refund dedupe fix — every refundCredits call needs a refId, because the
+      unique index only deduplicates when ref_kind AND ref_id are both non-null.
+    - Deployed-truth probes for error paths and cross-user isolation.
+    - The verification-traps section written from this project's own mistakes,
+      which exists only on the branch. Main's operating file is 29 lines shorter
+      and does not warn about any of them.
+  permitted_without_further_approval:
+    - Merging the open pull requests, or rebasing them.
+    - Correctness, test and documentation work.
+    - Running the deployed-truth probes and recording what they found.
+  forbidden:
+    - Pushing with --no-verify. Pre-push is the only gate.
+    - Publishing or scheduling without the brand-safety gate.
+    - Catching or swallowing DemoModeBlockedError.
+    - Calling refundCredits without a refId.
+    - Reading process.env directly in app code instead of serverEnv/publicEnv.
+    - Hitting a paid Luma, OpenAI, Zernio or Stripe endpoint without saying so.
+
+blocked:
+  - what: PR #9 — public surfaces rebuilt, four credits-ledger defects closed
+    detail: Twenty-three commits, open since 2026-08-01.
+    blocked_on: review and merge
+  - what: PR #8 — billing reconciliation sweep for lost Stripe webhooks
+    detail: One commit, open since 2026-07-22.
+    blocked_on: review and merge
+
+parked:
+  - id: PLAYWRIGHT-E2E
+    what: Wire up the installed Playwright
+    why: >
+      @playwright/test is a dependency with no config and no e2e/ directory.
+      Adding browser tests while two branches are unmerged means writing them
+      against a main that is about to change.
+    unparks_when: The open pull requests land.
+  - id: SERIES-CONTENT-ENGINE-RENAME
+    what: Finish the Series to Content Engine rename
+    why: >
+      Both route directories still exist. Moving code between them now would
+      conflict with a twenty-three-commit branch that touches public surfaces.
+    unparks_when: PR #9 lands.
+  - id: SUPABASE-CLI-MIGRATIONS
+    what: Move migrations from the SQL editor to the Supabase CLI
+    why: >
+      The operating file already says to switch "once schema churn justifies
+      it". Applying migrations by hand in numeric order is the current process
+      and it works.
+    unparks_when: Schema churn makes hand-application error-prone.
+
+task_switch_requires:
+  - FOUNDER_OVERRIDE
+  - CURRENT_TASK_COMPLETED
+  - RELEASE_CONDITION_MET
+  - VERIFIED_P0_P1_INTERRUPT
+
+history:
+  - date: 2026-08-03
+    from: Fixing defects one at a time
+    to: Writing the mistakes down as rules
+    reason: >
+      Several expensive errors in one session — a uuid primary key ordered as if
+      it were a sequence, a ledger fixture that bypassed the ledger so its
+      reconciliation could never fail, a refund whose dedupe index could not fire
+      because its ref was null.
+    evidence: Commits bee189b and 4c2a50c; the verification-traps section.
+    approved_by: founder
+  - date: 2026-09-23
+    from: (no continuity contract)
+    to: >
+      Continuity migration — charter, active work, parking lot, generated state
+      and an enforcing contract test, authored on main.
+    reason: >
+      A fresh session could not learn that this app posts to real connected
+      accounts, that pre-push is the only gate in the project, or that two pull
+      requests carrying a security fix had been open for weeks.
+    evidence: >
+      Phase 0 recorded zero commits in 24 hours, last commit 2026-08-04, a clean
+      working tree and no file activity in 60 minutes. Authored in a worktree on
+      main so the branch carrying PR #9 was never touched.
+    approved_by: founder

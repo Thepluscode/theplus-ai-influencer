@@ -47,3 +47,5 @@ supabase/.temp/
 
 # Playwright MCP screenshot/snapshot artifacts
 .playwright-mcp/
+
+PROJECT_STATE.json
