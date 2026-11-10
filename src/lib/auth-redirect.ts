@@ -16,3 +16,23 @@ export function sanitizeReturnTo(
   if (CONTROL_CHAR.test(input)) return null;
   return input;
 }
+
+/** Where a fresh session lands when no explicit `next` was asked for. */
+export function landingAfterAuth(
+  user: { created_at?: string; last_sign_in_at?: string } | null,
+): string {
+  return user && isFirstSignIn(user) ? '/welcome' : '/dashboard';
+}
+
+// ponytail: GoTrue stamps created_at and last_sign_in_at together on a user's
+// first OAuth sign-in; a returning user's created_at is older. A user who signs
+// in twice inside the window sees /welcome again, which is harmless. Store an
+// "onboarded" flag if that ever matters.
+const FIRST_SIGN_IN_WINDOW_MS = 60_000;
+
+function isFirstSignIn(user: { created_at?: string; last_sign_in_at?: string }): boolean {
+  const created = Date.parse(user.created_at ?? '');
+  const signedIn = Date.parse(user.last_sign_in_at ?? '');
+  if (Number.isNaN(created) || Number.isNaN(signedIn)) return false;
+  return Math.abs(signedIn - created) < FIRST_SIGN_IN_WINDOW_MS;
+}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { sanitizeReturnTo } from '../auth-redirect';
+import { landingAfterAuth, sanitizeReturnTo } from '../auth-redirect';
 
 describe('sanitizeReturnTo', () => {
   it('accepts a same-origin pathname', () => {
@@ -30,5 +30,43 @@ describe('sanitizeReturnTo', () => {
     expect(sanitizeReturnTo('/dashboard\nfoo')).toBeNull();
     expect(sanitizeReturnTo('/dashboard\x00bar')).toBeNull();
     expect(sanitizeReturnTo('/dashboard\x7fdel')).toBeNull();
+  });
+});
+
+describe('landingAfterAuth', () => {
+  it('sends a first sign-in (created and signed in together) to /welcome', () => {
+    expect(
+      landingAfterAuth({
+        created_at: '2026-11-10T12:00:00Z',
+        last_sign_in_at: '2026-11-10T12:00:01Z',
+      }),
+    ).toBe('/welcome');
+  });
+  it('sends a returning user to /dashboard', () => {
+    expect(
+      landingAfterAuth({
+        created_at: '2026-10-01T12:00:00Z',
+        last_sign_in_at: '2026-11-10T12:00:00Z',
+      }),
+    ).toBe('/dashboard');
+  });
+  it('treats the 60s window edge, missing or bad timestamps and no user as returning', () => {
+    expect(
+      landingAfterAuth({
+        created_at: '2026-11-10T12:00:00Z',
+        last_sign_in_at: '2026-11-10T12:01:00Z',
+      }),
+    ).toBe('/dashboard');
+    expect(
+      landingAfterAuth({
+        created_at: '2026-11-10T12:00:00Z',
+        last_sign_in_at: '2026-11-10T12:00:59Z',
+      }),
+    ).toBe('/welcome');
+    expect(landingAfterAuth({ created_at: '2026-11-10T12:00:00Z' })).toBe('/dashboard');
+    expect(landingAfterAuth({ created_at: 'garbage', last_sign_in_at: 'garbage' })).toBe(
+      '/dashboard',
+    );
+    expect(landingAfterAuth(null)).toBe('/dashboard');
   });
 });
