@@ -50,3 +50,4 @@ supabase/.temp/
 
 # coverage output
 /coverage
+PROJECT_STATE.json
