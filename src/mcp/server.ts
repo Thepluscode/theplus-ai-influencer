@@ -26,11 +26,9 @@ export interface McpIdentity {
   workspaceId: string;
 }
 
-export type ErrorCode =
-  | 'VALIDATION_ERROR'
-  | 'UNAUTHENTICATED'
-  | 'RESOURCE_NOT_FOUND'
-  | 'INTERNAL_ERROR';
+// Argument validation is the SDK's, before a handler runs: a bad call gets
+// isError with a message naming the field, and no envelope (see docs/mcp.md).
+export type ErrorCode = 'UNAUTHENTICATED' | 'RESOURCE_NOT_FOUND' | 'INTERNAL_ERROR';
 
 export interface AuditEvent {
   at: string;
@@ -67,7 +65,7 @@ const offsetOf = (cursor?: string) => (cursor ? Number(cursor.slice(2)) : 0);
 
 const meta = z.object({ request_id: z.string(), timestamp: z.string() });
 const errorShape = z.object({
-  code: z.enum(['VALIDATION_ERROR', 'UNAUTHENTICATED', 'RESOURCE_NOT_FOUND', 'INTERNAL_ERROR']),
+  code: z.enum(['UNAUTHENTICATED', 'RESOURCE_NOT_FOUND', 'INTERNAL_ERROR']),
   message: z.string(),
   retryable: z.boolean(),
 });

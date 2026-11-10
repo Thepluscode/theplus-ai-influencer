@@ -46,9 +46,14 @@ call returns `UNAUTHENTICATED`. The reason goes to stderr.
 
 ## Tools
 
-All results use `{ success, data | error, meta: { request_id, timestamp } }`. Errors
-also set `isError: true`. Error codes: `VALIDATION_ERROR`, `UNAUTHENTICATED`,
-`RESOURCE_NOT_FOUND`, `INTERNAL_ERROR`. Database detail is never returned.
+Every call that passes argument validation returns
+`{ success, data | error, meta: { request_id, timestamp } }`, with `isError: true`
+on errors. Error codes: `UNAUTHENTICATED`, `RESOURCE_NOT_FOUND`, `INTERNAL_ERROR`.
+Database detail is never returned.
+
+Invalid arguments are rejected by the MCP SDK before the tool runs. The result
+has `isError: true` and a text message naming the field (for example,
+`Unrecognized key: "workspace_id"`), but no envelope or request id, and no audit line.
 
 | Tool                    | Input                                 | Returns                                                                                   |
 | ----------------------- | ------------------------------------- | ----------------------------------------------------------------------------------------- |

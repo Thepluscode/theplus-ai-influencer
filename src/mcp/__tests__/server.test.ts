@@ -242,14 +242,20 @@ describe('MCP server v1 — rejections', () => {
   it('rejects unknown arguments, a forged workspace field, bad ids and out-of-range limits', async () => {
     const { db, calls } = fakeDb(TABLES);
     const { client } = await connect(db);
-    for (const args of [
-      { name: 'list_influencers', arguments: { workspace_id: WS_B } },
-      { name: 'get_influencer', arguments: { influencer_id: 'not-a-uuid' } },
-      { name: 'list_influencers', arguments: { limit: 51 } },
-      { name: 'list_influencers', arguments: { cursor: 'o:-1' } },
-    ]) {
+    for (const [args, says] of [
+      [
+        { name: 'list_influencers', arguments: { workspace_id: WS_B } },
+        /Unrecognized key: "workspace_id"/,
+      ],
+      [{ name: 'get_influencer', arguments: { influencer_id: 'not-a-uuid' } }, /influencer_id/],
+      [{ name: 'list_influencers', arguments: { limit: 51 } }, /limit/],
+      [{ name: 'list_influencers', arguments: { cursor: 'o:-1' } }, /cursor/],
+    ] as const) {
       const r = await client.callTool(args);
+      // The SDK rejects these before the handler: isError + a message naming the field.
       expect(r.isError, JSON.stringify(args)).toBe(true);
+      expect((r.content as { text: string }[])[0].text).toMatch(/-32602: Input validation error/);
+      expect((r.content as { text: string }[])[0].text).toMatch(says);
     }
     expect(calls).toHaveLength(0);
   });
