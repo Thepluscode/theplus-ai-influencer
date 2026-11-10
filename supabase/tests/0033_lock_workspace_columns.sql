@@ -62,6 +62,16 @@ begin
   exception when insufficient_privilege then null;  -- RLS refusals are 42501 too
   end;
 
+  -- 6. TRUNCATE (bypasses RLS) on the ledger.
+  select count(*) into n from public.credit_transactions;
+  begin
+    truncate public.credit_transactions cascade;
+  exception when insufficient_privilege then null;
+  end;
+  if (select count(*) from public.credit_transactions) < n then
+    raise exception 'FAIL: authenticated could TRUNCATE the ledger';
+  end if;
+
   -- Outcome, read back as the owner.
   select credits, plan, stripe_customer_id into now_row from public.workspaces where id = ws;
   if not found then raise exception 'FAIL: owner could DELETE their workspace'; end if;

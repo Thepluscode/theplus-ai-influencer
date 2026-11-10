@@ -40,7 +40,9 @@
 -- from 0001/0006. Do not roll back without a replacement.
 -- =============================================================================
 
-revoke insert, update, delete on public.workspaces from anon, authenticated;
+-- TRUNCATE too: production showed both roles holding it, and it bypasses RLS.
+-- PostgREST does not expose it, so this is defence in depth, not a live path.
+revoke insert, update, delete, truncate on public.workspaces from anon, authenticated;
 
 -- The bootstrap insert may name only these columns; credits and plan come from
 -- the column defaults (360 / 'free'), never from the caller.
@@ -51,5 +53,5 @@ grant insert (owner_user_id, name) on public.workspaces to authenticated;
 drop policy if exists "owners can update own workspaces" on public.workspaces;
 drop policy if exists "owners can delete own workspaces" on public.workspaces;
 
-revoke insert, update, delete on public.credit_transactions from anon, authenticated;
+revoke insert, update, delete, truncate on public.credit_transactions from anon, authenticated;
 drop policy if exists "owners can insert credit transactions" on public.credit_transactions;
