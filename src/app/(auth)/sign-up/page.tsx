@@ -1,8 +1,12 @@
 import Link from 'next/link';
+import { enabledOAuthProviders, type OAuthProvider } from '@/lib/oauth-providers';
 import { signInWithOAuth } from '../actions';
 import { SignUpForm } from './sign-up-form';
 
-export default function SignUpPage() {
+const OAUTH_LABEL: Record<OAuthProvider, string> = { google: 'Google', github: 'GitHub' };
+
+export default async function SignUpPage() {
+  const providers = await enabledOAuthProviders();
   return (
     <div className="auth-flow">
       <header>
@@ -10,24 +14,25 @@ export default function SignUpPage() {
         <p>Start with a workspace built for source-to-channel production.</p>
       </header>
 
-      <div className="auth-oauth-grid">
-        <form action={signInWithOAuth.bind(null, 'google')}>
-          <button type="submit" className="auth-oauth-button">
-            Continue with Google
-          </button>
-        </form>
-        <form action={signInWithOAuth.bind(null, 'github')}>
-          <button type="submit" className="auth-oauth-button">
-            Continue with GitHub
-          </button>
-        </form>
-      </div>
+      {providers.length > 0 ? (
+        <>
+          <div className="auth-oauth-grid">
+            {providers.map((p) => (
+              <form key={p} action={signInWithOAuth.bind(null, p)}>
+                <button type="submit" className="auth-oauth-button">
+                  Continue with {OAUTH_LABEL[p]}
+                </button>
+              </form>
+            ))}
+          </div>
 
-      <div className="auth-divider">
-        <span />
-        or with email
-        <span />
-      </div>
+          <div className="auth-divider">
+            <span />
+            or with email
+            <span />
+          </div>
+        </>
+      ) : null}
 
       <SignUpForm />
 

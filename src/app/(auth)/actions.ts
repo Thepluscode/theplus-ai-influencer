@@ -151,7 +151,8 @@ export async function signInWithOAuth(provider: 'google' | 'github') {
   const baseUrl = await getCallbackBaseUrl();
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider,
-    options: { redirectTo: `${baseUrl}/auth/callback?next=/dashboard` },
+    // No `next`: the callback sends a first sign-in to /welcome, a returning one to /dashboard.
+    options: { redirectTo: `${baseUrl}/auth/callback` },
   });
   if (error || !data.url) {
     throw new Error(error?.message ?? 'OAuth init failed: no URL returned');

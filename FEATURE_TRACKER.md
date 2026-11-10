@@ -172,3 +172,14 @@ Base: PR #9 head `8deba67`. Merged `fix/lock-workspace-columns` (0033), the crea
 | --- | --- | --- |
 | Gates on the merged tree | IMPLEMENTED (local) | typecheck, lint, `test:coverage` 47 files / 311 tests, `next build` and tracker lint, all on the commit that adds this row (MCP included) |
 | Canvas, demo mode, 1440 and 390 | IMPLEMENTED (local, demo mode) | One picture branched twice: 3 cards, 2 edges, 0 overlaps, both edits read "Branched from: @aria-vance on a rooftop at golden hour", page overflow-x 0. `/create` and `/welcome` overflow-x 0 at 390. 0 console errors. `.playwright-mcp/integration-canvas-{1440,390}.png` |
+
+## Sign-up: Google / GitHub buttons
+
+| Piece | Status | Evidence |
+| --- | --- | --- |
+| Root cause of "buttons don't work" | VERIFIED (production, 2026-11-10) | `GET https://izfwasxgfdisvlxjlvzs.supabase.co/auth/v1/authorize?provider=google` and `?provider=github` both return `400 {"msg":"Unsupported provider: provider is not enabled"}`. Both providers are off in Supabase; the app code was not at fault |
+| Only enabled providers get a button | IMPLEMENTED | `src/lib/oauth-providers.ts` reads GoTrue `/auth/v1/settings` with the anon key (revalidate 300s). If the check fails, every button is shown and the failure is logged. 5 tests; mutation: ignoring the settings fails 2. Browser, against a local settings stub reporting GitHub on and Google off: only "Continue with GitHub" renders, and clicking it reaches `/auth/v1/authorize?provider=github&redirect_to=…/auth/callback` |
+| First OAuth sign-in lands on `/welcome`, returning users on `/dashboard` | IMPLEMENTED | `landingAfterAuth` in `src/lib/auth-redirect.ts`: created_at and last_sign_in_at within 60s means a first sign-in. 3 tests, including the window edges. The callback path itself was not run (no real GoTrue locally) |
+
+**Not run:** against the real settings endpoint (it needs the anon key, which lives only in `.env.local`), and a real Google or GitHub sign-in. Both providers are still off.
+**To enable:** create the GitHub OAuth app and the Google OAuth client, both with callback `https://izfwasxgfdisvlxjlvzs.supabase.co/auth/v1/callback`; enable each provider in Supabase; and allow `https://<domain>/auth/callback` under Supabase URL Configuration.
