@@ -24,8 +24,20 @@
 -- (consume_credits, grant_credits, apply_plan_credits,
 -- bootstrap_workspace_for_user), which these revokes do not affect.
 --
--- Rollback: grant update, delete on public.workspaces to authenticated; and
--- recreate the two policies from 0001. Do not roll back without a replacement.
+-- The ledger had the same shape: 0006 let owners INSERT their own
+-- credit_transactions rows ("so a compromised client cannot mint credits" — it
+-- cannot move the balance, but it can forge history, which is what reconciliation
+-- and abuse detection read, and it can pre-occupy a refund's 0021 dedupe key).
+-- No application code inserts ledger rows; only the SECURITY DEFINER credit
+-- functions do. Owners keep read access.
+--
+-- An owner can still INSERT a second workspace, but only (owner_user_id, name):
+-- it starts at the 360 default and getOrCreateCurrentWorkspace() always picks
+-- the OLDEST row, so an extra workspace is creatable but never used.
+--
+-- Rollback: grant update, delete on public.workspaces and insert on
+-- public.credit_transactions to authenticated, and recreate the three policies
+-- from 0001/0006. Do not roll back without a replacement.
 -- =============================================================================
 
 revoke insert, update, delete on public.workspaces from anon, authenticated;
@@ -38,3 +50,6 @@ grant insert (owner_user_id, name) on public.workspaces to authenticated;
 -- RLS would still refuse the row.
 drop policy if exists "owners can update own workspaces" on public.workspaces;
 drop policy if exists "owners can delete own workspaces" on public.workspaces;
+
+revoke insert, update, delete on public.credit_transactions from anon, authenticated;
+drop policy if exists "owners can insert credit transactions" on public.credit_transactions;

@@ -55,6 +55,13 @@ begin
   exception when insufficient_privilege then null;
   end;
 
+  -- 5. Forging ledger history.
+  begin
+    insert into public.credit_transactions (workspace_id, delta, reason, balance_after, ref_kind, ref_id)
+      values (ws, 999999, 'topup', 999999, 'forged', tag);
+  exception when insufficient_privilege then null;  -- RLS refusals are 42501 too
+  end;
+
   -- Outcome, read back as the owner.
   select credits, plan, stripe_customer_id into now_row from public.workspaces where id = ws;
   if not found then raise exception 'FAIL: owner could DELETE their workspace'; end if;
@@ -66,6 +73,8 @@ begin
   end if;
   select count(*) into n from public.workspaces where name = tag || '-forged';
   if n > 0 then raise exception 'FAIL: owner could INSERT a workspace with credits'; end if;
+  select count(*) into n from public.credit_transactions where ref_kind = 'forged' and ref_id = tag;
+  if n > 0 then raise exception 'FAIL: owner could INSERT a ledger row'; end if;
 
   -- Positive twins: the legitimate paths still work.
   insert into public.workspaces (owner_user_id, name) values (a, tag || '-bootstrap');
@@ -76,7 +85,10 @@ begin
   if (select credits from public.workspaces where id = ws) <> snap.credits - 25 then
     raise exception 'FAIL: consume_credits did not debit';
   end if;
+  if (select count(*) from public.credit_transactions where ref_kind = 'test' and ref_id = tag) <> 1 then
+    raise exception 'FAIL: consume_credits did not write its ledger row';
+  end if;
 
   reset role;
-  raise notice 'PASS: 0033 — update/insert/delete refused, bootstrap insert, read and RPC debit still work';
+  raise notice 'PASS: 0033 — workspace update/insert/delete and ledger insert refused; bootstrap insert, read, RPC debit + ledger row still work';
 end $$;
