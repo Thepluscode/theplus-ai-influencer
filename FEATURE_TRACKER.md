@@ -62,3 +62,19 @@ Primary `/content-os` workflow: drop a source (paste / txt / md / pdf / audio / 
 2. Run a real source through extract → repackage with `OPENAI_STUB=0` (PDF text + a small audio transcription; confirm >25 MB fails closed). Run a media job with `LUMA_STUB=0` to confirm real `photon-1` stills render.
 3. ~~`curl` `/api/jobs/content-pipeline` for extract/repackage/media ticks against real DB.~~ ✅ Done 2026-06-16 (stubbed AI): seeded a paste source → cron processed extract (7 atoms) → repackage (10 channels) → media (carousel: 3 stub images @ 1:1, `ready_for_approval`); credits debited 360→275 with reasons `source_extraction_text`/`content_repackage`/`pack_media_render` (proves the 0017 constraint live). _Still TODO: a tick with **real** OpenAI + Luma (`*_STUB=0`)._
 4. Approve + schedule one social-channel item through live Zernio; confirm brand-safety block keeps a draft editable.
+
+## Workspace balance and billing columns — owner self-crediting (`0033`)
+
+Branch `fix/lock-workspace-columns`, based on `8deba67`. Found 2026-11-10 while designing onboarding. **CRITICAL in the repository schema; production state NOT CHECKED.**
+
+| Piece | Status | Evidence |
+| ----- | ------ | -------- |
+| Defect: `0001` gave owners an unrestricted UPDATE policy on `workspaces`, and `0006` put `credits`, `plan` and Stripe ids on that row. Any signed-in user could `PATCH /rest/v1/workspaces?id=eq.<own>` to set `credits`, `plan` or `stripe_customer_id`, or DELETE the workspace and get a fresh 360-credit one. | IN PROGRESS | Scratch Postgres 17 replay of `0001`+`0006`, Supabase role shims, synthetic users: owner UPDATE 1, credits 360 → 999999, plan free → agency. Cross-tenant UPDATE 0. Nothing in `0002`–`0031` touches workspace grants or policies (grep). `scripts/probes/cross_user.py` checks the credit RPCs but not a direct table PATCH |
+| Fix `0033_lock_workspace_columns.sql`: revoke insert/update/delete from anon and authenticated; grant insert only on `(owner_user_id, name)`; drop the update/delete policies | IMPLEMENTED | `supabase/tests/0033_lock_workspace_columns.sql` fails before `0033` and passes after, re-runnably. Reopening each hole alone makes it fail and name the hole (credits, plan, stripe id, insert-with-credits, delete). Update grant with no policy stays closed under RLS. Positive twins: the bootstrap insert gets 360 credits, owner read works, `consume_credits` debits 25 and writes a ledger row, the service role still updates `plan`, and new sign-ups still bootstrap a workspace |
+| App impact | IMPLEMENTED | The only session-client write to `workspaces` is the bootstrap insert of `(owner_user_id, name)` in `src/lib/workspace.ts`. Balance, plan and Stripe writes use the service role or SECURITY DEFINER RPCs (grep of every `.from('workspaces')`) |
+
+**To reach VERIFIED:**
+1. Read-only check of production grants and policies on `public.workspaces` (`information_schema.role_table_grants`, `pg_policies`).
+2. Look for exploitation: workspace balances or plans with no matching `credit_transactions` or Stripe event.
+3. Apply `0033` and run the deployed-truth probe extended with a direct PATCH of the caller's own `credits`.
+4. Codex reproduces the replay and attacks the remaining insert grant.
