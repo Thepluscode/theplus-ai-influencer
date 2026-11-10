@@ -170,5 +170,5 @@ Base: PR #9 head `8deba67`. Merged `fix/lock-workspace-columns` (0033), the crea
 
 | Check | Status | Evidence |
 | --- | --- | --- |
-| Gates on the merged tree | PASS | typecheck, lint, `test:coverage` 46 files / 308 tests, `next build`, tracker lint (with the MCP commit) |
-| Canvas, demo mode, 1440 and 390 | PASS | One picture branched twice: 3 cards, 2 edges, 0 overlaps, both edits read "Branched from: @aria-vance on a rooftop at golden hour", page overflow-x 0. `/create` and `/welcome` overflow-x 0 at 390. 0 console errors. `.playwright-mcp/integration-canvas-{1440,390}.png` |
+| Gates on the merged tree | IMPLEMENTED (local, demo mode) | typecheck, lint, `test:coverage` 46 files / 308 tests, `next build`, tracker lint (with the MCP commit) |
+| Canvas, demo mode, 1440 and 390 | IMPLEMENTED (local, demo mode) | One picture branched twice: 3 cards, 2 edges, 0 overlaps, both edits read "Branched from: @aria-vance on a rooftop at golden hour", page overflow-x 0. `/create` and `/welcome` overflow-x 0 at 390. 0 console errors. `.playwright-mcp/integration-canvas-{1440,390}.png` |
