@@ -130,3 +130,24 @@ Branch `feat/creation-canvas`, based on `e0b22f5` (the onboarding branch). Not m
 - Layout is automatic: there is no drag, pan or zoom.
 - Image cards only. Video cards wait for the Video slice.
 - In demo mode an edit's placeholder image isn't derived from its source.
+
+## Workspace balance and billing columns — owner self-crediting (`0033`)
+
+Branch `fix/lock-workspace-columns`, based on `8deba67`. Found 2026-11-10 while designing onboarding. **CRITICAL; confirmed live in production, then patched the same day.**
+
+| Piece | Status | Evidence |
+| ----- | ------ | -------- |
+| Defect: `0001` gave owners an unrestricted UPDATE policy on `workspaces`, and `0006` put `credits`, `plan` and Stripe ids on that row. Any signed-in user could `PATCH /rest/v1/workspaces?id=eq.<own>` to set `credits`, `plan` or `stripe_customer_id`, or DELETE the workspace and get a fresh 360-credit one. | IN PROGRESS | Scratch Postgres 17 replay of `0001`+`0006`, Supabase role shims, synthetic users: owner UPDATE 1, credits 360 → 999999, plan free → agency. Cross-tenant UPDATE 0. Nothing in `0002`–`0031` touches workspace grants or policies (grep). `scripts/probes/cross_user.py` checks the credit RPCs but not a direct table PATCH |
+| Fix `0033_lock_workspace_columns.sql`: revoke insert/update/delete/truncate on `workspaces` and `credit_transactions` from anon and authenticated; grant workspace insert only on `(owner_user_id, name)`; drop the workspace update/delete policies and the owner ledger-insert policy from `0006` (owners could forge ledger history) | IMPLEMENTED | `supabase/tests/0033_lock_workspace_columns.sql` fails before `0033` and passes after, re-runnably. Reopening each hole alone makes it fail and name the hole (credits, plan, stripe id, workspace insert with credits, delete, ledger insert). An extra workspace insert of `(owner_user_id, name)` is still allowed, but it starts at 360 and is never used, because `getOrCreateCurrentWorkspace()` picks the oldest row. Update grant with no policy stays closed under RLS. Positive twins: the bootstrap insert gets 360 credits, owner read works, `consume_credits` debits 25 and writes a ledger row, the service role still updates `plan`, and new sign-ups still bootstrap a workspace |
+| App impact | IMPLEMENTED | The only session-client write to `workspaces` is the bootstrap insert of `(owner_user_id, name)` in `src/lib/workspace.ts`. Balance, plan and Stripe writes use the service role or SECURITY DEFINER RPCs (grep of every `.from('workspaces')`) |
+
+| Production before (read-only, 2026-11-10, project `izfwasxgfdisvlxjlvzs`) | VERIFIED (defect live) | `anon` and `authenticated` held DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE and UPDATE on both tables; all owner update/delete/ledger-insert policies present |
+| Production apply | DEPLOYED (2026-11-10) | Founder ran `apply-0033.sql` (`begin` … `commit`) through `supabase db query --linked`. Re-read afterwards: both roles hold only REFERENCES, SELECT and TRIGGER on both tables; `authenticated` column INSERT is `(name, owner_user_id)`; the three policies are gone. Applied outside the migration ledger, which the tracker already records as misaligned |
+
+| Exposure scan (read-only, founder ran `q2.sql`, 2026-11-10) | VERIFIED | Production holds **1 workspace in total**; 0 flagged. No balance differs from its own last ledger entry, and no paid plan lacks a Stripe subscription. Limit: before `0033` an owner could also have forged a matching ledger row, which this scan cannot tell apart; with one workspace, the exposure was effectively nil |
+
+**To reach VERIFIED:**
+1. ~~Read-only check of production grants and policies.~~ Done; see the rows above.
+2. ~~Look for exploitation.~~ Done: 1 workspace, 0 flagged.
+3. Apply `0033` and run the deployed-truth probe extended with a direct PATCH of the caller's own `credits`.
+4. Codex reproduces the replay and attacks the remaining insert grant.
