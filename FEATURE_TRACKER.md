@@ -76,8 +76,10 @@ Branch `fix/lock-workspace-columns`, based on `8deba67`. Found 2026-11-10 while 
 | Production before (read-only, 2026-11-10, project `izfwasxgfdisvlxjlvzs`) | VERIFIED (defect live) | `anon` and `authenticated` held DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE and UPDATE on both tables; all owner update/delete/ledger-insert policies present |
 | Production apply | DEPLOYED (2026-11-10) | Founder ran `apply-0033.sql` (`begin` … `commit`) through `supabase db query --linked`. Re-read afterwards: both roles hold only REFERENCES, SELECT and TRIGGER on both tables; `authenticated` column INSERT is `(name, owner_user_id)`; the three policies are gone. Applied outside the migration ledger, which the tracker already records as misaligned |
 
+| Exposure scan (read-only, founder ran `q2.sql`, 2026-11-10) | VERIFIED | Production holds **1 workspace in total**; 0 flagged. No balance differs from its own last ledger entry, and no paid plan lacks a Stripe subscription. Limit: before `0033` an owner could also have forged a matching ledger row, which this scan cannot tell apart; with one workspace, the exposure was effectively nil |
+
 **To reach VERIFIED:**
 1. ~~Read-only check of production grants and policies.~~ Done; see the rows above.
-2. Look for exploitation: workspace balances or plans with no matching `credit_transactions` or Stripe event.
+2. ~~Look for exploitation.~~ Done: 1 workspace, 0 flagged.
 3. Apply `0033` and run the deployed-truth probe extended with a direct PATCH of the caller's own `credits`.
 4. Codex reproduces the replay and attacks the remaining insert grant.
