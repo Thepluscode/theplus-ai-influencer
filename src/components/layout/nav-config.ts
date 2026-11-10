@@ -5,6 +5,7 @@ import {
   Calendar,
   CalendarRange,
   Film,
+  GitBranch,
   Home,
   ImageIcon,
   Inbox,
@@ -56,6 +57,13 @@ export const PRIMARY_NAV: readonly AppNavItem[] = [
     section: 'Production',
     description: 'Picture or edit with @persona',
     icon: Sparkles,
+  },
+  {
+    href: '/canvas',
+    label: 'Canvas',
+    section: 'Production',
+    description: 'Pictures and their edits as a tree',
+    icon: GitBranch,
   },
   {
     href: '/create-post',

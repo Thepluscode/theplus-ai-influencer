@@ -11,7 +11,7 @@ vi.mock('@/lib/luma', () => ({
 vi.mock('@/lib/supabase/admin', () => ({ getSupabaseAdminClient: vi.fn() }));
 vi.mock('@/lib/supabase/server', () => ({ getSupabaseServerClient: vi.fn() }));
 
-import { buildRenderRequest, renderCreation } from '../creations';
+import { buildRenderRequest, renderCreation, toCreationView } from '../creations';
 
 const persona = { portrait_url: 'https://cdn.test/aria-portrait.jpg' };
 
@@ -85,5 +85,31 @@ describe('renderCreation', () => {
     await expect(
       renderCreation({ mode: 'picture', prompt: 'x', aspect: '1:1', persona: null }),
     ).rejects.toThrow(/moderation/);
+  });
+});
+
+describe('toCreationView', () => {
+  const base = {
+    id: 'c2',
+    workspace_id: 'ws_1',
+    mode: 'edit' as const,
+    prompt: 'red jacket',
+    persona_id: 'p1',
+    aspect_ratio: '3:4' as const,
+    asset_url: 'https://cdn.test/c2.jpg',
+    generation_id: 'gen_2',
+    credits_spent: 25,
+    created_at: '2026-11-10T12:00:00.000Z',
+  };
+
+  it('carries the source id the Canvas draws its edge from', () => {
+    const view = toCreationView({ ...base, source_creation_id: 'c1' }, [
+      { id: 'p1', name: 'Aria' },
+    ]);
+    expect(view).toMatchObject({ sourceCreationId: 'c1', personaName: 'Aria', saved: true });
+  });
+
+  it('maps a picture (no source) to null', () => {
+    expect(toCreationView({ ...base, source_creation_id: null }, []).sourceCreationId).toBeNull();
   });
 });

@@ -108,3 +108,25 @@ Branch `feat/onboarding-tour`, based on `c8c2fc6` (the Generate hub). Not merged
 **Gates (2026-11-10):** `pnpm typecheck` ✅ · `pnpm lint` ✅ · `pnpm test:coverage` ✅ · `pnpm build` ✅
 
 **Not built:** Eromify's "free starter faces". A shared library of ready-made personas is a separate slice and needs its own rights check on the faces.
+
+## Canvas (`/canvas`) — results as a tree of edits
+
+Branch `feat/creation-canvas`, based on `e0b22f5` (the onboarding branch). Not merged or deployed. No new migration: the tree comes from `creations.source_creation_id`, which `0032` already defines (still **not applied in production**).
+
+| Piece | Status | Evidence |
+| ----- | ------ | -------- |
+| Layout (`src/lib/canvas.ts`): the tree's depth sets the column; leaves get rows oldest first and a parent sits on its first child's row. An edit whose source isn't loaded becomes a root; cycles and self-references are placed once; the walk is iterative | IMPLEMENTED | 7 unit tests with hard-coded cells: chain, fork, newest-first input, orphan, cycle, a 9-node no-shared-cell check, and a 5,000-node chain |
+| `/canvas` page: the same composer and `createAction` as Generate (no second charge path). Each card has a labelled `+` handle on its edge that branches an edit, and edits are drawn as connected cards. Children read "Branched from: …", the edge SVG is `aria-hidden`, and the newest card scrolls into view | IMPLEMENTED | Demo browser run at 1440px and 390px: 2 roots (9:16, 16:9), root 1 branched twice, then a child branched gives 5 cards, 3 edges and 0 overlapping card boxes. The page has no horizontal overflow at either width (the canvas scrolls inside its box). No console errors |
+| `CreationView.sourceCreationId` set by `toCreationView`, the demo result and the unsaved fallback | IMPLEMENTED | 2 `toCreationView` tests. The action tests assert `null` for a picture and the source id for an edit; the charge/refund order is unchanged (all action tests green) |
+| `/canvas` in `PROTECTED_PREFIXES`, the nav item (and so the top-bar title), `force-dynamic`, and a tour step (now 9 steps) | IMPLEMENTED | Middleware test: signed-out `/canvas` → 307. It goes red when `/canvas` is removed and green when restored. Build lists `ƒ /canvas`. Tour step 4 of 9 spotlights the Canvas nav item at 1440px |
+| `/create` after the shared-studio change | IMPLEMENTED | Re-run in the demo browser at 1440px and 390px: Generate plus Edit gives 2 results, the "Editing:" banner shows, and there is no overflow |
+
+**Gates (2026-11-10):** `pnpm typecheck` ✅ · `pnpm lint` ✅ · `pnpm test:coverage` 45 files / 297 tests ✅ · `pnpm build` ✅
+
+**Not run:** the tree surviving a reload on the real data path. Demo mode persists nothing; this needs `0032` applied and a real session.
+
+**Known limits:**
+- The canvas loads the newest 120 results, so an edit whose source is older is drawn as a root.
+- Layout is automatic: there is no drag, pan or zoom.
+- Image cards only. Video cards wait for the Video slice.
+- In demo mode an edit's placeholder image isn't derived from its source.

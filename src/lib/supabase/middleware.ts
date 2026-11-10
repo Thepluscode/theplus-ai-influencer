@@ -7,6 +7,7 @@ const PROTECTED_PREFIXES = [
   '/dashboard',
   '/studio',
   '/create',
+  '/canvas',
   '/create-post',
   '/series',
   '/storyboard',

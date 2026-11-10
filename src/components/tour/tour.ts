@@ -33,6 +33,13 @@ export const TOUR_STEPS: readonly TourStep[] = [
     body: 'Describe a scene and type @ plus her handle to lock her face. Edit any result. The cost is on the Generate button before you spend anything.',
   },
   {
+    id: 'canvas',
+    target: 'canvas',
+    section: 'Canvas',
+    title: 'Branch ideas on a canvas',
+    body: 'Every picture is a card. Press + on its edge to branch an edit; it lands as a connected card, so you can try several directions from one shot.',
+  },
+  {
     id: 'post',
     target: 'create-post',
     section: 'Create',

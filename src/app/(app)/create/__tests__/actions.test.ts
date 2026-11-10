@@ -82,7 +82,12 @@ describe('createAction — picture', () => {
     );
     expect(res).toMatchObject({
       status: 'success',
-      creation: { personaName: 'Aria Vance', saved: true, creditsSpent: 25 },
+      creation: {
+        personaName: 'Aria Vance',
+        saved: true,
+        creditsSpent: 25,
+        sourceCreationId: null,
+      },
     });
 
     const charge = consumeCredits.mock.calls[0][0];
@@ -164,7 +169,11 @@ describe('createAction — edit', () => {
       null,
       form({ mode: 'edit', prompt: 'red jacket', aspect: '3:4', sourceCreationId: SOURCE_ID }),
     );
-    expect(res).toMatchObject({ status: 'success', creation: { mode: 'edit' } });
+    expect(res).toMatchObject({
+      status: 'success',
+      // The Canvas draws this result as a child of its source.
+      creation: { mode: 'edit', sourceCreationId: SOURCE_ID },
+    });
     expect(getCreation).toHaveBeenCalledWith('ws_1', SOURCE_ID);
     expect(renderCreation.mock.calls[0][0]).toMatchObject({
       mode: 'edit',

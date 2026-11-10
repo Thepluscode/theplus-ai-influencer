@@ -13,6 +13,7 @@ import {
   type CreationView,
 } from '@/types/creation';
 import { createAction, type CreateState } from './actions';
+import { CreationCanvas } from './creation-canvas';
 
 export interface PersonaOption {
   id: string;
@@ -27,6 +28,8 @@ interface Props {
   costs: { picture: number; edit: number };
   demoMode: boolean;
   disabledReason: string | null;
+  /** 'canvas' draws results as a tree of edits instead of a grid. */
+  view?: 'grid' | 'canvas';
 }
 
 // The partial mention being typed right before the caret: "…with @ar|".
@@ -55,13 +58,16 @@ export function CreateStudio({
   costs,
   demoMode,
   disabledReason,
+  view = 'grid',
 }: Props) {
   const [results, setResults] = useState<CreationView[]>(initialCreations);
+  const [lastId, setLastId] = useState<string | null>(null);
   const [state, formAction, pending] = useActionState<CreateState, FormData>(
     async (prev, formData) => {
       const next = await createAction(prev, formData);
       if (next.status === 'success') {
         setResults((list) => [next.creation, ...list.filter((c) => c.id !== next.creation.id)]);
+        setLastId(next.creation.id);
       }
       return next;
     },
@@ -197,7 +203,15 @@ export function CreateStudio({
             </div>
           ) : (
             <p className="rounded-[12px] border border-dashed border-[#262626] px-3 py-3 text-[12px] text-ink-muted">
-              Pick a result on the right and choose <span className="text-ink">Edit</span>.
+              {view === 'canvas' ? (
+                <>
+                  Choose <span className="text-ink">+</span> on a card to branch an edit from it.
+                </>
+              ) : (
+                <>
+                  Pick a result on the right and choose <span className="text-ink">Edit</span>.
+                </>
+              )}
             </p>
           )
         ) : null}
@@ -388,76 +402,87 @@ export function CreateStudio({
         ) : null}
       </form>
 
-      <section aria-labelledby="results-heading" className="min-w-0">
-        <div className="mb-3 flex items-baseline justify-between">
-          <h2
-            id="results-heading"
-            className="text-[11px] font-medium uppercase tracking-[0.12em] text-ink-muted"
-          >
-            Your results
-          </h2>
-          <span className="text-[11px] text-[#666]">Newest first</span>
-        </div>
-        {results.length === 0 ? (
-          <p className="rounded-[16px] border border-dashed border-[#262626] px-6 py-16 text-center text-[13px] text-ink-muted">
-            Nothing yet. Your pictures and edits appear here.
-          </p>
-        ) : (
-          <ul className="grid grid-cols-2 gap-3 md:grid-cols-3 2xl:grid-cols-4">
-            {results.map((c) => (
-              <li
-                key={c.id}
-                className="group overflow-hidden rounded-[14px] border border-[#262626] bg-surface-1"
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={c.assetUrl}
-                  alt={c.prompt}
-                  className={cn('w-full object-cover', CARD_ASPECT[c.aspect])}
-                />
-                <div className="flex flex-col gap-2 p-3">
-                  <p className="line-clamp-2 text-[12px] text-ink">{c.prompt}</p>
-                  <p className="text-[11px] text-ink-muted">
-                    {c.mode === 'edit' ? 'Edit' : 'Picture'} · {c.personaName ?? 'no persona'} ·{' '}
-                    {c.aspect}
-                  </p>
-                  {!c.saved && !demoMode ? (
-                    <p className="text-[11px] text-[#ff7a3d]">
-                      Rendered but not saved. Download it now.
+      {view === 'canvas' ? (
+        <section aria-label="Canvas" className="min-w-0">
+          <CreationCanvas
+            results={results}
+            demoMode={demoMode}
+            focusId={lastId}
+            onBranch={startEdit}
+          />
+        </section>
+      ) : (
+        <section aria-labelledby="results-heading" className="min-w-0">
+          <div className="mb-3 flex items-baseline justify-between">
+            <h2
+              id="results-heading"
+              className="text-[11px] font-medium uppercase tracking-[0.12em] text-ink-muted"
+            >
+              Your results
+            </h2>
+            <span className="text-[11px] text-[#666]">Newest first</span>
+          </div>
+          {results.length === 0 ? (
+            <p className="rounded-[16px] border border-dashed border-[#262626] px-6 py-16 text-center text-[13px] text-ink-muted">
+              Nothing yet. Your pictures and edits appear here.
+            </p>
+          ) : (
+            <ul className="grid grid-cols-2 gap-3 md:grid-cols-3 2xl:grid-cols-4">
+              {results.map((c) => (
+                <li
+                  key={c.id}
+                  className="group overflow-hidden rounded-[14px] border border-[#262626] bg-surface-1"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={c.assetUrl}
+                    alt={c.prompt}
+                    className={cn('w-full object-cover', CARD_ASPECT[c.aspect])}
+                  />
+                  <div className="flex flex-col gap-2 p-3">
+                    <p className="line-clamp-2 text-[12px] text-ink">{c.prompt}</p>
+                    <p className="text-[11px] text-ink-muted">
+                      {c.mode === 'edit' ? 'Edit' : 'Picture'} · {c.personaName ?? 'no persona'} ·{' '}
+                      {c.aspect}
                     </p>
-                  ) : null}
-                  <div className="flex flex-wrap gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => startEdit(c)}
-                      disabled={!c.saved && !demoMode}
-                      className="inline-flex h-7 items-center gap-1 rounded-full bg-surface-2 px-2.5 text-[11px] text-ink ring-1 ring-[#262626] hover:bg-[#222] disabled:opacity-40"
-                    >
-                      <PencilLine size={12} /> Edit
-                    </button>
-                    {c.saved && !demoMode ? (
-                      <Link
-                        href={`/create-post?creationId=${c.id}`}
-                        className="inline-flex h-7 items-center gap-1 rounded-full bg-surface-2 px-2.5 text-[11px] text-ink ring-1 ring-[#262626] hover:bg-[#222]"
-                      >
-                        Use in a post
-                      </Link>
+                    {!c.saved && !demoMode ? (
+                      <p className="text-[11px] text-[#ff7a3d]">
+                        Rendered but not saved. Download it now.
+                      </p>
                     ) : null}
-                    <a
-                      href={c.assetUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex h-7 items-center gap-1 rounded-full bg-surface-2 px-2.5 text-[11px] text-ink-muted ring-1 ring-[#262626] hover:text-ink"
-                    >
-                      Open <ArrowUpRight size={12} />
-                    </a>
+                    <div className="flex flex-wrap gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => startEdit(c)}
+                        disabled={!c.saved && !demoMode}
+                        className="inline-flex h-7 items-center gap-1 rounded-full bg-surface-2 px-2.5 text-[11px] text-ink ring-1 ring-[#262626] hover:bg-[#222] disabled:opacity-40"
+                      >
+                        <PencilLine size={12} /> Edit
+                      </button>
+                      {c.saved && !demoMode ? (
+                        <Link
+                          href={`/create-post?creationId=${c.id}`}
+                          className="inline-flex h-7 items-center gap-1 rounded-full bg-surface-2 px-2.5 text-[11px] text-ink ring-1 ring-[#262626] hover:bg-[#222]"
+                        >
+                          Use in a post
+                        </Link>
+                      ) : null}
+                      <a
+                        href={c.assetUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex h-7 items-center gap-1 rounded-full bg-surface-2 px-2.5 text-[11px] text-ink-muted ring-1 ring-[#262626] hover:text-ink"
+                      >
+                        Open <ArrowUpRight size={12} />
+                      </a>
+                    </div>
                   </div>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
     </div>
   );
 }

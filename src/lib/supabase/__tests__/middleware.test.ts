@@ -54,7 +54,7 @@ describe('updateSession auth boundary', () => {
     const { updateSession } = await import('../middleware');
 
     getUser.mockResolvedValue({ data: { user: null } });
-    for (const route of ['/create', '/welcome']) {
+    for (const route of ['/create', '/canvas', '/welcome']) {
       const out = await updateSession(new NextRequest(`https://app.test${route}`));
       expect(out.status).toBe(307);
       expect(out.headers.get('location')).toBe(

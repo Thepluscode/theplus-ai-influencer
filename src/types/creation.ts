@@ -27,6 +27,8 @@ export interface CreationView {
   mode: CreateMode;
   prompt: string;
   personaName: string | null;
+  /** The result this one edited; null for a picture. Draws the Canvas tree. */
+  sourceCreationId: string | null;
   aspect: CreateAspect;
   assetUrl: string;
   creditsSpent: number;

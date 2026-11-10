@@ -149,6 +149,7 @@ export function toCreationView(
     mode: row.mode,
     prompt: row.prompt,
     personaName: personas.find((p) => p.id === row.persona_id)?.name ?? null,
+    sourceCreationId: row.source_creation_id,
     aspect: row.aspect_ratio,
     assetUrl: row.asset_url,
     creditsSpent: row.credits_spent,

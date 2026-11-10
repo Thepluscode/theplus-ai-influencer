@@ -76,6 +76,7 @@ export async function createAction(
         mode: input.mode,
         prompt: input.prompt,
         personaName: resolved.persona?.name ?? null,
+        sourceCreationId: input.mode === 'edit' ? input.sourceCreationId! : null,
         aspect: input.aspect,
         assetUrl: asset.url,
         creditsSpent: 0,
@@ -162,6 +163,7 @@ export async function createAction(
     try {
       const row = await insertCreation(record);
       revalidatePath('/create');
+      revalidatePath('/canvas');
       return { status: 'success', creation: toCreationView(row, personas) };
     } catch (saveErr) {
       // The render is paid for and the asset exists: hand it back rather than
@@ -178,6 +180,7 @@ export async function createAction(
           mode: input.mode,
           prompt: input.prompt,
           personaName: persona?.name ?? null,
+          sourceCreationId: record.sourceCreationId,
           aspect: input.aspect,
           assetUrl: asset.url,
           creditsSpent: cost,
