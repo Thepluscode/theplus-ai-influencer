@@ -93,3 +93,18 @@ Branch `feat/handle-create-hub` (worktree `theplus-ai-influencer-create`), based
 1. Apply `0032` to production after checking the live migration ledger.
 2. Make one real Luma Picture render plus one Edit, and confirm the ledger rows: `post_variant_render` −25 with `ref_kind=creation`, and a refund on a forced failure.
 3. Have Codex reproduce the action tests and attack source-id/ownership.
+
+## First-run setup (`/welcome`) + guided tour
+
+Branch `feat/onboarding-tour`, based on `c8c2fc6` (the Generate hub). Not merged or deployed. No migration: answers stay in the browser and only build links, which the receiving pages whitelist-parse.
+
+| Piece | Status | Evidence |
+| ----- | ------ | -------- |
+| 4-step setup: goal + experience → persona (name, niche, vibe) → plan (platforms, cadence) → honest summary ("nothing generated yet", persona cost from `COSTS.INFLUENCER_RENDER`) with three next steps | IMPLEMENTED | Demo browser run: Continue stays disabled until a name is entered; focus moves to each step heading; a live region announces the step; answers survive a reload (`localStorage`) |
+| Prefill hand-offs: `/studio/new?name&niche&vibe` and `/series/new?cadence&platforms`, parsed by `src/lib/onboarding.ts` | IMPLEMENTED | 4 unit tests, including hostile/unknown values dropped and the name capped at 80. Browser: Studio opened with name "Audrey Lane", vibe street and the niche brief; Campaigns opened with 7/week on instagram, tiktok, youtube |
+| Guided tour (`?tour=1`, 8 steps): spotlights Studio, Generate, Create, Campaigns, Calendar and Credits; arrow keys, Escape, focus on Next; strips the flag from the URL | IMPLEMENTED | 5 placement tests (right, below, centred fallback, never off a 390px screen). Browser at 1440px and 390px: spotlight and card placed, Escape closes, `?tour=1` removed |
+| New sign-ups land on `/welcome` (email-confirm `next=/welcome`); `/welcome` behind auth | IMPLEMENTED | Middleware test: signed-out `/welcome` → 307 sign-in. **Real email sign-up NOT RUN** |
+
+**Gates (2026-11-10):** `pnpm typecheck` ✅ · `pnpm lint` ✅ · `pnpm test:coverage` ✅ · `pnpm build` ✅
+
+**Not built:** Eromify's "free starter faces". A shared library of ready-made personas is a separate slice and needs its own rights check on the faces.

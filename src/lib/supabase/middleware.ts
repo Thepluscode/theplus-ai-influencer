@@ -18,6 +18,7 @@ const PROTECTED_PREFIXES = [
   '/agents',
   '/accounts',
   '/settings',
+  '/welcome',
 ];
 const AUTH_ONLY_PREFIXES = ['/sign-in', '/sign-up'];
 

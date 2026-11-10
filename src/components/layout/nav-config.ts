@@ -153,6 +153,13 @@ const ROUTE_META: readonly AppNavItem[] = [
   ...SECONDARY_NAV,
   SETTINGS_NAV,
   {
+    href: '/welcome',
+    label: 'Setup',
+    section: 'Welcome',
+    description: 'First-run setup',
+    icon: Sparkles,
+  },
+  {
     href: '/series/new',
     label: 'New Campaign',
     section: 'Planning',

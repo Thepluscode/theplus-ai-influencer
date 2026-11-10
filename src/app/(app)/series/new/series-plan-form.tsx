@@ -1,5 +1,6 @@
 'use client';
 
+import type { CampaignPrefill } from '@/lib/onboarding';
 import { useActionState, useMemo, useState } from 'react';
 import { format } from 'date-fns';
 import {
@@ -82,7 +83,14 @@ const VISUAL_MODE_OPTIONS: Array<{ value: CampaignVisualMode; label: string }> =
   { value: 'text_first', label: 'Text-first assets' },
 ];
 
-export function SeriesPlanForm({ models }: { models: AiModelRow[] }) {
+export function SeriesPlanForm({
+  models,
+  prefill,
+}: {
+  models: AiModelRow[];
+  /** From /welcome, already whitelist-parsed by the page. */
+  prefill?: CampaignPrefill;
+}) {
   const [state, formAction, pending] = useActionState<SeriesPlanState | null, FormData>(
     generateSeriesPlanAction,
     null,
@@ -103,9 +111,9 @@ export function SeriesPlanForm({ models }: { models: AiModelRow[] }) {
   const [visualMode, setVisualMode] = useState<CampaignVisualMode>('face_carousel');
   const [goal, setGoal] = useState<PostGoal>('engagement');
   const [durationDays, setDurationDays] = useState(14);
-  const [cadencePerWeek, setCadencePerWeek] = useState(4);
+  const [cadencePerWeek, setCadencePerWeek] = useState(prefill?.cadencePerWeek ?? 4);
   const [platforms, setPlatforms] = useState<Set<Platform>>(
-    new Set(['instagram', 'tiktok', 'facebook']),
+    new Set(prefill?.platforms ?? ['instagram', 'tiktok', 'facebook']),
   );
   const defaultStart = useMemo(() => format(new Date(), 'yyyy-MM-dd'), []);
   const [startDate, setStartDate] = useState(defaultStart);

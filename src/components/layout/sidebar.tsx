@@ -62,6 +62,7 @@ export function Sidebar({
                   key={item.href}
                   href={item.href}
                   title={item.label}
+                  data-tour={item.href.slice(1)}
                   className={cn(
                     'app-sidebar-link group relative flex h-11 items-center justify-center gap-3 overflow-hidden px-3 text-[13px] transition lg:justify-start',
                     active ? 'app-sidebar-link-active text-ink' : 'text-ink-muted hover:text-ink',

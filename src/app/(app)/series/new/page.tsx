@@ -7,8 +7,14 @@ import { getSupabaseServerClient } from '@/lib/supabase/server';
 import type { AiModelRow } from '@/lib/supabase/types';
 import { getOrCreateCurrentWorkspace } from '@/lib/workspace';
 import { SeriesPlanForm } from './series-plan-form';
+import { parseCampaignPrefill } from '@/lib/onboarding';
 
-export default async function NewSeriesPlanPage() {
+export default async function NewSeriesPlanPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const prefill = parseCampaignPrefill(await searchParams);
   const demoMode = isDemoMode();
   const supabaseConfigured = Boolean(
     publicEnv.NEXT_PUBLIC_SUPABASE_URL && publicEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY,
@@ -63,7 +69,7 @@ export default async function NewSeriesPlanPage() {
           ) : null}
         </header>
 
-        <SeriesPlanForm models={models} />
+        <SeriesPlanForm models={models} prefill={prefill} />
       </div>
     </div>
   );

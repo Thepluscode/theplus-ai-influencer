@@ -60,7 +60,8 @@ export async function signUpWithPassword(
   const baseUrl = await getCallbackBaseUrl();
   const { error } = await supabase.auth.signUp({
     ...parsed.data,
-    options: { emailRedirectTo: `${baseUrl}/auth/callback?next=/dashboard` },
+    // A confirmed sign-up is a brand-new user: send them through first-run setup.
+    options: { emailRedirectTo: `${baseUrl}/auth/callback?next=/welcome` },
   });
   if (error) {
     return { ok: false, error: error.message };
