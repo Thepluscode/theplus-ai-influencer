@@ -1,4 +1,5 @@
 allowBuilds:
+  esbuild: false # tsx runs on the prebuilt @esbuild/<platform> binary; no install script needed
   sharp: true
   unrs-resolver: true
 

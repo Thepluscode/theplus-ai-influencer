@@ -151,3 +151,15 @@ Branch `fix/lock-workspace-columns`, based on `8deba67`. Found 2026-11-10 while 
 2. ~~Look for exploitation.~~ Done: 1 workspace, 0 flagged.
 3. Apply `0033` and run the deployed-truth probe extended with a direct PATCH of the caller's own `credits`.
 4. Codex reproduces the replay and attacks the remaining insert grant.
+
+## Claude MCP server v1 — read-only (`pnpm mcp`, `docs/mcp.md`)
+
+| Piece | Status | Evidence |
+| --- | --- | --- |
+| Tools `list_influencers`, `get_influencer`, `list_generated_assets`, `get_post_status` over stdio | IMPLEMENTED | `src/mcp/server.ts`. Strict inputs, one output schema covering success and error, `isError` on failures, a request id on every result. 11 contract tests in `src/mcp/__tests__/server.test.ts` against a FAKE database |
+| Identity: one Supabase user through the anon key; RLS plus an explicit `workspace_id` filter on every query | IMPLEMENTED | `src/mcp/session.ts` checks the token with the auth server (`auth.getUser`). A source test asserts no MCP module references the admin client or the service-role key, or calls insert, update, upsert, delete or rpc. Mutation: dropping the `workspace_id` filter from `list_influencers` fails 1 test |
+| Error results stay valid for a client that cached the tool schemas | IMPLEMENTED | Found by the stdio test: the first schema described success only, and a client that ran `tools/list` first rejected every error result with `-32602`. Mutation: restoring the success-only schema fails 6 |
+| Real stdio process through the official SDK client (`pnpm --silent mcp`) | IMPLEMENTED | The test spawns the documented command, then discovers 4 tools and gets `UNAUTHENTICATED` when no credentials are given |
+| Not offered in v1: create, generate, draft, schedule, slideshow, motion and talking video, remote HTTP | NOT A DEFECT | Each needs a durable idempotency store, a job record or a revision-bound approval record that the schema lacks, or a generator the app doesn't have. See `docs/mcp.md` |
+
+**Not run:** RLS isolation between two real users (blocked: Docker ran out of disk, so no local Supabase); a real Claude client (`claude mcp add`) against a real workspace; any production read.
