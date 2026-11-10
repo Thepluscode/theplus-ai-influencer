@@ -62,3 +62,34 @@ Primary `/content-os` workflow: drop a source (paste / txt / md / pdf / audio / 
 2. Run a real source through extract → repackage with `OPENAI_STUB=0` (PDF text + a small audio transcription; confirm >25 MB fails closed). Run a media job with `LUMA_STUB=0` to confirm real `photon-1` stills render.
 3. ~~`curl` `/api/jobs/content-pipeline` for extract/repackage/media ticks against real DB.~~ ✅ Done 2026-06-16 (stubbed AI): seeded a paste source → cron processed extract (7 atoms) → repackage (10 channels) → media (carousel: 3 stub images @ 1:1, `ready_for_approval`); credits debited 360→275 with reasons `source_extraction_text`/`content_repackage`/`pack_media_render` (proves the 0017 constraint live). _Still TODO: a tick with **real** OpenAI + Luma (`*_STUB=0`)._
 4. Approve + schedule one social-channel item through live Zernio; confirm brand-safety block keeps a draft editable.
+
+## Generate hub — `@handle` mentions + Picture / Edit (`/create`)
+
+Branch `feat/handle-create-hub` (worktree `theplus-ai-influencer-create`), based on `8deba67`. Not committed, pushed or deployed; migration `0032` is not applied anywhere but a scratch database.
+
+| Piece | Status | Evidence |
+| ----- | ------ | -------- |
+| `@handle` parser (`src/lib/handles.ts`): handle derived from the persona name; emails ignored; an unknown, ambiguous or second persona is refused | IMPLEMENTED | 14 unit tests (`handles.test.ts`) |
+| Face lock: the mentioned persona's portrait is sent as `character_ref`, the handle is stripped from the prompt, and Edit sends `modify_image_ref` at weight 1 | IMPLEMENTED | `creations.test.ts` asserts the exact request sent to a mocked Luma SDK. **Real Luma render NOT RUN (paid)** |
+| `createAction`: resolve handles → load the edit source by id from the workspace → charge → render → refund on failure (one fresh UUID is the ref for both) → record; a failed record still returns the paid asset; an edit with no mention keeps the source's persona | IMPLEMENTED | 13 action tests. Mutation tests killed all 6: handle check skipped, refund with the wrong ref, source-ownership check skipped, face lock dropped, charge before resolve, edit inheritance removed |
+| `0032_creations.sql`: service-role-only writes, owner read/delete under RLS, CHECKs | IMPLEMENTED | Replayed twice on scratch Postgres 17 with Supabase role shims. Owner sees 1 row, other workspace 0, anon 0. Insert/update by an authenticated user is denied; with the grant restored, RLS alone still blocks it. Bad mode, http URL, empty prompt and negative credits are all rejected. **Production NOT APPLIED** |
+| `/create` UI: Picture/Edit tabs, `@` autocomplete (keyboard + click), persona chips, 5 shapes, cost on the Generate button, results grid, Edit-from-result, "Use in a post" handoff | IMPLEMENTED | Demo-mode browser run (Playwright): mention resolves to "Face locked to Aria Vance"; Generate shows a 9:16 card; `@nova` is refused with the button disabled; Edit of a result adds an "Edit" card; 390px mobile layout fits after a min-width fix. Real Supabase/Luma session NOT RUN |
+| Route protection (`/create` added to `PROTECTED_PREFIXES`) and `force-dynamic` | IMPLEMENTED | Middleware test: signed-out → 307 to `/sign-in?returnTo=%2Fcreate`; signed-in → 200. It goes red when `/create` is removed. Build lists `ƒ /create` |
+| Hand-off to `/create-post?creationId=` (server lookup in the workspace; brand-safety gate unchanged) | IMPLEMENTED | Typecheck/build. Browser path NOT RUN (demo results are not stored) |
+
+**Gates (2026-11-10):** `pnpm typecheck` ✅ · `pnpm lint` ✅ · `pnpm test:coverage` (the pre-push gate) ✅ · `pnpm build` ✅ · `pnpm lint:tracker` ✅
+
+**Known limits:**
+- `creations.asset_url` stores the raw Luma CDN URL, like `posts` does, so it can expire. An old result's thumbnail and its use as an Edit source may stop working until a URL refresh exists.
+- Credits are booked as `post_variant_render` (`ref_kind='creation'`). Nothing in `src/` reports by that reason, so no metric is skewed.
+- The handle is derived from the persona name. Renaming a persona changes its handle.
+
+**Not built in this slice:**
+- Video, which belongs on the existing animate job queue.
+- Upscale: the Luma SDK only exposes `upscale_video`, so there is no image upscale.
+- Swap, Motion-clone and Recast-a-trend: these put a face into third-party posts and need a rights/consent gate first.
+
+**To reach VERIFIED:**
+1. Apply `0032` to production after checking the live migration ledger.
+2. Make one real Luma Picture render plus one Edit, and confirm the ledger rows: `post_variant_render` −25 with `ref_kind=creation`, and a refund on a forced failure.
+3. Have Codex reproduce the action tests and attack source-id/ownership.

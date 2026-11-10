@@ -42,6 +42,28 @@ describe('updateSession auth boundary', () => {
     expect(res.headers.get('location')).toBeNull();
   });
 
+  it('sends a signed-out visitor on /create to sign-in, and lets a signed-in one through', async () => {
+    const getUser = vi.fn();
+    vi.doMock('@supabase/ssr', () => ({ createServerClient: () => ({ auth: { getUser } }) }));
+    vi.doMock('@/lib/env', () => ({
+      publicEnv: {
+        NEXT_PUBLIC_SUPABASE_URL: 'https://supabase.test',
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: 'anon-key',
+      },
+    }));
+    const { updateSession } = await import('../middleware');
+
+    getUser.mockResolvedValue({ data: { user: null } });
+    const out = await updateSession(new NextRequest('https://app.test/create'));
+    expect(out.status).toBe(307);
+    expect(out.headers.get('location')).toBe('https://app.test/sign-in?returnTo=%2Fcreate');
+
+    getUser.mockResolvedValue({ data: { user: { id: 'u1' } } });
+    const inside = await updateSession(new NextRequest('https://app.test/create'));
+    expect(inside.status).toBe(200);
+    expect(inside.headers.get('location')).toBeNull();
+  });
+
   it('does not contact Supabase for public routes', async () => {
     const createServerClient = vi.fn();
     vi.doMock('@supabase/ssr', () => ({ createServerClient }));

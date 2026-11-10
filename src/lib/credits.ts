@@ -41,6 +41,10 @@ export const COSTS = {
   PACK_MEDIA_RENDER: 60,
   /** Surcharge when a short-form item also animates a still into Luma video. */
   PACK_VIDEO_RENDER: 60,
+  // Create hub (/create). One Luma photon render each, priced like a post
+  // variant and booked under 'post_variant_render' with ref_kind 'creation'.
+  CREATE_PICTURE: 25,
+  CREATE_EDIT: 25,
 } as const;
 
 export type CreditReason =
@@ -155,7 +159,12 @@ export async function refundCredits(input: {
   } catch (err) {
     console.error(
       '[credits] refund skipped — admin client unavailable',
-      { workspaceId: input.workspaceId, amount: input.amount, refKind: input.refKind, refId: input.refId },
+      {
+        workspaceId: input.workspaceId,
+        amount: input.amount,
+        refKind: input.refKind,
+        refId: input.refId,
+      },
       err,
     );
     return;

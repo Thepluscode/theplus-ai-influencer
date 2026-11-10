@@ -222,6 +222,37 @@ export type Database = {
           },
         ];
       };
+      creations: {
+        Row: {
+          id: string;
+          workspace_id: string;
+          mode: 'picture' | 'edit';
+          prompt: string;
+          persona_id: string | null;
+          source_creation_id: string | null;
+          aspect_ratio: '1:1' | '3:4' | '4:3' | '9:16' | '16:9';
+          asset_url: string;
+          generation_id: string | null;
+          credits_spent: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          workspace_id: string;
+          mode: 'picture' | 'edit';
+          prompt: string;
+          persona_id?: string | null;
+          source_creation_id?: string | null;
+          aspect_ratio: '1:1' | '3:4' | '4:3' | '9:16' | '16:9';
+          asset_url: string;
+          generation_id?: string | null;
+          credits_spent?: number;
+          created_at?: string;
+        };
+        // 0032 grants no UPDATE: rows are immutable records of paid renders.
+        Update: Record<string, never>;
+        Relationships: [];
+      };
       content_plans: {
         Row: {
           id: string;
@@ -1377,6 +1408,7 @@ export type WorkspaceBrandDefaultsRow =
 export type WorkspaceInviteRow = Database['public']['Tables']['workspace_invites']['Row'];
 export type WorkspaceWebhookRow = Database['public']['Tables']['workspace_webhooks']['Row'];
 export type AiModelRow = Database['public']['Tables']['ai_models']['Row'];
+export type CreationRow = Database['public']['Tables']['creations']['Row'];
 export type PostRow = Database['public']['Tables']['posts']['Row'];
 export type ContentPlanRow = Database['public']['Tables']['content_plans']['Row'];
 export type StoryboardRow = Database['public']['Tables']['storyboards']['Row'];

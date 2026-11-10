@@ -6,6 +6,7 @@ const PROTECTED_PREFIXES = [
   '/content-os',
   '/dashboard',
   '/studio',
+  '/create',
   '/create-post',
   '/series',
   '/storyboard',

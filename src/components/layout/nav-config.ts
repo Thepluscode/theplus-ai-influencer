@@ -14,6 +14,7 @@ import {
   PlusSquare,
   Settings,
   ShieldCheck,
+  Sparkles,
   TrendingUp,
 } from 'lucide-react';
 
@@ -48,6 +49,13 @@ export const PRIMARY_NAV: readonly AppNavItem[] = [
     section: 'Persona ops',
     description: 'Influencer assets',
     icon: ImageIcon,
+  },
+  {
+    href: '/create',
+    label: 'Generate',
+    section: 'Production',
+    description: 'Picture or edit with @persona',
+    icon: Sparkles,
   },
   {
     href: '/create-post',
