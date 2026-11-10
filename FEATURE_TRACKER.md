@@ -163,3 +163,12 @@ Branch `fix/lock-workspace-columns`, based on `8deba67`. Found 2026-11-10 while 
 | Not offered in v1: create, generate, draft, schedule, slideshow, motion and talking video, remote HTTP | NOT A DEFECT | Each needs a durable idempotency store, a job record or a revision-bound approval record that the schema lacks, or a generator the app doesn't have. See `docs/mcp.md` |
 
 **Not run:** RLS isolation between two real users (blocked: Docker ran out of disk, so no local Supabase); a real Claude client (`claude mcp add`) against a real workspace; any production read.
+
+## Integration branch `integration/creation-slices` (local, not pushed)
+
+Base: PR #9 head `8deba67`. Merged `fix/lock-workspace-columns` (0033), the creation chain (`feat/handle-create-hub` → `feat/onboarding-tour` → `feat/creation-canvas`), and `origin/main`. Both tracker sections were kept (no line lost from either side). Main's `CLAUDE.md` was taken, and the branch's verification traps moved into `CLAUDE-OPERATING.md`.
+
+| Check | Status | Evidence |
+| --- | --- | --- |
+| Gates on the merged tree | PASS | typecheck, lint, `test:coverage` 46 files / 308 tests, `next build`, tracker lint (with the MCP commit) |
+| Canvas, demo mode, 1440 and 390 | PASS | One picture branched twice: 3 cards, 2 edges, 0 overlaps, both edits read "Branched from: @aria-vance on a rooftop at golden hour", page overflow-x 0. `/create` and `/welcome` overflow-x 0 at 390. 0 console errors. `.playwright-mcp/integration-canvas-{1440,390}.png` |
