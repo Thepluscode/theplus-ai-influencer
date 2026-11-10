@@ -120,6 +120,11 @@ export function getPlan(id: PlanId): Plan {
  * isn't recognized (shouldn't happen in practice — webhook would log it).
  */
 export function planIdForStripePrice(priceId: string): PlanId | null {
+  // An empty/undefined price id must not match an UNSET env var by way of
+  // `undefined === undefined` and resolve to a real tier. Both call sites
+  // currently guard with `priceId ? ... : null`, but relying on every future
+  // caller to remember that is how entitlements get granted for free.
+  if (!priceId) return null;
   if (priceId === serverEnv.STRIPE_PRICE_PRO) return 'pro';
   if (priceId === serverEnv.STRIPE_PRICE_STUDIO) return 'studio';
   if (priceId === serverEnv.STRIPE_PRICE_AGENCY) return 'agency';

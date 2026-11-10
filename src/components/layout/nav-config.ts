@@ -5,6 +5,7 @@ import {
   Calendar,
   CalendarRange,
   Film,
+  GitBranch,
   Home,
   ImageIcon,
   Inbox,
@@ -14,6 +15,7 @@ import {
   PlusSquare,
   Settings,
   ShieldCheck,
+  Sparkles,
   TrendingUp,
 } from 'lucide-react';
 
@@ -48,6 +50,20 @@ export const PRIMARY_NAV: readonly AppNavItem[] = [
     section: 'Persona ops',
     description: 'Influencer assets',
     icon: ImageIcon,
+  },
+  {
+    href: '/create',
+    label: 'Generate',
+    section: 'Production',
+    description: 'Picture or edit with @persona',
+    icon: Sparkles,
+  },
+  {
+    href: '/canvas',
+    label: 'Canvas',
+    section: 'Production',
+    description: 'Pictures and their edits as a tree',
+    icon: GitBranch,
   },
   {
     href: '/create-post',
@@ -144,6 +160,13 @@ const ROUTE_META: readonly AppNavItem[] = [
   ...PRIMARY_NAV,
   ...SECONDARY_NAV,
   SETTINGS_NAV,
+  {
+    href: '/welcome',
+    label: 'Setup',
+    section: 'Welcome',
+    description: 'First-run setup',
+    icon: Sparkles,
+  },
   {
     href: '/series/new',
     label: 'New Campaign',

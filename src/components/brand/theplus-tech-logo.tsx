@@ -14,6 +14,7 @@ export function ThePlusTechMark({ className }: { className?: string }) {
         alt="ThePlus-tech"
         fill
         sizes="40px"
+        loading="eager"
         className="object-cover"
       />
     </span>
@@ -23,17 +24,19 @@ export function ThePlusTechMark({ className }: { className?: string }) {
 export function ThePlusTechBrand({
   className,
   markClassName,
+  label = 'ThePlus-tech',
   sublabel,
 }: {
   className?: string;
   markClassName?: string;
+  label?: string;
   sublabel?: string;
 }) {
   return (
     <span className={cn('inline-flex min-w-0 items-center gap-2.5', className)}>
       <ThePlusTechMark className={cn('h-8 w-8', markClassName)} />
       <span className="min-w-0">
-        <span className="block truncate leading-tight">ThePlus-tech</span>
+        <span className="block truncate leading-tight">{label}</span>
         {sublabel ? (
           <span className="block truncate text-[11px] font-normal uppercase tracking-[0.18em] text-[#666]">
             {sublabel}

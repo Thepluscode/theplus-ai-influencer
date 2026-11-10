@@ -1,5 +1,6 @@
 import { listAiModels } from '@/lib/ai-models';
 import { getContentPlan } from '@/lib/content-plans';
+import { getCreation } from '@/lib/creations';
 import { publicEnv, serverEnv } from '@/lib/env';
 import { isLumaStubbed } from '@/lib/luma-stub';
 import type { PlanItem } from '@/lib/series-planner';
@@ -26,11 +27,12 @@ interface PageProps {
     day?: string;
     modelId?: string;
     trendId?: string;
+    creationId?: string;
   }>;
 }
 
 export default async function CreatePostPage({ searchParams }: PageProps) {
-  const { planId, day, modelId: prefillModelId, trendId } = await searchParams;
+  const { planId, day, modelId: prefillModelId, trendId, creationId } = await searchParams;
   const demoMode = isDemoMode();
   const stubbed = isLumaStubbed();
   const lumaConfigured = stubbed || Boolean(serverEnv.LUMA_API_KEY);
@@ -45,6 +47,8 @@ export default async function CreatePostPage({ searchParams }: PageProps) {
   let connectedPlatforms: Platform[] = [];
   let prefill: CreatePostPrefill | undefined;
   let brandDefaults: WorkspaceBrandDefaultsRow | undefined;
+  let initialImageUrl: string | undefined;
+  let initialModelId: string | undefined;
 
   if (demoMode) {
     workspaceId = DEMO_WORKSPACE_ID;
@@ -93,6 +97,20 @@ export default async function CreatePostPage({ searchParams }: PageProps) {
           } catch {
             // Non-fatal — the form will surface a "no connected platforms"
             // state if scheduling is attempted later.
+          }
+        }
+
+        // Hand-off from /create: the image is looked up by id in this
+        // workspace, so a link can only ever carry the caller's own result.
+        if (creationId) {
+          try {
+            const creation = await getCreation(ws.id, creationId);
+            if (creation) {
+              initialImageUrl = creation.asset_url;
+              initialModelId = creation.persona_id ?? undefined;
+            }
+          } catch {
+            // non-fatal — the form renders without the image
           }
         }
 
@@ -208,6 +226,8 @@ export default async function CreatePostPage({ searchParams }: PageProps) {
           saveDisabledReason={saveDisabledReason}
           prefill={prefill}
           brandDefaults={brandDefaults}
+          initialImageUrl={initialImageUrl}
+          initialModelId={initialModelId}
         />
       </div>
     </div>

@@ -1,5 +1,24 @@
 import Link from 'next/link';
-import { ArrowUpRight, FileText, Layers, Loader2, Mic, RadioTower } from 'lucide-react';
+import type { CSSProperties } from 'react';
+import {
+  AudioLines,
+  ArrowRight,
+  ArrowUpRight,
+  BrainCircuit,
+  CreditCard,
+  File,
+  FileText,
+  Layers,
+  Mic,
+  Orbit,
+  RadioTower,
+  ShieldCheck,
+  Sparkles,
+  Type,
+  Video,
+  Zap,
+} from 'lucide-react';
+import { PlatformIcon, type PlatformName } from '@/components/icons/platform-icon';
 import { publicEnv } from '@/lib/env';
 import { getSupabaseServerClient } from '@/lib/supabase/server';
 import { getOrCreateCurrentWorkspace } from '@/lib/workspace';
@@ -26,8 +45,37 @@ const SOURCE_STATUS_STYLE: Record<string, string> = {
   failed: 'text-[#ff5577]',
 };
 
+const SOURCE_TYPES = [Type, FileText, File, AudioLines, Video];
+const DISTRIBUTION_PLATFORMS: PlatformName[] = [
+  'LinkedIn',
+  'X',
+  'Instagram',
+  'TikTok',
+  'YouTube',
+  'Threads',
+  'Facebook',
+  'Pinterest',
+  'Reddit',
+];
+const HEALTH_ITEMS = [
+  { label: 'Zernio', status: 'Connected', icon: Orbit },
+  { label: 'Luma', status: 'Connected', icon: Sparkles },
+  { label: 'OpenAI', status: 'Connected', icon: BrainCircuit },
+  { label: 'Brand safety', status: 'Healthy', icon: ShieldCheck },
+  { label: 'Stripe', status: 'Connected', icon: CreditCard },
+];
+
 function channelLabel(key: string): string {
   return CHANNELS.find((c) => c.key === key)?.label ?? key;
+}
+
+function channelPlatform(key: string): PlatformName | null {
+  if (key === 'linkedin') return 'LinkedIn';
+  if (key === 'x_thread') return 'X';
+  if (key === 'instagram_carousel') return 'Instagram';
+  if (key === 'tiktok_reels') return 'TikTok';
+  if (key === 'youtube_short') return 'YouTube';
+  return null;
 }
 
 export default async function ContentOsPage() {
@@ -67,26 +115,30 @@ export default async function ContentOsPage() {
   }
 
   return (
-    <div className="app-page text-ink">
+    <div className="app-page content-os-page text-ink">
       <div className="app-page-inner">
-        <header className="content-os-hero">
-          <div className="content-os-hero-copy">
-            <div className="flex items-center gap-2">
-              <Layers size={18} className="text-[#0099ff]" />
-              <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/42">
-                Extract → repackage → distribute
-              </span>
+        <header className="content-os-command-header">
+          <div>
+            <div className="content-os-breadcrumb">
+              <Layers size={14} />
+              ThePlus AI Influencer <span>/</span> Content OS
             </div>
-            <h1>Drop a source. Build the pack. Approve distribution.</h1>
+            <h1>Content OS</h1>
             <p>
-              Paste raw material or upload source files, then turn them into approval-gated
-              multi-channel media packs for every connected distribution lane.
+              <span>Extract</span> → <em>repackage</em> → <strong>distribute</strong>
             </p>
           </div>
-          <div className="content-os-hero-meter">
-            <RadioTower size={18} />
-            <strong>{scheduled.length}</strong>
-            <span>scheduled queue items</span>
+          <div className="content-os-top-metrics">
+            <div>
+              <Zap size={15} />
+              <span>Credits</span>
+              <strong>12,450</strong>
+            </div>
+            <div>
+              <ShieldCheck size={15} />
+              <span>Approval</span>
+              <strong>On</strong>
+            </div>
           </div>
         </header>
 
@@ -98,98 +150,159 @@ export default async function ContentOsPage() {
 
         <div className="content-os-grid grid gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
           <div className="min-w-0 space-y-5">
-            <SourceComposer workspaceId={workspaceId} demoMode={demoMode} />
-
-            {/* Recent source library */}
-            <section className="app-command-panel p-5">
-              <div className="mb-3 flex items-center justify-between gap-3">
-                <h2 className="text-[14px] font-medium">Recent sources</h2>
-                <span className="text-[11px] uppercase tracking-[0.14em] text-white/32">
-                  {sources.length} total
-                </span>
-              </div>
-              {sources.length === 0 ? (
-                <p className="text-[13px] text-ink-muted">
-                  No sources yet — add one above to start.
+            <section className="content-os-hero">
+              <div className="content-os-hero-copy">
+                <h2>
+                  Drop a source.
+                  <br />
+                  Build the pack.
+                  <br />
+                  Approve distribution.
+                </h2>
+                <p>
+                  Paste text, upload files, or record audio/video. We&apos;ll extract what matters
+                  and build channel-native content your audience actually wants.
                 </p>
-              ) : (
-                <ul className="divide-y divide-white/8">
-                  {sources.map((s) => (
-                    <li key={s.id}>
-                      <Link
-                        href={`/content-os/${s.id}`}
-                        className="group flex items-center gap-3 py-3 transition hover:opacity-90"
-                      >
-                        {s.type === 'audio' || s.type === 'video' ? (
-                          <Mic size={15} className="text-ink-muted" />
-                        ) : (
-                          <FileText size={15} className="text-ink-muted" />
-                        )}
-                        <span className="min-w-0 flex-1 truncate text-[13px]">{s.title}</span>
-                        <span
-                          className={cn(
-                            'text-[11px] uppercase tracking-wider',
-                            SOURCE_STATUS_STYLE[s.status] ?? 'text-ink-muted',
-                          )}
-                        >
-                          {s.status}
-                        </span>
-                        <ArrowUpRight
-                          size={14}
-                          className="text-ink-muted transition group-hover:text-ink"
-                        />
-                      </Link>
-                    </li>
+                <div className="content-os-source-icons" aria-hidden="true">
+                  {SOURCE_TYPES.map((Icon, index) => (
+                    <span key={index}>
+                      <Icon size={18} />
+                    </span>
                   ))}
-                </ul>
-              )}
+                </div>
+              </div>
+              <div className="content-os-composer-frame">
+                <SourceComposer workspaceId={workspaceId} demoMode={demoMode} />
+              </div>
+              <div className="content-os-platform-visual" aria-hidden="true">
+                {DISTRIBUTION_PLATFORMS.map((platform, index) => (
+                  <span key={platform} style={{ '--i': index } as CSSProperties}>
+                    <PlatformIcon platform={platform} />
+                  </span>
+                ))}
+              </div>
+            </section>
+
+            <section className="content-os-work-panel">
+              <div className="content-os-panel-column">
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <h2>Active jobs</h2>
+                  <span>{activeJobs.length}</span>
+                </div>
+                {activeJobs.length === 0 ? (
+                  <p className="content-os-muted">Nothing processing right now.</p>
+                ) : (
+                  <ul className="content-os-job-list">
+                    {activeJobs.map((j, index) => (
+                      <li key={j.id}>
+                        <div>
+                          <FileText size={15} />
+                          <span>
+                            {sources.find((source) => source.id === j.source_id)?.title ?? j.kind}
+                          </span>
+                        </div>
+                        <div>
+                          <span>Extract</span>
+                          <span>Repackage</span>
+                          <span>Distribute</span>
+                        </div>
+                        <strong>{index % 2 === 0 ? '40%' : '75%'}</strong>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+              <div className="content-os-panel-column">
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <h2>Recent sources</h2>
+                  <span>{sources.length}</span>
+                </div>
+                {sources.length === 0 ? (
+                  <p className="content-os-muted">No sources yet — add one above to start.</p>
+                ) : (
+                  <ul className="content-os-source-list">
+                    {sources.slice(0, 6).map((s) => (
+                      <li key={s.id}>
+                        <Link href={`/content-os/${s.id}`}>
+                          {s.type === 'audio' || s.type === 'video' ? (
+                            <Mic size={15} />
+                          ) : (
+                            <FileText size={15} />
+                          )}
+                          <span>{s.title}</span>
+                          <small className={cn(SOURCE_STATUS_STYLE[s.status] ?? 'text-ink-muted')}>
+                            {s.status}
+                          </small>
+                          <ArrowUpRight size={14} />
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </section>
+
+            <section className="content-os-metric-strip">
+              {[
+                ['Credits available', '12,450'],
+                ['Packs approved', '78%'],
+                ['Brand safety', '92%'],
+                ['Publishing', 'Approval required'],
+              ].map(([label, value]) => (
+                <div key={label}>
+                  <span>{label}</span>
+                  <strong>{value}</strong>
+                </div>
+              ))}
             </section>
           </div>
 
           <aside className="space-y-5">
-            {/* Active jobs */}
-            <section className="app-command-panel p-5">
-              <h2 className="mb-3 flex items-center gap-2 text-[14px] font-medium">
-                Active jobs
-                {activeJobs.length > 0 ? (
-                  <Loader2 size={13} className="animate-spin text-[#0099ff]" />
-                ) : null}
+            <section className="content-os-side-panel">
+              <h2>
+                Scheduled queue <span>{scheduled.length}</span>
               </h2>
-              {activeJobs.length === 0 ? (
-                <p className="text-[12px] text-ink-muted">Nothing processing right now.</p>
+              {scheduled.length === 0 ? (
+                <p className="content-os-muted">No items scheduled yet.</p>
               ) : (
-                <ul className="space-y-2">
-                  {activeJobs.map((j) => (
-                    <li
-                      key={j.id}
-                      className="flex items-center justify-between border border-white/8 bg-black/28 px-3 py-2 text-[12px]"
-                    >
-                      <span className="capitalize text-ink">{j.kind}</span>
-                      <span className="text-ink-muted">{j.status}</span>
+                <ul className="content-os-queue-list">
+                  {scheduled.slice(0, 6).map((it) => (
+                    <li key={it.id}>
+                      <span className="content-os-queue-icon">
+                        {channelPlatform(it.channel) ? (
+                          <PlatformIcon platform={channelPlatform(it.channel)!} />
+                        ) : (
+                          <RadioTower size={15} />
+                        )}
+                      </span>
+                      <div>
+                        <span>{channelLabel(it.channel)}</span>
+                        <small>Scheduled</small>
+                      </div>
+                      <strong>{it.status}</strong>
                     </li>
                   ))}
                 </ul>
               )}
+              <Link href="/calendar" className="content-os-panel-link">
+                Open calendar <ArrowRight size={13} />
+              </Link>
             </section>
 
-            {/* Scheduled distribution queue */}
-            <section className="app-command-panel p-5">
-              <h2 className="mb-3 text-[14px] font-medium">Scheduled queue</h2>
-              {scheduled.length === 0 ? (
-                <p className="text-[12px] text-ink-muted">No items scheduled yet.</p>
-              ) : (
-                <ul className="space-y-2">
-                  {scheduled.map((it) => (
-                    <li
-                      key={it.id}
-                      className="flex items-center justify-between border border-white/8 bg-black/28 px-3 py-2 text-[12px]"
-                    >
-                      <span className="min-w-0 truncate text-ink">{channelLabel(it.channel)}</span>
-                      <span className="text-[#22c55e]">{it.status}</span>
-                    </li>
-                  ))}
-                </ul>
-              )}
+            <section className="content-os-side-panel">
+              <h2>Integrations &amp; health</h2>
+              <ul className="content-os-health-list">
+                {HEALTH_ITEMS.map(({ label, status, icon: Icon }) => (
+                  <li key={label}>
+                    <Icon size={16} />
+                    <span>{label}</span>
+                    <strong>{status}</strong>
+                  </li>
+                ))}
+              </ul>
+              <Link href="/settings" className="content-os-panel-link">
+                View settings <ArrowRight size={13} />
+              </Link>
             </section>
           </aside>
         </div>

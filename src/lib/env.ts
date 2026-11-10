@@ -59,6 +59,12 @@ const ServerEnvSchema = z.object({
   // dev, the route still accepts SUPABASE_SERVICE_ROLE_KEY as a bearer
   // token so you can curl it locally.
   CRON_SECRET: z.string().min(16).optional(),
+  // Local Claude MCP server (pnpm mcp). It acts as ONE signed-in user through
+  // the anon key, so RLS scopes every query. Give it either a short-lived access
+  // token, or that user's email + password. Never the service-role key.
+  THEPLUS_MCP_ACCESS_TOKEN: z.preprocess(emptyStringToUndefined, z.string().min(1).optional()),
+  THEPLUS_MCP_EMAIL: z.preprocess(emptyStringToUndefined, z.string().email().optional()),
+  THEPLUS_MCP_PASSWORD: z.preprocess(emptyStringToUndefined, z.string().min(1).optional()),
 });
 
 const PublicEnvSchema = z.object({

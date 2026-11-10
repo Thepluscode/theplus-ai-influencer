@@ -6,6 +6,8 @@ const PROTECTED_PREFIXES = [
   '/content-os',
   '/dashboard',
   '/studio',
+  '/create',
+  '/canvas',
   '/create-post',
   '/series',
   '/storyboard',
@@ -17,6 +19,7 @@ const PROTECTED_PREFIXES = [
   '/agents',
   '/accounts',
   '/settings',
+  '/welcome',
 ];
 const AUTH_ONLY_PREFIXES = ['/sign-in', '/sign-up'];
 
@@ -36,6 +39,10 @@ export async function updateSession(request: NextRequest) {
     (p) => pathname === p || pathname.startsWith(`${p}/`),
   );
   const isAuthOnly = AUTH_ONLY_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+
+  if (!isProtected && !isAuthOnly) {
+    return response;
+  }
 
   if (!publicEnv.NEXT_PUBLIC_SUPABASE_URL || !publicEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
     if (process.env.NODE_ENV === 'production' && isProtected) {

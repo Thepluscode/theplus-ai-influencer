@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { AppTopbar } from '@/components/layout/app-topbar';
 import { CreditsPill } from '@/components/credits/credits-pill';
 import { Sidebar } from '@/components/layout/sidebar';
+import { ProductTour } from '@/components/tour/product-tour';
 import { getSupabaseServerClient } from '@/lib/supabase/server';
 import { publicEnv } from '@/lib/env';
 import { DEMO_USER_EMAIL, isDemoMode } from '@/lib/demo-mode';
@@ -28,13 +29,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <AppTopbar
           demoMode={demoMode}
           credits={
-            <div className="shrink-0">
+            <div className="shrink-0" data-tour="credits">
               <CreditsPill />
             </div>
           }
         />
         <div className="app-workspace-scroll h-[calc(100dvh-65px)] overflow-y-auto">{children}</div>
       </main>
+      <ProductTour />
     </div>
   );
 }

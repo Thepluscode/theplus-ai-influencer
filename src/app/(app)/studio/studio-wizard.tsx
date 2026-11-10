@@ -10,6 +10,7 @@ import {
 } from './actions';
 import { InsufficientCreditsBanner } from '@/components/credits/insufficient-credits-banner';
 import { cn } from '@/lib/utils';
+import type { StudioPrefill } from '@/lib/onboarding';
 
 const GENDERS = ['woman', 'man', 'non-binary'] as const;
 const BODY_TYPES = ['slim', 'athletic', 'curvy', 'plus-size'] as const;
@@ -72,7 +73,14 @@ const SKIN_SWATCHES: Record<SkinTone, string> = {
   deep: '#5a3621',
 };
 
-export function StudioWizard({ saveDisabledReason }: { saveDisabledReason: string | null }) {
+export function StudioWizard({
+  saveDisabledReason,
+  prefill,
+}: {
+  saveDisabledReason: string | null;
+  /** From /welcome, already whitelist-parsed by the page. */
+  prefill?: StudioPrefill;
+}) {
   const [state, formAction, pending] = useActionState<GenerateState | null, FormData>(
     generateInfluencer,
     null,
@@ -85,14 +93,16 @@ export function StudioWizard({ saveDisabledReason }: { saveDisabledReason: strin
   const last = state?.status === 'success' ? state.input : null;
   const fe = state?.status === 'error' ? state.fieldErrors : undefined;
 
-  const [name, setName] = useState(last?.name ?? '');
+  const [name, setName] = useState(last?.name ?? prefill?.name ?? '');
   const [gender, setGender] = useState<Gender>((last?.gender as Gender) ?? 'woman');
   const [bodyType, setBodyType] = useState<BodyType>((last?.bodyType as BodyType) ?? 'athletic');
   const [skinTone, setSkinTone] = useState<SkinTone>((last?.skinTone as SkinTone) ?? 'olive');
   const [ageRange, setAgeRange] = useState<AgeRange>((last?.ageRange as AgeRange) ?? '25-34');
   const [hair, setHair] = useState(last?.hair ?? '');
-  const [vibe, setVibe] = useState<Vibe>((last?.vibe as Vibe) ?? 'cinematic');
-  const [customPrompt, setCustomPrompt] = useState(last?.customPrompt ?? '');
+  const [vibe, setVibe] = useState<Vibe>((last?.vibe as Vibe) ?? prefill?.vibe ?? 'cinematic');
+  const [customPrompt, setCustomPrompt] = useState(
+    last?.customPrompt ?? prefill?.customPrompt ?? '',
+  );
 
   return (
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_440px]">

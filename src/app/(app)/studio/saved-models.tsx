@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { Plus } from 'lucide-react';
 import type { AiModelRow } from '@/lib/supabase/types';
+import { ReplaceImageButton } from './replace-image-button';
 
 // Deterministic "Reach est." per model. Real metrics will replace this in
 // Phase 4 once analytics ships. Placeholder uses the model id's hash so
@@ -21,7 +22,14 @@ function simpleHash(s: string): number {
   return Math.abs(h);
 }
 
-export function SavedModels({ models }: { models: AiModelRow[] }) {
+export function SavedModels({
+  models,
+  workspaceId,
+}: {
+  models: AiModelRow[];
+  /** Storage path prefix — the persona-refs RLS policy gates writes on it. */
+  workspaceId?: string | null;
+}) {
   if (models.length === 0) {
     return (
       <Link href="/studio/new" className="workflow-empty-state group block px-6 py-10">
@@ -53,6 +61,11 @@ export function SavedModels({ models }: { models: AiModelRow[] }) {
             <span className="absolute left-1/2 top-3 -translate-x-1/2 rounded-full bg-black/55 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-white backdrop-blur">
               {vibe}
             </span>
+            {/* Replace-image control — revealed on hover so the card stays clean.
+                The wizard only generates a face; this is the way to use your own. */}
+            <div className="absolute right-2 top-2 z-10 opacity-0 transition group-hover:opacity-100 focus-within:opacity-100">
+              <ReplaceImageButton modelId={m.id} workspaceId={workspaceId ?? null} />
+            </div>
             {/* Bottom gradient overlay with name + reach */}
             <div className="pointer-events-none absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-black/85 via-black/40 to-transparent" />
             <div className="absolute inset-x-0 bottom-0 flex flex-col gap-1.5 p-3">

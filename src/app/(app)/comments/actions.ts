@@ -60,11 +60,17 @@ export async function addPastedCommentAction(
     if (!user) return { status: 'error', error: 'Not signed in.' };
     const ws = await getOrCreateCurrentWorkspace(user);
 
+    // One id per attempt, threaded through the debit AND its refund. It is what
+    // pairs them in credit_transactions, and what lets migration 0021's unique
+    // index reject a second refund for the SAME attempt while still allowing a
+    // genuine retry (new attempt, new id) to be refunded on its own merits.
+    const attemptId = crypto.randomUUID();
     const consume = await consumeCredits({
       workspaceId: ws.id,
       amount: COSTS.COMMENT_REPLY_DRAFT,
       reason: 'comment_reply_draft',
       refKind: 'comment',
+      refId: attemptId,
     });
     if (!consume.ok) {
       return {
@@ -93,6 +99,7 @@ export async function addPastedCommentAction(
         workspaceId: ws.id,
         amount: COSTS.COMMENT_REPLY_DRAFT,
         refKind: 'comment',
+        refId: attemptId,
       });
       throw err;
     }

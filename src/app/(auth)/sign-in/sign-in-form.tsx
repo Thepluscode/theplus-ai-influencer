@@ -1,10 +1,12 @@
 'use client';
 
-import { useActionState } from 'react';
+import { useActionState, useState } from 'react';
 import Link from 'next/link';
+import { ArrowRight } from 'lucide-react';
 import { signInWithPassword, type AuthResult } from '../actions';
 
 export function SignInForm({ returnTo }: { returnTo?: string }) {
+  const [showPassword, setShowPassword] = useState(false);
   const [state, formAction, pending] = useActionState<AuthResult | null, FormData>(
     signInWithPassword,
     null,
@@ -15,25 +17,33 @@ export function SignInForm({ returnTo }: { returnTo?: string }) {
       {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
       <label>
         <span>Email</span>
-        <input name="email" type="email" autoComplete="email" required />
+        <input
+          name="email"
+          type="email"
+          autoComplete="email"
+          placeholder="you@yourbrand.com"
+          required
+        />
       </label>
       <label>
-        <div className="auth-label-row">
-          <span>Password</span>
-          <Link
-            href="/forgot"
-            className="text-[11px] text-white/42 underline-offset-2 transition hover:text-white hover:underline"
+        <span>Password</span>
+        <div className="auth-password-field">
+          <input
+            name="password"
+            type={showPassword ? 'text' : 'password'}
+            autoComplete="current-password"
+            placeholder="Enter your password"
+            required
+            minLength={8}
+          />
+          <button
+            type="button"
+            aria-label={showPassword ? 'Hide password' : 'Show password'}
+            onClick={() => setShowPassword((visible) => !visible)}
           >
-            Forgot password?
-          </Link>
+            {showPassword ? 'Hide' : 'Show'}
+          </button>
         </div>
-        <input
-          name="password"
-          type="password"
-          autoComplete="current-password"
-          required
-          minLength={8}
-        />
       </label>
       {state && !state.ok ? (
         <p className="auth-error" role="alert">
@@ -41,8 +51,12 @@ export function SignInForm({ returnTo }: { returnTo?: string }) {
         </p>
       ) : null}
       <button type="submit" disabled={pending} className="auth-submit">
-        {pending ? 'Signing in…' : 'Continue'}
+        <span>{pending ? 'Signing in…' : 'Continue'}</span>
+        <ArrowRight size={18} />
       </button>
+      <Link href="/forgot" className="auth-forgot-link">
+        Forgot password?
+      </Link>
     </form>
   );
 }

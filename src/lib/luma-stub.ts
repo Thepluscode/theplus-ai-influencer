@@ -114,6 +114,23 @@ export function stubPostVariants(
   });
 }
 
+const ASPECT_DIMS: Record<string, { w: number; h: number }> = {
+  '1:1': { w: 900, h: 900 },
+  '3:4': { w: 768, h: 1024 },
+  '4:3': { w: 1024, h: 768 },
+  '9:16': { w: 720, h: 1280 },
+  '16:9': { w: 1280, h: 720 },
+};
+
+/** Deterministic placeholder for one Create-hub render (LUMA_STUB=1). */
+export function stubCreationImage(
+  seed: string,
+  aspect: string,
+): { url: string; generationId: string } {
+  const dims = ASPECT_DIMS[aspect] ?? ASPECT_DIMS['3:4'];
+  return { url: picsumUrl(seed, dims.w, dims.h), generationId: `stub_${hashSeed(seed)}` };
+}
+
 export function isLumaStubbed(): boolean {
   return serverEnv.LUMA_STUB === true;
 }

@@ -48,4 +48,6 @@ supabase/.temp/
 # Playwright MCP screenshot/snapshot artifacts
 .playwright-mcp/
 
+# coverage output
+/coverage
 PROJECT_STATE.json

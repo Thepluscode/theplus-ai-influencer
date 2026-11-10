@@ -34,14 +34,15 @@ export function Sidebar({
   }, [pathname]);
 
   return (
-    <aside className="app-sidebar flex h-dvh w-[76px] shrink-0 flex-col text-ink-muted lg:w-[286px]">
+    <aside className="app-sidebar flex h-dvh w-[76px] shrink-0 flex-col text-ink-muted lg:w-[242px]">
       <div className="app-sidebar-brand px-3 py-4 lg:px-4">
         <Link
           href="/dashboard"
           className="group flex items-center justify-center gap-2.5 text-[14px] font-medium tracking-tight text-ink lg:justify-start"
         >
           <ThePlusTechBrand
-            sublabel="Influencer OS"
+            label="ThePlus.AI"
+            sublabel="Influencer"
             className="[&>span:last-child]:hidden lg:[&>span:last-child]:block"
           />
         </Link>
@@ -61,6 +62,7 @@ export function Sidebar({
                   key={item.href}
                   href={item.href}
                   title={item.label}
+                  data-tour={item.href.slice(1)}
                   className={cn(
                     'app-sidebar-link group relative flex h-11 items-center justify-center gap-3 overflow-hidden px-3 text-[13px] transition lg:justify-start',
                     active ? 'app-sidebar-link-active text-ink' : 'text-ink-muted hover:text-ink',

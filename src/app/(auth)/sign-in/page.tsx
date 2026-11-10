@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { signInWithOAuth } from '../actions';
+import { BriefcaseBusiness, LockKeyhole } from 'lucide-react';
 import { SignInForm } from './sign-in-form';
 import { isDemoMode } from '@/lib/demo-mode';
 
@@ -15,35 +15,31 @@ export default async function SignInPage({
     <div className="auth-flow">
       <header>
         <h1>Sign in</h1>
-        <p>Welcome back. Continue running the content engine.</p>
+        <p>Welcome back. Let&apos;s keep producing.</p>
       </header>
-
-      <div className="auth-oauth-grid">
-        <form action={signInWithOAuth.bind(null, 'google')}>
-          <button type="submit" className="auth-oauth-button">
-            Continue with Google
-          </button>
-        </form>
-        <form action={signInWithOAuth.bind(null, 'github')}>
-          <button type="submit" className="auth-oauth-button">
-            Continue with GitHub
-          </button>
-        </form>
-      </div>
-
-      <div className="auth-divider">
-        <span />
-        or with email
-        <span />
-      </div>
 
       <SignInForm returnTo={returnTo} />
 
       {demoMode ? (
-        <Link href="/dashboard" className="auth-demo-button">
-          Open demo workspace
-        </Link>
+        <>
+          <div className="auth-workspace-divider">
+            <span>Your workspace</span>
+          </div>
+          <div className="auth-workspace-card">
+            <BriefcaseBusiness size={18} />
+            <div>
+              <strong>Demo Workspace</strong>
+              <span>Pro plan&nbsp; · &nbsp;12,450 credits</span>
+            </div>
+            <Link href="/dashboard">Open</Link>
+          </div>
+        </>
       ) : null}
+
+      <p className="auth-security-note">
+        <LockKeyhole size={15} />
+        Your data is encrypted and never published without approval.
+      </p>
 
       <p className="auth-switch-copy">
         New here? <Link href="/sign-up">Create an account</Link>

@@ -6,8 +6,14 @@ import { getSupabaseServerClient } from '@/lib/supabase/server';
 import { getOrCreateCurrentWorkspace } from '@/lib/workspace';
 import { isDemoMode } from '@/lib/demo-mode';
 import { StudioWizard } from '../studio-wizard';
+import { parseStudioPrefill } from '@/lib/onboarding';
 
-export default async function StudioNewPage() {
+export default async function StudioNewPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const prefill = parseStudioPrefill(await searchParams);
   const demoMode = isDemoMode();
   const stubbed = isLumaStubbed();
   const lumaConfigured = stubbed || Boolean(serverEnv.LUMA_API_KEY);
@@ -78,7 +84,7 @@ export default async function StudioNewPage() {
           </div>
         </header>
 
-        <StudioWizard saveDisabledReason={saveDisabledReason} />
+        <StudioWizard saveDisabledReason={saveDisabledReason} prefill={prefill} />
       </div>
     </div>
   );

@@ -17,6 +17,8 @@ const h = vi.hoisted(() => ({
   workspaceUpdates: [] as Record<string, unknown>[],
   // Charge → customer map for dispute resolution (null = unresolvable).
   chargeCustomer: 'cus_1' as string | null,
+  // Rows returned by the customer → workspace lookup on the dispute path.
+  workspaceLookup: [{ id: 'ws_1' }] as { id: string }[],
 }));
 
 vi.mock('@/lib/env', () => ({
@@ -74,6 +76,11 @@ vi.mock('@supabase/supabase-js', () => ({
             h.workspaceUpdates.push(vals);
             return Promise.resolve({ error: null });
           },
+        }),
+        // The dispute path resolves customer → workspace id before touching
+        // credits, because the credit RPC keys on workspace id.
+        select: () => ({
+          eq: () => Promise.resolve({ data: h.workspaceLookup, error: null }),
         }),
       };
     },
@@ -159,19 +166,98 @@ describe('Stripe webhook — dispute capture', () => {
   it('funds_withdrawn revokes access (workspace → free)', async () => {
     const res = await POST(disputeReq('evt_disp_1', 'charge.dispute.funds_withdrawn'));
     expect(res.status).toBe(200);
+    // Plan + credits now move through the audited RPC…
+    expect(h.grantCalls).toHaveLength(1);
+    expect(h.grantCalls[0]).toMatchObject({
+      fn: 'apply_plan_credits',
+      params: { p_workspace_id: 'ws_1', p_plan: 'free', p_reason: 'admin_adjustment' },
+    });
+    // …and the Stripe bookkeeping columns are cleared separately.
     expect(h.workspaceUpdates).toHaveLength(1);
-    expect(h.workspaceUpdates[0]).toMatchObject({ plan: 'free', stripe_subscription_id: null });
+    expect(h.workspaceUpdates[0]).toMatchObject({
+      stripe_subscription_id: null,
+      plan_renews_at: null,
+    });
   });
 
   it('created alerts but does NOT revoke access', async () => {
     const res = await POST(disputeReq('evt_disp_2', 'charge.dispute.created'));
     expect(res.status).toBe(200);
     expect(h.workspaceUpdates).toHaveLength(0);
+    expect(h.grantCalls).toHaveLength(0);
   });
 
   it('unmatched dispute (unresolvable customer) is acked but revokes nothing', async () => {
     const res = await POST(disputeReq('evt_disp_3', 'charge.dispute.funds_withdrawn', false));
     expect(res.status).toBe(200);
     expect(h.workspaceUpdates).toHaveLength(0);
+    expect(h.grantCalls).toHaveLength(0);
+  });
+
+  it('a dispute whose customer has no workspace is acked, credits nothing', async () => {
+    // Regression: the lookup replaced an .update().eq() that silently matched
+    // zero rows. An empty result must not become a credit write or a 500.
+    h.workspaceLookup = [];
+    const res = await POST(disputeReq('evt_disp_4', 'charge.dispute.funds_withdrawn'));
+    h.workspaceLookup = [{ id: 'ws_1' }];
+    expect(res.status).toBe(200);
+    expect(h.grantCalls).toHaveLength(0);
+    expect(h.workspaceUpdates).toHaveLength(0);
+  });
+});
+
+describe('Stripe webhook — subscription credit movements are audited', () => {
+  function subReq(eventId: string, type: string, status = 'active'): NextRequest {
+    const body = JSON.stringify({
+      id: eventId,
+      type,
+      data: {
+        object: {
+          id: 'sub_1',
+          status,
+          customer: 'cus_1',
+          metadata: { workspaceId: 'ws_1' },
+          items: { data: [{ price: { id: 'price_pro' }, current_period_end: 1788279664 }] },
+        },
+      },
+    });
+    return {
+      headers: { get: (k: string) => (k === 'stripe-signature' ? 'sig_x' : null) },
+      text: async () => body,
+    } as unknown as NextRequest;
+  }
+
+  it('routes the plan change through apply_plan_credits, not a raw credits write', async () => {
+    // The bug this replaces: credits were written directly, so a real upgrade
+    // moved a balance 360 -> 2500 and left credit_transactions empty.
+    const res = await POST(subReq('evt_sub_1', 'customer.subscription.created'));
+    expect(res.status).toBe(200);
+    expect(h.grantCalls).toHaveLength(1);
+    expect(h.grantCalls[0]).toMatchObject({
+      fn: 'apply_plan_credits',
+      params: {
+        p_workspace_id: 'ws_1',
+        p_credits: 1000,
+        p_reason: 'plan_upgrade',
+        p_plan: 'pro',
+        p_ref_kind: 'stripe_subscription',
+        p_ref_id: 'sub_1',
+      },
+    });
+    // The follow-up update carries bookkeeping only — never credits or plan.
+    expect(h.workspaceUpdates[0]).not.toHaveProperty('credits');
+    expect(h.workspaceUpdates[0]).not.toHaveProperty('plan');
+  });
+
+  it('reads current_period_end from the subscription ITEM, not the top level', async () => {
+    // Stripe moved the field onto items; reading the top level silently wrote
+    // plan_renews_at = null for every subscriber.
+    await POST(subReq('evt_sub_2', 'customer.subscription.updated'));
+    expect(h.workspaceUpdates[0].plan_renews_at).toBe(new Date(1788279664 * 1000).toISOString());
+  });
+
+  it('an inactive subscription drops the workspace to free', async () => {
+    await POST(subReq('evt_sub_3', 'customer.subscription.updated', 'past_due'));
+    expect(h.grantCalls[0].params).toMatchObject({ p_plan: 'free' });
   });
 });

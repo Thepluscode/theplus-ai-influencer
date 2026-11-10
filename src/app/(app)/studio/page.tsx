@@ -28,6 +28,9 @@ export default async function StudioPage() {
   let recentPosts: PostRow[] = [];
   let modelsErrorReason: string | null = null;
   let connectedPlatforms: Platform[] = [];
+  // Needed by the persona replace-image control: it is the storage path prefix
+  // the persona-refs RLS policy (0027) gates writes on.
+  let workspaceId: string | null = null;
 
   if (demoMode) {
     savedModels = getDemoModels();
@@ -41,6 +44,7 @@ export default async function StudioPage() {
       } = await supabase.auth.getUser();
       if (user) {
         const ws = await getOrCreateCurrentWorkspace(user);
+        workspaceId = ws.id;
         const now = new Date();
         const past = new Date(now.getTime() - ACTIVITY_RANGE_DAYS * 24 * 60 * 60 * 1000);
         const future = new Date(now.getTime() + ACTIVITY_RANGE_DAYS * 24 * 60 * 60 * 1000);
@@ -184,7 +188,7 @@ export default async function StudioPage() {
                   ) : null}
                 </header>
                 {savedModels.length > 0 ? (
-                  <SavedModels models={savedModels} />
+                  <SavedModels models={savedModels} workspaceId={workspaceId} />
                 ) : (
                   <div className="workflow-empty-state p-5 text-left">
                     <p className="text-[14px] font-medium text-ink">No persona on the roster.</p>

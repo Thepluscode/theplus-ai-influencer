@@ -61,6 +61,9 @@ interface Props {
   saveDisabledReason: string | null;
   prefill?: CreatePostPrefill;
   brandDefaults?: WorkspaceBrandDefaultsRow;
+  /** Hand-off from /create: a finished image the server looked up in this workspace. */
+  initialImageUrl?: string;
+  initialModelId?: string;
 }
 
 // Brand-tinted gradients keep platform chips recognizable at a glance.
@@ -118,6 +121,8 @@ export function CreatePostForm({
   saveDisabledReason,
   prefill,
   brandDefaults,
+  initialImageUrl,
+  initialModelId,
 }: Props) {
   const [state, formAction, pending] = useActionState<GeneratePostState | null, FormData>(
     generatePostVariantsAction,
@@ -140,7 +145,9 @@ export function CreatePostForm({
   const [chosenCandidateId, setChosenCandidateId] = useState<string | null>(null);
   const [selectedHashtags, setSelectedHashtags] = useState<string[]>([]);
 
-  const [modelId, setModelId] = useState<string>(prefill?.modelId ?? models[0]?.id ?? '');
+  const [modelId, setModelId] = useState<string>(
+    prefill?.modelId ?? initialModelId ?? models[0]?.id ?? '',
+  );
   const [platforms, setPlatforms] = useState<Set<Platform>>(
     new Set(prefill?.platforms?.length ? prefill.platforms : (['instagram'] as Platform[])),
   );
@@ -159,7 +166,7 @@ export function CreatePostForm({
   // Operator-uploaded image URLs. When `uploadedImageUrl` is set, the
   // action picks the skip-render code path. Up to 3 product references
   // ride together as image_refs to Luma.
-  const [uploadedImageUrl, setUploadedImageUrl] = useState('');
+  const [uploadedImageUrl, setUploadedImageUrl] = useState(initialImageUrl ?? '');
   const [productRefUrls, setProductRefUrls] = useState<string[]>(['', '', '']);
   const setProductRefAt = (i: number, url: string) =>
     setProductRefUrls((prev) => prev.map((v, idx) => (idx === i ? url : v)));
