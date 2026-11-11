@@ -300,6 +300,9 @@ describe('MCP server v1 — authority boundary in source', () => {
     for (const f of files) {
       const src = readFileSync(path.join(dir, f), 'utf8').replace(/^\s*\/\/.*$/gm, '');
       expect(src, f).not.toMatch(/supabase\/admin|SERVICE_ROLE|getSupabaseAdminClient/);
+      // The env module parses SUPABASE_SERVICE_ROLE_KEY into serverEnv; importing it
+      // at all puts the key in this process (Codex review, 2026-11-11).
+      expect(src, f).not.toMatch(/lib\/env['"]|\bserverEnv\b|from '@\/lib\/env'/);
       expect(src, f).not.toMatch(/\.(insert|update|upsert|delete|rpc)\(/);
     }
   });
