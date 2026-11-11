@@ -42,10 +42,21 @@ describe('consumeCredits callers vs 0034', () => {
     for (const file of sources(path.join(root, 'src'))) {
       const src = readFileSync(file, 'utf8');
       for (const m of src.matchAll(/\bconsumeCredits\(\{([\s\S]*?)\}\)/g)) {
-        const literal = /reason:\s*'([a-z_]+)'/.exec(m[1])?.[1];
-        // `reason,` shorthand: resolve the literals on its `const reason = ...;` declaration.
-        const decl = literal ? null : (/const reason\b[^=]*=([^;]+);/.exec(src)?.[1] ?? '');
-        const reasons = literal ? [literal] : [...decl!.matchAll(/'([a-z_]+)'/g)].map((r) => r[1]);
+        // `reason: 'x'` is checked directly. `reason: name` or the `reason,`
+        // shorthand must resolve through `const <name>... = ...;` in the same
+        // file, and EVERY literal on that declaration must be a spend reason.
+        // Anything else resolves to [] and fails (Codex re-review, 2026-11-11).
+        const literal = /\breason:\s*'([a-z_]+)'/.exec(m[1])?.[1];
+        const name = literal
+          ? null
+          : (/\breason:\s*([A-Za-z_$][\w$]*)/.exec(m[1])?.[1] ??
+            (/(^|[\s,{])reason\s*(,|$)/m.test(m[1]) ? 'reason' : null));
+        const decl = name ? new RegExp(`const ${name}\\b[^=]*=([^;]+);`).exec(src)?.[1] : undefined;
+        const reasons = literal
+          ? [literal]
+          : decl
+            ? [...decl.matchAll(/'([a-z_]+)'/g)].map((r) => r[1])
+            : [];
         calls.push({ file: path.relative(root, file), reasons });
       }
     }
