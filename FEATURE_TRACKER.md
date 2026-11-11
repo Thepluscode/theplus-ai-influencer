@@ -183,3 +183,14 @@ Base: PR #9 head `8deba67`. Merged `fix/lock-workspace-columns` (0033), the crea
 
 **Not run:** against the real settings endpoint (it needs the anon key, which lives only in `.env.local`), and a real Google or GitHub sign-in. Both providers are still off.
 **To enable:** create the GitHub OAuth app and the Google OAuth client, both with callback `https://izfwasxgfdisvlxjlvzs.supabase.co/auth/v1/callback`; enable each provider in Supabase; and allow `https://<domain>/auth/callback` under Supabase URL Configuration.
+
+## Codex review of `main` @ `edc593d` (2026-11-11) — findings and fixes
+
+Codex reviewed read-only and reported 4 findings, verdict NOT DEMO-READY. Its sandbox could not run vitest or the stdio server (it can't write files).
+
+| Finding (Codex) | Fix | Status | Evidence |
+| --- | --- | --- | --- |
+| MEDIUM: `next=/%5Cevil.example/phish` passes `sanitizeReturnTo`, and the browser resolves it to `https://evil.example/phish` | Reject `\`; require the value to resolve to our own origin | IMPLEMENTED | Reproduced (`new URL('/\\evil.example/phish', …)` → evil.example). 6 attack cases failed 2 before the fix, pass after. Mutation: removing both guards fails 2 (each guard alone is enough by design) |
+| MEDIUM: an owner can call `consume_credits` with `reason='refund'` and their own ref, occupying 0021's partial refund index so a genuine refund is skipped | `0034`: `consume_credits` accepts only the 14 spend reasons | IMPLEMENTED (not applied to production) | Local Postgres 17 replay of 0001→0033 over Supabase role shims. The test failed before 0034 (`OPEN: consume_credits accepted reason refund`) and passes after: grant-type and null reasons refused, a real spend works, the genuine refund lands once. Re-runnable; the 0033 test still passes. `consume-reasons.test.ts` pins every `consumeCredits` caller (15 sites, including a variable reason) to the spend list; dropping a reason fails 2 |
+| MEDIUM: the auth callback URL is built from the `Host` / `x-forwarded-proto` headers | — | NOT A DEFECT (deferred, waiting on the founder) | The fix is to use `NEXT_PUBLIC_APP_URL`; waiting for confirmation that it is set in Vercel, since its default is localhost |
+| LOW: the MCP process imported `serverEnv`, which holds the service-role key | `src/mcp/stdio.ts` parses only its 5 variables; it does not import `lib/env` | IMPLEMENTED | The source test now forbids any `lib/env` import or `serverEnv` use. Mutation: re-adding the import fails 1 |
