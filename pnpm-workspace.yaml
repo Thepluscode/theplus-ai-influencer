@@ -9,3 +9,5 @@ overrides:
   form-data@<4.0.6: '>=4.0.6' # GHSA-qx2v... CRLF injection (via lumaai)
   postcss@<8.5.10: '>=8.5.10' # CSS-stringify XSS (build-time, via next)
   '@babel/core@<7.29.1': '>=7.29.1' # file read via sourceMappingURL (build-time)
+  browserslist@<=4.28.6: '>=4.28.7' # unbounded cache growth + prototype writes
+  baseline-browser-mapping@<2.11.0: '>=2.11.0' # invalid-input process crash

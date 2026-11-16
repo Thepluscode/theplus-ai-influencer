@@ -29,7 +29,7 @@ export default async function SignInPage({
             <BriefcaseBusiness size={18} />
             <div>
               <strong>Demo Workspace</strong>
-              <span>Pro plan&nbsp; · &nbsp;12,450 credits</span>
+              <span>Demo mode&nbsp; · &nbsp;publishing disabled</span>
             </div>
             <Link href="/dashboard">Open</Link>
           </div>
@@ -38,7 +38,7 @@ export default async function SignInPage({
 
       <p className="auth-security-note">
         <LockKeyhole size={15} />
-        Your data is encrypted and never published without approval.
+        Publishing remains behind an explicit approval action.
       </p>
 
       <p className="auth-switch-copy">

@@ -2863,7 +2863,8 @@ body {
 }
 
 .auth-proof-card span,
-.auth-proof-card blockquote {
+.auth-proof-card blockquote,
+.auth-proof-card > p {
   color: rgba(255, 255, 255, 0.55);
   font-size: 13px;
   line-height: 1.55;

@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from 'next/server';
-import { serverEnv } from '@/lib/env';
+import { isCronAuthorized } from '@/lib/cron-auth';
 import { claimContentJob, reclaimStalledContentJobs } from '@/lib/content-jobs';
 import { runExtractJob, runMediaJob, runRepackageJob } from '@/lib/content-pipeline';
 
@@ -12,9 +12,7 @@ export const dynamic = 'force-dynamic';
 /**
  * Cron worker for the Content OS pipeline.
  *
- * Authentication: either
- *   - `Authorization: Bearer ${CRON_SECRET}` (production cron)
- *   - `Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}` (manual curl / scripts)
+ * Authentication: `Authorization: Bearer ${CRON_SECRET}`.
  *
  * Behavior per tick:
  *   1. Reclaim any job stuck > 6 min (crashed worker recovery).
@@ -25,7 +23,7 @@ export const dynamic = 'force-dynamic';
  */
 export async function POST(req: NextRequest) {
   const authHeader = req.headers.get('authorization') ?? '';
-  if (!isAuthorized(authHeader)) {
+  if (!isCronAuthorized(authHeader)) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
 
@@ -66,19 +64,16 @@ export async function POST(req: NextRequest) {
     // A processor threw outside its own try/catch — the job is left claimed
     // and will be reclaimed after the stall window. Surface a 500.
     const detail = toMessage(err);
-    console.error('[content-pipeline] processor crashed', { jobId: job.id, kind: job.kind, detail });
-    return NextResponse.json({ ran: true, jobId: job.id, status: 'error', error: detail }, { status: 500 });
+    console.error('[content-pipeline] processor crashed', {
+      jobId: job.id,
+      kind: job.kind,
+      detail,
+    });
+    return NextResponse.json(
+      { ran: true, jobId: job.id, status: 'error', error: detail },
+      { status: 500 },
+    );
   }
-}
-
-function isAuthorized(header: string): boolean {
-  const token = header.startsWith('Bearer ') ? header.slice(7) : '';
-  if (!token) return false;
-  if (serverEnv.CRON_SECRET && token === serverEnv.CRON_SECRET) return true;
-  if (serverEnv.SUPABASE_SERVICE_ROLE_KEY && token === serverEnv.SUPABASE_SERVICE_ROLE_KEY) {
-    return true;
-  }
-  return false;
 }
 
 function toMessage(err: unknown): string {

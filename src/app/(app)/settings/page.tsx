@@ -863,7 +863,8 @@ function WebhooksPanel({
       <div className="mb-3">
         <p className="text-[14px] font-medium text-ink">Webhooks</p>
         <p className="mt-0.5 text-[12px] text-ink-muted">
-          Register HTTPS endpoints for publish, schedule, review, and comment events.
+          Register public HTTPS endpoints. Deliveries are signed with HMAC-SHA256 and redirects are
+          rejected.
         </p>
       </div>
       <form action={createWebhookAction} className="grid gap-3">
@@ -882,6 +883,16 @@ function WebhooksPanel({
             className="h-10 rounded-[10px] border border-[#262626] bg-surface-2 px-3 text-[13px] text-ink outline-none placeholder:text-[#666] focus:border-[#0099ff] disabled:cursor-not-allowed disabled:opacity-50"
           />
         </div>
+        <input
+          name="signingSecret"
+          type="password"
+          minLength={32}
+          maxLength={256}
+          autoComplete="new-password"
+          disabled={disabled}
+          placeholder="Signing secret (32+ characters)"
+          className="h-10 rounded-[10px] border border-[#262626] bg-surface-2 px-3 font-mono text-[13px] text-ink outline-none placeholder:text-[#666] focus:border-[#0099ff] disabled:cursor-not-allowed disabled:opacity-50"
+        />
         <div className="flex flex-wrap gap-2">
           {WEBHOOK_EVENTS.map((event) => (
             <label

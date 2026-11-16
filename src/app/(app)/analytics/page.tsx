@@ -14,11 +14,8 @@ import { cn } from '@/lib/utils';
 const LOOKBACK_DAYS = 30;
 
 /**
- * Analytics scaffold — Phase 4 of BUILD_PLAN.md. Seeds the data shape that
- * the Performance Coach agent (STRATEGY.md §AI roadmap) will reason
- * against. v1 surfaces placeholder metrics derived deterministically from
- * each post's id so the page reads as "alive" while we wire real Zernio
- * per-post engagement reads in the next milestone.
+ * Demo mode uses deterministic fixtures. Live workspaces show only provider
+ * metrics, so unavailable data can never be mistaken for customer results.
  */
 export default async function AnalyticsPage() {
   const demoMode = isDemoMode();
@@ -58,10 +55,8 @@ export default async function AnalyticsPage() {
 
   const zernioConfigured = !demoMode && Boolean(serverEnv.ZERNIO_API_KEY);
 
-  // Live metrics from Zernio. We fetch in parallel for every post that
-  // has a zernio_post_id; falls back to a deterministic placeholder for
-  // posts that haven't been pushed (drafts, locally-scheduled). Any
-  // single Zernio request failing returns null and gracefully falls back.
+  // Live metrics from Zernio. Demo fixtures remain explicit; a missing or
+  // failed provider response is represented as unavailable, never fabricated.
   const enriched = await Promise.all(
     posts.map(async (p) => {
       if (zernioConfigured && p.zernio_post_id) {
@@ -80,24 +75,30 @@ export default async function AnalyticsPage() {
             };
           }
         } catch {
-          // fall through to placeholder
+          // fall through to the explicit unavailable/demo state
         }
       }
-      return { ...p, metrics: placeholderMetrics(p.id), isLive: false };
+      return {
+        ...p,
+        metrics: demoMode ? placeholderMetrics(p.id) : null,
+        isLive: false,
+      };
     }),
   );
   const liveCount = enriched.filter((p) => p.isLive).length;
   const totals = enriched.reduce(
     (acc, p) => ({
-      views: acc.views + p.metrics.views,
-      likes: acc.likes + p.metrics.likes,
-      comments: acc.comments + p.metrics.comments,
-      saves: acc.saves + p.metrics.saves,
+      views: acc.views + (p.metrics?.views ?? 0),
+      likes: acc.likes + (p.metrics?.likes ?? 0),
+      comments: acc.comments + (p.metrics?.comments ?? 0),
+      saves: acc.saves + (p.metrics?.saves ?? 0),
     }),
     { views: 0, likes: 0, comments: 0, saves: 0 },
   );
 
-  const top = [...enriched].sort((a, b) => b.metrics.views - a.metrics.views).slice(0, 5);
+  const top = [...enriched]
+    .sort((a, b) => (b.metrics?.views ?? -1) - (a.metrics?.views ?? -1))
+    .slice(0, 5);
 
   const modelNameById: Record<string, string> = Object.fromEntries(
     models.map((m) => [m.id, m.name]),
@@ -121,11 +122,11 @@ export default async function AnalyticsPage() {
             {demoMode ? (
               <StatusPill tone="info">Demo workspace · deterministic metrics</StatusPill>
             ) : !zernioConfigured ? (
-              <StatusPill tone="warn">Zernio off · metrics are placeholders</StatusPill>
+              <StatusPill tone="warn">Zernio off · metrics unavailable</StatusPill>
             ) : liveCount > 0 ? (
               <StatusPill tone="ok">
                 <span className="font-medium text-ink">{liveCount}</span>{' '}
-                {liveCount === 1 ? 'post' : 'posts'} reporting live · the rest are placeholders
+                {liveCount === 1 ? 'post' : 'posts'} reporting live · the rest are unavailable
               </StatusPill>
             ) : (
               <StatusPill tone="info">
@@ -145,25 +146,25 @@ export default async function AnalyticsPage() {
           <MetricTile
             icon={<Eye size={16} />}
             label="Views"
-            value={totals.views}
+            value={liveCount > 0 || demoMode ? totals.views : null}
             accent="#0099ff"
           />
           <MetricTile
             icon={<Heart size={16} />}
             label="Likes"
-            value={totals.likes}
+            value={liveCount > 0 || demoMode ? totals.likes : null}
             accent="#ff5577"
           />
           <MetricTile
             icon={<MessageCircle size={16} />}
             label="Comments"
-            value={totals.comments}
+            value={liveCount > 0 || demoMode ? totals.comments : null}
             accent="#a855f7"
           />
           <MetricTile
             icon={<Send size={16} />}
             label="Saves"
-            value={totals.saves}
+            value={liveCount > 0 || demoMode ? totals.saves : null}
             accent="#22c55e"
           />
         </section>
@@ -258,7 +259,7 @@ function MetricTile({
 }: {
   icon: React.ReactNode;
   label: string;
-  value: number;
+  value: number | null;
   accent: string;
 }) {
   return (
@@ -274,7 +275,7 @@ function MetricTile({
           {label}
         </p>
         <p className="mt-1 text-[34px] font-medium leading-none tracking-normal text-ink tabular-nums">
-          {fmt(value)}
+          {value === null ? '—' : fmt(value)}
         </p>
       </div>
       <span className="text-[10px] font-medium uppercase tracking-wider" style={{ color: accent }}>
@@ -288,7 +289,7 @@ function TopPostRow({
   post,
   modelName,
 }: {
-  post: PostRow & { metrics: Metrics; isLive?: boolean };
+  post: PostRow & { metrics: Metrics | null; isLive?: boolean };
   modelName?: string;
 }) {
   const thumb = post.variants[0]?.url;
@@ -324,9 +325,9 @@ function TopPostRow({
           </p>
         </div>
         <div className="hidden shrink-0 gap-3 text-[11px] sm:flex">
-          <MetricInline icon={<Eye size={11} />} value={post.metrics.views} />
-          <MetricInline icon={<Heart size={11} />} value={post.metrics.likes} />
-          <MetricInline icon={<MessageCircle size={11} />} value={post.metrics.comments} />
+          <MetricInline icon={<Eye size={11} />} value={post.metrics?.views ?? null} />
+          <MetricInline icon={<Heart size={11} />} value={post.metrics?.likes ?? null} />
+          <MetricInline icon={<MessageCircle size={11} />} value={post.metrics?.comments ?? null} />
         </div>
         <ArrowUpRight size={12} className="shrink-0 text-ink-muted group-hover:text-ink" />
       </Link>
@@ -334,11 +335,11 @@ function TopPostRow({
   );
 }
 
-function MetricInline({ icon, value }: { icon: React.ReactNode; value: number }) {
+function MetricInline({ icon, value }: { icon: React.ReactNode; value: number | null }) {
   return (
     <span className="inline-flex items-center gap-1 text-ink-muted">
       <span className="text-[#666]">{icon}</span>
-      <span className="tabular-nums">{fmt(value)}</span>
+      <span className="tabular-nums">{value === null ? '—' : fmt(value)}</span>
     </span>
   );
 }

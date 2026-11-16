@@ -189,16 +189,13 @@ export async function disablePostSharing(postId: string): Promise<void> {
 }
 
 /**
- * Public-facing read by share token. Relies on the
- * "anyone can read shared posts" RLS policy added in 0004_post_share_token.sql
- * — the anon client cannot see non-shared rows even with this query.
+ * Public-facing capability read. Anonymous callers cannot SELECT the posts
+ * table; migration 0028 exposes only this exact-token lookup.
  */
 export async function getPostByShareToken(token: string): Promise<PostRow | null> {
   const supabase = await getSupabaseServerClient();
   const { data, error } = await supabase
-    .from('posts')
-    .select('*')
-    .eq('share_token', token)
+    .rpc('get_shared_post_by_token', { p_token: token })
     .maybeSingle();
   if (error) {
     throw new Error(`Failed to load shared post: ${error.message}`);

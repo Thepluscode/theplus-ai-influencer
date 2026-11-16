@@ -42,6 +42,10 @@ export const WebhookFormSchema = z.object({
         return false;
       }
     }, 'Webhook URL must use HTTPS'),
+  signingSecret: z
+    .string()
+    .min(32, 'Signing secret must be at least 32 characters')
+    .max(256, 'Signing secret is too long'),
   events: z.array(z.enum(WEBHOOK_EVENTS)).min(1, 'Select at least one event'),
 });
 

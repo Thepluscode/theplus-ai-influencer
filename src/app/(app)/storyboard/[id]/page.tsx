@@ -21,6 +21,7 @@ import { getOrCreateCurrentWorkspace } from '@/lib/workspace';
 import type { RenderedShot } from '@/lib/storyboard';
 import { COSTS } from '@/lib/credits';
 import { getLatestJobForStoryboard } from '@/lib/storyboard-jobs';
+import { getLatestStoryboardExportJob } from '@/lib/storyboard-export-jobs';
 import { listReviewDecisionsForStoryboard } from '@/lib/review-approvals';
 import type { ReviewDecision } from '@/lib/review-approvals-schema';
 import { listReviewCommentsForStoryboard } from '@/lib/review-comments';
@@ -29,6 +30,7 @@ import { StoryboardReviewPanel } from '@/components/review/storyboard-review-pan
 import { ReelPreview } from './reel-preview';
 import { AnimateButton } from './animate-button';
 import { JobStatusPoller } from './job-status-poller';
+import { ExportPanel } from './export-panel';
 import { cn } from '@/lib/utils';
 
 interface Props {
@@ -74,6 +76,7 @@ export default async function StoryboardDetailPage({ params }: Props) {
   const allAnimated = shots.length > 0 && pendingShotCount === 0;
 
   const latestJob = demoMode ? null : await getLatestJobForStoryboard(id);
+  const latestExport = demoMode ? null : await getLatestStoryboardExportJob(id);
   let reviewComments: Awaited<ReturnType<typeof listReviewCommentsForStoryboard>> = [];
   let reviewDecisions: Awaited<ReturnType<typeof listReviewDecisionsForStoryboard>> = [];
   try {
@@ -128,13 +131,13 @@ export default async function StoryboardDetailPage({ params }: Props) {
               <Share2 size={12} />
               Review link
             </button>
-            <button
-              type="button"
+            <a
+              href="#export"
               className="inline-flex h-9 items-center gap-1.5 rounded-full border border-[#262626] bg-surface-1 px-3 text-[12px] font-medium text-ink-muted transition hover:border-[#444] hover:text-ink"
             >
               <Download size={12} />
               Export
-            </button>
+            </a>
           </div>
         </div>
       </header>
@@ -166,6 +169,36 @@ export default async function StoryboardDetailPage({ params }: Props) {
             allAnimated={allAnimated}
             jobInFlight={jobInFlight}
             reviewApproved={reviewApproved}
+          />
+
+          <ExportPanel
+            storyboardId={sb.id}
+            currentReviewVersion={reviewVersion}
+            allAnimated={allAnimated}
+            reviewApproved={reviewApproved}
+            initialExport={
+              latestExport
+                ? {
+                    id: latestExport.id,
+                    status: latestExport.status,
+                    reviewVersion: latestExport.review_version,
+                    lastError: latestExport.last_error,
+                    bytes: latestExport.output_bytes,
+                    durationMs: latestExport.output_duration_ms,
+                    width: latestExport.output_width,
+                    height: latestExport.output_height,
+                  }
+                : {
+                    id: null,
+                    status: 'none',
+                    reviewVersion: null,
+                    lastError: null,
+                    bytes: null,
+                    durationMs: null,
+                    width: null,
+                    height: null,
+                  }
+            }
           />
 
           <StoryboardDecisionPanel

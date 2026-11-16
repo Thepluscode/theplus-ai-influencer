@@ -8,6 +8,7 @@ import { consumeCredits, COSTS, refundCredits } from '@/lib/credits';
 import { publicEnv, serverEnv } from '@/lib/env';
 import { generateStoryboardScript, renderShots, type RenderedShot } from '@/lib/storyboard';
 import { enqueueAnimationJob, hasActiveJobForStoryboard } from '@/lib/storyboard-jobs';
+import { enqueueStoryboardExport } from '@/lib/storyboard-export-jobs';
 import { createStoryboardReviewComment, updateReviewCommentStatus } from '@/lib/review-comments';
 import { recordStoryboardReviewDecision } from '@/lib/review-approvals';
 import { parseReviewDecisionFormData } from '@/lib/review-approvals-schema';
@@ -473,7 +474,7 @@ export async function animateStoryboardAction(
     // Fire-and-forget kick so the first shot starts even if cron isn't
     // wired up yet (dev ergonomics + small deploys). Don't await — we
     // want the user to see the queued UI immediately.
-    void kickWorkerOnce();
+    void kickWorkerOnce('/api/jobs/storyboard-animate');
 
     revalidatePath(`/storyboard/${id}`);
     revalidatePath('/storyboard');
@@ -495,10 +496,10 @@ export async function animateStoryboardAction(
  * moment a job is enqueued. Errors are swallowed: cron is the
  * authoritative drain mechanism, this is just a latency optimization.
  */
-async function kickWorkerOnce(): Promise<void> {
-  const token = serverEnv.CRON_SECRET ?? serverEnv.SUPABASE_SERVICE_ROLE_KEY;
+async function kickWorkerOnce(pathname: string): Promise<void> {
+  const token = serverEnv.CRON_SECRET;
   if (!token) return;
-  const url = `${publicEnv.NEXT_PUBLIC_APP_URL}/api/jobs/storyboard-animate`;
+  const url = new URL(pathname, publicEnv.NEXT_PUBLIC_APP_URL);
   try {
     // 5s connect timeout — the worker itself may run for up to 120s,
     // but we shouldn't block the server action on it. We're firing
@@ -512,5 +513,47 @@ async function kickWorkerOnce(): Promise<void> {
     }).catch(() => {});
   } catch {
     // ignore — cron will pick this up
+  }
+}
+
+export type StoryboardExportState =
+  | { status: 'idle' }
+  | { status: 'error'; error: string }
+  | { status: 'queued'; jobId: string }
+  | { status: 'completed'; jobId: string };
+
+export async function exportStoryboardAction(
+  _prev: StoryboardExportState | null,
+  formData: FormData,
+): Promise<StoryboardExportState> {
+  const parsed = z.string().uuid().safeParse(formData.get('storyboardId'));
+  if (!parsed.success) return { status: 'error', error: 'Storyboard id is invalid.' };
+
+  try {
+    const supabase = await getSupabaseServerClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return { status: 'error', error: 'Not signed in.' };
+    const workspace = await getOrCreateCurrentWorkspace(user);
+    const storyboard = await getStoryboard(parsed.data);
+    if (!storyboard || storyboard.workspace_id !== workspace.id) {
+      return { status: 'error', error: 'Storyboard not found.' };
+    }
+
+    const job = await enqueueStoryboardExport({
+      workspaceId: workspace.id,
+      storyboardId: storyboard.id,
+    });
+    if (job.status === 'completed') return { status: 'completed', jobId: job.id };
+
+    void kickWorkerOnce('/api/jobs/storyboard-export');
+    revalidatePath(`/storyboard/${storyboard.id}`);
+    return { status: 'queued', jobId: job.id };
+  } catch (error) {
+    return {
+      status: 'error',
+      error: error instanceof Error ? error.message : 'MP4 export could not be queued.',
+    };
   }
 }

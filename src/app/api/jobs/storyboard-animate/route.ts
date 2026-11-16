@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { refundCredits } from '@/lib/credits';
-import { serverEnv } from '@/lib/env';
+import { isCronAuthorized } from '@/lib/cron-auth';
 import { animateSingleShot, type RenderedShot } from '@/lib/storyboard';
 import { getSupabaseAdminClient } from '@/lib/supabase/admin';
 import {
@@ -28,9 +28,7 @@ const MAX_RENDER_ATTEMPTS = 4;
 /**
  * Cron worker for animate-to-video.
  *
- * Authentication: either
- *   - `Authorization: Bearer ${CRON_SECRET}` (production cron)
- *   - `Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}` (manual curl / scripts)
+ * Authentication: `Authorization: Bearer ${CRON_SECRET}`.
  *
  * Behavior per tick:
  *   1. Reclaim any job stuck > 6 min (crashed worker recovery).
@@ -46,7 +44,7 @@ const MAX_RENDER_ATTEMPTS = 4;
  */
 export async function POST(req: NextRequest) {
   const authHeader = req.headers.get('authorization') ?? '';
-  if (!isAuthorized(authHeader)) {
+  if (!isCronAuthorized(authHeader)) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
 
@@ -178,16 +176,6 @@ export async function POST(req: NextRequest) {
     shotsCompleted: completed,
     shotsTotal: job.shots_total,
   });
-}
-
-function isAuthorized(header: string): boolean {
-  const token = header.startsWith('Bearer ') ? header.slice(7) : '';
-  if (!token) return false;
-  if (serverEnv.CRON_SECRET && token === serverEnv.CRON_SECRET) return true;
-  if (serverEnv.SUPABASE_SERVICE_ROLE_KEY && token === serverEnv.SUPABASE_SERVICE_ROLE_KEY) {
-    return true;
-  }
-  return false;
 }
 
 function remainingCost(shotsTotal: number, shotsCompleted: number, costPerShot: number): number {
