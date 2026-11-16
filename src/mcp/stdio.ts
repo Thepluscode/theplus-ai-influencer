@@ -2,17 +2,37 @@
 // line (startup problems, the audit trail) goes to stderr.
 
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { publicEnv, serverEnv } from '../lib/env';
+import { z } from 'zod';
 import { createInfluencerMcpServer } from './server';
 import { openSession } from './session';
 
+// Deliberately NOT '../lib/env': its serverEnv holds SUPABASE_SERVICE_ROLE_KEY,
+// and this process must never have it in reach. These five are all it reads.
+// (The app-wide "no process.env" rule exists to funnel config through env.ts;
+// keeping the key out of this separate process is the stronger requirement.)
+const blank = (v: unknown) => (v === '' ? undefined : v);
+const McpEnv = z.object({
+  NEXT_PUBLIC_SUPABASE_URL: z.preprocess(blank, z.string().url().optional()),
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: z.preprocess(blank, z.string().min(1).optional()),
+  THEPLUS_MCP_ACCESS_TOKEN: z.preprocess(blank, z.string().min(1).optional()),
+  THEPLUS_MCP_EMAIL: z.preprocess(blank, z.string().email().optional()),
+  THEPLUS_MCP_PASSWORD: z.preprocess(blank, z.string().min(1).optional()),
+});
+
 async function main() {
+  const env = McpEnv.parse({
+    NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    THEPLUS_MCP_ACCESS_TOKEN: process.env.THEPLUS_MCP_ACCESS_TOKEN,
+    THEPLUS_MCP_EMAIL: process.env.THEPLUS_MCP_EMAIL,
+    THEPLUS_MCP_PASSWORD: process.env.THEPLUS_MCP_PASSWORD,
+  });
   const session = await openSession({
-    url: publicEnv.NEXT_PUBLIC_SUPABASE_URL,
-    anonKey: publicEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-    accessToken: serverEnv.THEPLUS_MCP_ACCESS_TOKEN,
-    email: serverEnv.THEPLUS_MCP_EMAIL,
-    password: serverEnv.THEPLUS_MCP_PASSWORD,
+    url: env.NEXT_PUBLIC_SUPABASE_URL,
+    anonKey: env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    accessToken: env.THEPLUS_MCP_ACCESS_TOKEN,
+    email: env.THEPLUS_MCP_EMAIL,
+    password: env.THEPLUS_MCP_PASSWORD,
   });
   if (session.problem) console.error(`[theplus-mcp] not authenticated: ${session.problem}`);
 

@@ -13,7 +13,11 @@ export function sanitizeReturnTo(
   if (typeof input !== 'string' || input.length === 0) return null;
   // Must start with `/` and not `//` (which would be a protocol-relative URL).
   if (!input.startsWith('/') || input.startsWith('//')) return null;
-  if (CONTROL_CHAR.test(input)) return null;
+  // Browsers parse `\` as `/`, so `/\evil.example` is protocol-relative too.
+  if (input.includes('\\') || CONTROL_CHAR.test(input)) return null;
+  // Belt and braces: whatever survives must still resolve to our own origin.
+  const probe = 'https://same-origin.invalid';
+  if (new URL(input, probe).origin !== probe) return null;
   return input;
 }
 
