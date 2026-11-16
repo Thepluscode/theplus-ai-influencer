@@ -183,3 +183,10 @@ Base: PR #9 head `8deba67`. Merged `fix/lock-workspace-columns` (0033), the crea
 
 **Not run:** against the real settings endpoint (it needs the anon key, which lives only in `.env.local`), and a real Google or GitHub sign-in. Both providers are still off.
 **To enable:** create the GitHub OAuth app and the Google OAuth client, both with callback `https://izfwasxgfdisvlxjlvzs.supabase.co/auth/v1/callback`; enable each provider in Supabase; and allow `https://<domain>/auth/callback` under Supabase URL Configuration.
+
+## Storyboard render refunds — one ref per render job (`feat/creative-studio-slice`, local)
+
+| Piece | Status | Evidence |
+| --- | --- | --- |
+| Defect: every render of a storyboard debited and refunded under `('storyboard', storyboard_id)`. 0021 allows one refund per ref, so a retry after a refunded failure lost its refund | IN PROGRESS | Fixed in `2c2395f`: the action mints the job id and uses it for the debit, the enqueue and the refund (`'storyboard_render_job'`). `src/app/api/jobs/storyboard-animate/route.test.ts` failed before the fix (refunds `[sb_1, sb_1]`) and passes after. Typecheck, lint and 321 tests pass. Not pushed or deployed. The action-path refund is covered only by typecheck and the source-walk test |
+| Storyboard MP4 export and migrations `0028`–`0031` | IN PROGRESS | No git source existed. The uncommitted tree from `codex/storyboard-mp4-export` was snapshotted to local branch `preserve/storyboard-mp4-export-wip` (`bae1497`) without touching that checkout. The production state those files describe was not re-observed. See `reports/theplus-creative-studio/repository-reconciliation.md` |

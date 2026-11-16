@@ -1,0 +1,865 @@
+{
+  "schema_version": "2.0.0",
+  "report_id": "CS-EXEC-2026-11-16-01",
+  "generated_at": "2026-11-16T13:39:58Z",
+  "project": {
+    "name": "ThePlus Creative Studio",
+    "product": "ThePlus AI Influencer",
+    "objective": "One creator produces a consistent, publishable 30-60s cinematic short through the existing storyboard workflow.",
+    "workflow_target": "brief -> persona-locked storyboard -> approval -> render -> MP4 export -> brand-safety gated schedule"
+  },
+  "execution": {
+    "run_id": "claude-2026-11-16-creative-studio",
+    "environment": "local worktree, stubs only, no network calls to paid providers",
+    "started_at": "2026-11-16T13:31:12Z",
+    "completed_at": "2026-11-16T13:39:58Z",
+    "current_phase": "D (build) - 1 of 5 connections done; C blocked",
+    "repository": {
+      "url": "https://github.com/Thepluscode/theplus-ai-influencer",
+      "base_branch": "origin/main",
+      "working_branch": "feat/creative-studio-slice",
+      "head_sha": "2c2395f",
+      "worktree_dirty": true,
+      "checked_at": "2026-11-16T13:39:58Z"
+    },
+    "authorisations": {
+      "provider_spend": false,
+      "live_payments": false,
+      "external_publishing": false,
+      "push_merge_deploy": false,
+      "destructive_changes": false,
+      "evidence_ids": []
+    }
+  },
+  "evidence": [
+    {
+      "id": "EV-GIT-1",
+      "kind": "repository",
+      "location": "git rev-parse origin/main",
+      "commit_sha": "edc593d04864f23c128714814928db153fc73140",
+      "observed_at": "2026-11-16T13:39:58Z",
+      "description": "origin/main = edc593d; primary checkout codex/storyboard-mp4-export 8deba67 is 20 behind with 50 uncommitted entries (last mtime 2026-09-27); local main 2 ahead / 41 behind."
+    },
+    {
+      "id": "EV-PR-1",
+      "kind": "pull_request",
+      "location": "gh pr list --state all",
+      "commit_sha": null,
+      "observed_at": "2026-11-16T13:39:58Z",
+      "description": "PR #9 MERGED 2026-11-10T22:37:22Z; PR #8 OPEN mergeable=CONFLICTING head 5ee606a; PR #12 OPEN MERGEABLE head fb27326 (adds migration 0034)."
+    },
+    {
+      "id": "EV-AW-1",
+      "kind": "documentation",
+      "location": "origin/main:ACTIVE_WORK.yaml",
+      "commit_sha": "edc593d04864f23c128714814928db153fc73140",
+      "observed_at": "2026-11-16T13:39:58Z",
+      "description": "active.task = land PR #9 and #8; blocked lists PR #9 as open; PR #12 absent."
+    },
+    {
+      "id": "EV-MIG-1",
+      "kind": "repository",
+      "location": "git log --all -- supabase/migrations/002{8,9}*.sql 003{0,1}*.sql",
+      "commit_sha": null,
+      "observed_at": "2026-11-16T13:39:58Z",
+      "description": "0 commits for migrations 0028-0031 before this run; origin/main jumps 0027 -> 0032."
+    },
+    {
+      "id": "EV-PRES-1",
+      "kind": "repository",
+      "location": "refs/heads/preserve/storyboard-mp4-export-wip",
+      "commit_sha": "bae14979478db20a2290cc5f039108be1b19f734",
+      "observed_at": "2026-11-16T13:39:58Z",
+      "description": "Local snapshot of the 60 dirty/untracked paths built from a temporary index; working tree still 50 porcelain entries afterwards. Not pushed."
+    },
+    {
+      "id": "EV-DOC-EXPORT",
+      "kind": "documentation",
+      "location": "preserve/storyboard-mp4-export-wip:FEATURE_TRACKER.md",
+      "commit_sha": "bae14979478db20a2290cc5f039108be1b19f734",
+      "observed_at": "2026-11-16T13:39:58Z",
+      "description": "Uncommitted tracker (2026-09-27) claims 0028-0031 applied to production and an MP4 export smoke via Railway. Not re-observed this run."
+    },
+    {
+      "id": "EV-CODE-SB",
+      "kind": "repository",
+      "location": "src/lib/storyboard.ts:66,156,185,300-305",
+      "commit_sha": "edc593d04864f23c128714814928db153fc73140",
+      "observed_at": "2026-11-16T13:39:58Z",
+      "description": "3-6 shots; character_ref per shot; animateSingleShot durationSeconds defaults to 5; storyboard worker never passes it."
+    },
+    {
+      "id": "EV-CODE-PUB",
+      "kind": "repository",
+      "location": "grep storyboard src/lib/posts.ts src/lib/publish-safety.ts src/app/(app)/create-post",
+      "commit_sha": "edc593d04864f23c128714814928db153fc73140",
+      "observed_at": "2026-11-16T13:39:58Z",
+      "description": "No reference: storyboard output does not reach the publish path."
+    },
+    {
+      "id": "EV-TEST-RED",
+      "kind": "test",
+      "location": "pnpm exec vitest run src/app/api/jobs/storyboard-animate/route.test.ts (pre-fix)",
+      "commit_sha": "edc593d04864f23c128714814928db153fc73140",
+      "observed_at": "2026-11-16T13:39:58Z",
+      "description": "exit 1: refund refIds received [\"sb_1\",\"sb_1\"], expected [\"job_a\",\"job_b\"]."
+    },
+    {
+      "id": "EV-TEST-GREEN",
+      "kind": "test",
+      "location": "same command after fix",
+      "commit_sha": "2c2395f",
+      "observed_at": "2026-11-16T13:39:58Z",
+      "description": "exit 0: 2 passed."
+    },
+    {
+      "id": "EV-SUITE",
+      "kind": "test",
+      "location": "pnpm typecheck; pnpm lint; pnpm test",
+      "commit_sha": "2c2395f",
+      "observed_at": "2026-11-16T13:39:58Z",
+      "description": "typecheck exit 0; lint exit 0; vitest exit 0, 49 files / 321 tests passed."
+    },
+    {
+      "id": "EV-RECON",
+      "kind": "documentation",
+      "location": "reports/theplus-creative-studio/repository-reconciliation.md",
+      "commit_sha": null,
+      "observed_at": "2026-11-16T13:39:58Z",
+      "description": "D04."
+    },
+    {
+      "id": "EV-SPEC",
+      "kind": "documentation",
+      "location": "reports/theplus-creative-studio/vertical-slice-spec.md",
+      "commit_sha": null,
+      "observed_at": "2026-11-16T13:39:58Z",
+      "description": "D05 incl. phase entry/exit criteria."
+    }
+  ],
+  "repository_baseline": {
+    "status": "completed",
+    "capabilities": [
+      {
+        "name": "Brief to 3-6 shot script",
+        "evidence_level": "implemented",
+        "branch": "origin/main",
+        "commit_sha": "edc593d04864f23c128714814928db153fc73140",
+        "evidence_ids": ["EV-CODE-SB"],
+        "gaps": []
+      },
+      {
+        "name": "Persona character_ref per shot",
+        "evidence_level": "implemented",
+        "branch": "origin/main",
+        "commit_sha": "edc593d04864f23c128714814928db153fc73140",
+        "evidence_ids": ["EV-CODE-SB"],
+        "gaps": ["consistency never measured"]
+      },
+      {
+        "name": "Durable render job with refund",
+        "evidence_level": "locally_tested",
+        "branch": "feat/creative-studio-slice",
+        "commit_sha": "2c2395f",
+        "evidence_ids": ["EV-TEST-RED", "EV-TEST-GREEN"],
+        "gaps": ["refund ref defect fixed only on local branch"]
+      },
+      {
+        "name": "Clip length",
+        "evidence_level": "implemented",
+        "branch": "origin/main",
+        "commit_sha": "edc593d04864f23c128714814928db153fc73140",
+        "evidence_ids": ["EV-CODE-SB"],
+        "gaps": ["5s only: reel 15-30s, target 30-60s reachable only at 6x5s"]
+      },
+      {
+        "name": "Stitched MP4 export",
+        "evidence_level": "documented",
+        "branch": "preserve/storyboard-mp4-export-wip",
+        "commit_sha": "bae14979478db20a2290cc5f039108be1b19f734",
+        "evidence_ids": ["EV-DOC-EXPORT", "EV-PRES-1"],
+        "gaps": ["not on main", "not re-verified", "real Luma clip never exported"]
+      },
+      {
+        "name": "Storyboard output to brand-safety gated post",
+        "evidence_level": "unverified",
+        "branch": null,
+        "commit_sha": null,
+        "evidence_ids": ["EV-CODE-PUB"],
+        "gaps": ["connection does not exist"]
+      }
+    ],
+    "findings": ["Production schema 0028-0031 had no git source before this run (EV-MIG-1)."],
+    "unresolved_dependencies": [
+      "PR #12 + migration 0034",
+      "PR #8 rebase",
+      "founder pricing decision for 9s clips"
+    ]
+  },
+  "reconciliation": {
+    "status": "in_progress",
+    "records": [
+      {
+        "item_id": "PR-9",
+        "item_type": "pull_request",
+        "previous_claim": "open, blocked on review",
+        "observed_state": "merged 2026-11-10",
+        "discrepancy": "ACTIVE_WORK.yaml stale",
+        "recommended_action": "Founder updates ACTIVE_WORK.yaml",
+        "evidence_ids": ["EV-PR-1", "EV-AW-1"]
+      },
+      {
+        "item_id": "PR-8",
+        "item_type": "pull_request",
+        "previous_claim": "open",
+        "observed_state": "open, CONFLICTING",
+        "discrepancy": "cannot merge as-is",
+        "recommended_action": "Rebase onto origin/main",
+        "evidence_ids": ["EV-PR-1"]
+      },
+      {
+        "item_id": "PR-12",
+        "item_type": "pull_request",
+        "previous_claim": null,
+        "observed_state": "open, mergeable, carries 0034",
+        "discrepancy": "absent from ACTIVE_WORK.yaml",
+        "recommended_action": "Merge and apply 0034 before any paid pilot",
+        "evidence_ids": ["EV-PR-1", "EV-AW-1"]
+      },
+      {
+        "item_id": "MIG-0028-0031",
+        "item_type": "branch",
+        "previous_claim": "applied to production (uncommitted tracker)",
+        "observed_state": "no commit anywhere; now in local preserve branch",
+        "discrepancy": "production schema not reproducible from git",
+        "recommended_action": "Push preserve branch or port export subset to main",
+        "evidence_ids": ["EV-MIG-1", "EV-PRES-1", "EV-DOC-EXPORT"]
+      }
+    ]
+  },
+  "architecture": {
+    "status": "completed",
+    "decision": "Extend the existing storyboard route; no new Creative Studio layer.",
+    "rationale": [
+      "Brief, persona lock, approval, durable jobs, ledger and publish gate exist",
+      "Three connections missing, none needs new identity/ledger/audit systems"
+    ],
+    "systems_to_reuse": [
+      "storyboard.ts",
+      "storyboard-jobs.ts",
+      "review-approvals.ts",
+      "credits.ts",
+      "publish-safety.ts",
+      "zernio.ts demo block"
+    ],
+    "integration_gaps": [
+      "MP4 export not on main",
+      "5s-only clips",
+      "no export-to-post link",
+      "no per-storyboard cost view"
+    ],
+    "alternatives": [
+      {
+        "name": "Integrate and harden existing storyboard",
+        "assessment": "Smallest diff, reuses every safety control",
+        "accepted": true
+      },
+      {
+        "name": "New Creative Studio layer",
+        "assessment": "Duplicates storyboards, decisions, jobs, ledger",
+        "accepted": false
+      }
+    ],
+    "evidence_ids": ["EV-SPEC"]
+  },
+  "vertical_slice": {
+    "status": "in_progress",
+    "target_duration_seconds": {
+      "min": 30,
+      "max": 60
+    },
+    "workflow_steps": [
+      {
+        "id": "S1",
+        "name": "Brief and persona-locked storyboard",
+        "implementation_status": "completed",
+        "acceptance_criteria": [">=4 shots rendered with character_ref"],
+        "evidence_ids": ["EV-CODE-SB"]
+      },
+      {
+        "id": "S2",
+        "name": "Approval-gated paid render with once-only refunds",
+        "implementation_status": "completed",
+        "acceptance_criteria": ["retry after refunded failure refunds again"],
+        "evidence_ids": ["EV-TEST-GREEN"]
+      },
+      {
+        "id": "S3",
+        "name": "30-60s reel length",
+        "implementation_status": "blocked",
+        "acceptance_criteria": ["ffprobe duration 30-60s"],
+        "evidence_ids": ["EV-CODE-SB"]
+      },
+      {
+        "id": "S4",
+        "name": "MP4 export pinned to approval",
+        "implementation_status": "planned",
+        "acceptance_criteria": [
+          "edit after approval refuses export",
+          "second workspace sees nothing"
+        ],
+        "evidence_ids": ["EV-PRES-1"]
+      },
+      {
+        "id": "S5",
+        "name": "Export to brand-safety gated schedule",
+        "implementation_status": "not_started",
+        "acceptance_criteria": ["publish-safety evaluated", "DemoModeBlockedError surfaces"],
+        "evidence_ids": ["EV-CODE-PUB"]
+      }
+    ],
+    "contracts": [
+      {
+        "name": "credit ref for renders",
+        "existing_or_new": "extended",
+        "source": "2c2395f",
+        "description": "('storyboard_render_job', job.id)"
+      },
+      {
+        "name": "storyboard_export_jobs",
+        "existing_or_new": "new",
+        "source": "preserve branch 0029",
+        "description": "approval-pinned export job"
+      },
+      {
+        "name": "posts.storyboard_export_id",
+        "existing_or_new": "new",
+        "source": null,
+        "description": "proposed nullable link"
+      }
+    ],
+    "known_gaps": [
+      "S3 needs founder pricing decision",
+      "S4 needs migration replay 0001-0034 + 0029"
+    ]
+  },
+  "safety_invariants": {
+    "identity_policy": {
+      "status": "NOT_TESTED",
+      "evidence_ids": ["EV-CODE-SB"],
+      "findings": ["RLS + owner guard exist on main"],
+      "blockers": ["cross-user probe not re-run this session"]
+    },
+    "credits_billing": {
+      "status": "FAIL",
+      "evidence_ids": ["EV-PR-1", "EV-TEST-RED"],
+      "findings": ["render refund collision found and fixed locally"],
+      "blockers": [
+        "PR #12 / 0034 unmerged: owner can pre-occupy refund ref",
+        "PR #8 conflicting: lost Stripe purchase webhooks not reconciled"
+      ]
+    },
+    "asynchronous_jobs": {
+      "status": "PASS",
+      "evidence_ids": ["EV-TEST-GREEN"],
+      "findings": ["claim/reclaim/attempt cap present; refund per job unit-tested with mocks"],
+      "blockers": []
+    },
+    "publishing_audit": {
+      "status": "NOT_TESTED",
+      "evidence_ids": ["EV-CODE-PUB"],
+      "findings": ["no storyboard publish path exists yet"],
+      "blockers": []
+    }
+  },
+  "implementation": {
+    "status": "in_progress",
+    "changes": [
+      {
+        "path": "src/app/api/jobs/storyboard-animate/route.ts",
+        "operation": "modified",
+        "purpose": "refund under job id",
+        "evidence_ids": ["EV-TEST-GREEN"]
+      },
+      {
+        "path": "src/app/(app)/storyboard/actions.ts",
+        "operation": "modified",
+        "purpose": "mint job id for debit/enqueue/refund",
+        "evidence_ids": ["EV-SUITE"]
+      },
+      {
+        "path": "src/lib/storyboard-jobs.ts",
+        "operation": "modified",
+        "purpose": "accept caller-minted job id",
+        "evidence_ids": ["EV-SUITE"]
+      },
+      {
+        "path": "src/app/api/jobs/storyboard-animate/route.test.ts",
+        "operation": "created",
+        "purpose": "regression for refund collision",
+        "evidence_ids": ["EV-TEST-RED", "EV-TEST-GREEN"]
+      },
+      {
+        "path": "reports/theplus-creative-studio/repository-reconciliation.md",
+        "operation": "created",
+        "purpose": "D04",
+        "evidence_ids": ["EV-RECON"]
+      },
+      {
+        "path": "reports/theplus-creative-studio/vertical-slice-spec.md",
+        "operation": "created",
+        "purpose": "D05",
+        "evidence_ids": ["EV-SPEC"]
+      }
+    ],
+    "commits": ["2c2395f"],
+    "unfinished_work": ["port MP4 export", "9s clip option", "export to post link", "cost view"],
+    "known_regressions": []
+  },
+  "verification": {
+    "status": "completed",
+    "checks": [
+      {
+        "id": "CHECK-001",
+        "name": "refund collision regression (pre-fix)",
+        "method": "unit",
+        "command": "pnpm exec vitest run src/app/api/jobs/storyboard-animate/route.test.ts",
+        "exit_code": 1,
+        "status": "FAIL",
+        "observed_result": "refIds [sb_1, sb_1]",
+        "evidence_ids": ["EV-TEST-RED"]
+      },
+      {
+        "id": "CHECK-002",
+        "name": "refund collision regression (post-fix)",
+        "method": "unit",
+        "command": "pnpm exec vitest run src/app/api/jobs/storyboard-animate/route.test.ts",
+        "exit_code": 0,
+        "status": "PASS",
+        "observed_result": "2 passed",
+        "evidence_ids": ["EV-TEST-GREEN"]
+      },
+      {
+        "id": "CHECK-003",
+        "name": "typecheck + lint + full suite",
+        "method": "unit",
+        "command": "pnpm typecheck && pnpm lint && pnpm test",
+        "exit_code": 0,
+        "status": "PASS",
+        "observed_result": "49 files, 321 tests passed",
+        "evidence_ids": ["EV-SUITE"]
+      },
+      {
+        "id": "CHECK-004",
+        "name": "migration replay 0001-0034 + 0029",
+        "method": "integration",
+        "command": null,
+        "exit_code": null,
+        "status": "NOT_TESTED",
+        "observed_result": null,
+        "evidence_ids": []
+      },
+      {
+        "id": "CHECK-005",
+        "name": "real Luma render and export",
+        "method": "real_provider",
+        "command": null,
+        "exit_code": null,
+        "status": "NOT_TESTED",
+        "observed_result": null,
+        "evidence_ids": []
+      }
+    ],
+    "untested_areas": [
+      "action-path refund (covered by typecheck and source-walk test only)",
+      "cross-user probe",
+      "deployed export route",
+      "browser demo"
+    ]
+  },
+  "pilot": {
+    "status": "not_started",
+    "experiment_id": "CS-PILOT-01",
+    "started_at": null,
+    "closed_at": null,
+    "status_reason": "D07 protocol not written; P03 blocked by credits_billing FAIL; no spend authorised",
+    "status_evidence_ids": ["EV-PR-1"],
+    "plan": {
+      "target_creators": 5,
+      "ideal_customer_profile": null,
+      "qualification_criteria": [],
+      "protocol": null,
+      "acceptance_rubric": null,
+      "thresholds_frozen_at": null,
+      "freeze_evidence_ids": [],
+      "pricing": {
+        "currency": null,
+        "proposed_net_price_minor": null,
+        "comparable_unit": null,
+        "allocation_method": null,
+        "max_discount_fraction": 0.2
+      },
+      "authorised_budget_minor": null,
+      "per_creator_limit_minor": null
+    },
+    "preflight": [
+      {
+        "id": "P01",
+        "status": "NOT_TESTED",
+        "evidence_ids": [],
+        "blockers": ["protocol not written"]
+      },
+      {
+        "id": "P02",
+        "status": "NOT_TESTED",
+        "evidence_ids": [],
+        "blockers": ["thresholds/rubric/price not frozen"]
+      },
+      {
+        "id": "P03",
+        "status": "BLOCKED",
+        "evidence_ids": ["EV-PR-1"],
+        "blockers": ["PR #12 / 0034 unmerged", "PR #8 conflicting"]
+      },
+      {
+        "id": "P04",
+        "status": "NOT_TESTED",
+        "evidence_ids": [],
+        "blockers": ["no spend authorisation"]
+      },
+      {
+        "id": "P05",
+        "status": "NOT_TESTED",
+        "evidence_ids": [],
+        "blockers": []
+      },
+      {
+        "id": "P06",
+        "status": "NOT_TESTED",
+        "evidence_ids": [],
+        "blockers": ["no per-storyboard cost/timing view"]
+      },
+      {
+        "id": "P07",
+        "status": "NOT_TESTED",
+        "evidence_ids": [],
+        "blockers": []
+      }
+    ],
+    "participants": [],
+    "thresholds": [
+      {
+        "id": "T01",
+        "metric": "technically_accepted_videos",
+        "operator": ">=",
+        "target": 4,
+        "unit": "creators",
+        "denominator": 5
+      },
+      {
+        "id": "T02",
+        "metric": "independent_completion",
+        "operator": ">=",
+        "target": 3,
+        "unit": "creators",
+        "denominator": 5
+      },
+      {
+        "id": "T03",
+        "metric": "character_consistency",
+        "operator": ">=",
+        "target": 0.8,
+        "unit": "fraction",
+        "denominator": null
+      },
+      {
+        "id": "T04",
+        "metric": "median_elapsed_minutes",
+        "operator": "<=",
+        "target": 120,
+        "unit": "minutes",
+        "denominator": null
+      },
+      {
+        "id": "T05",
+        "metric": "creator_output_approval",
+        "operator": ">=",
+        "target": 4,
+        "unit": "creators",
+        "denominator": 5
+      },
+      {
+        "id": "T06",
+        "metric": "variable_cost_to_price_ratio",
+        "operator": "<=",
+        "target": 0.35,
+        "unit": "fraction",
+        "denominator": null
+      },
+      {
+        "id": "T07",
+        "metric": "qualified_paid_commitments",
+        "operator": ">=",
+        "target": 2,
+        "unit": "creators",
+        "denominator": 5
+      },
+      {
+        "id": "T08",
+        "metric": "critical_incidents",
+        "operator": "==",
+        "target": 0,
+        "unit": "incidents",
+        "denominator": null
+      }
+    ],
+    "scorecard": [
+      {
+        "threshold_id": "T01",
+        "status": "NOT_TESTED",
+        "observed_value": null,
+        "numerator": null,
+        "denominator": null,
+        "evidence_ids": [],
+        "limitations": ["pilot not started"]
+      },
+      {
+        "threshold_id": "T02",
+        "status": "NOT_TESTED",
+        "observed_value": null,
+        "numerator": null,
+        "denominator": null,
+        "evidence_ids": [],
+        "limitations": ["pilot not started"]
+      },
+      {
+        "threshold_id": "T03",
+        "status": "NOT_TESTED",
+        "observed_value": null,
+        "numerator": null,
+        "denominator": null,
+        "evidence_ids": [],
+        "limitations": ["pilot not started"]
+      },
+      {
+        "threshold_id": "T04",
+        "status": "NOT_TESTED",
+        "observed_value": null,
+        "numerator": null,
+        "denominator": null,
+        "evidence_ids": [],
+        "limitations": ["pilot not started"]
+      },
+      {
+        "threshold_id": "T05",
+        "status": "NOT_TESTED",
+        "observed_value": null,
+        "numerator": null,
+        "denominator": null,
+        "evidence_ids": [],
+        "limitations": ["pilot not started"]
+      },
+      {
+        "threshold_id": "T06",
+        "status": "NOT_TESTED",
+        "observed_value": null,
+        "numerator": null,
+        "denominator": null,
+        "evidence_ids": [],
+        "limitations": ["pilot not started"]
+      },
+      {
+        "threshold_id": "T07",
+        "status": "NOT_TESTED",
+        "observed_value": null,
+        "numerator": null,
+        "denominator": null,
+        "evidence_ids": [],
+        "limitations": ["pilot not started"]
+      },
+      {
+        "threshold_id": "T08",
+        "status": "NOT_TESTED",
+        "observed_value": null,
+        "numerator": null,
+        "denominator": null,
+        "evidence_ids": [],
+        "limitations": ["pilot not started"]
+      }
+    ],
+    "economics": {
+      "currency": null,
+      "total_variable_cost_minor": null,
+      "accepted_video_count": null,
+      "cost_per_accepted_video_minor": null,
+      "comparable_net_price_minor": null,
+      "cost_to_price_ratio": null,
+      "variable_gross_margin": null,
+      "manual_support_minutes": null,
+      "methodology": null
+    },
+    "critical_incidents": [],
+    "protocol_deviations": [],
+    "observations": [],
+    "limitations": [
+      "Provider pricing not re-verified; previously cited rates treated as historical."
+    ]
+  },
+  "risks": [
+    {
+      "id": "R1",
+      "severity": "critical",
+      "category": "evidence_integrity",
+      "description": "Production schema 0028-0031 and the export code had no git source; now only in an unpushed local branch.",
+      "evidence_ids": ["EV-MIG-1", "EV-PRES-1"],
+      "mitigation": "Push preserve branch or port to main",
+      "owner": "founder",
+      "release_blocker": true,
+      "status": "mitigated"
+    },
+    {
+      "id": "R2",
+      "severity": "high",
+      "category": "billing",
+      "description": "consume_credits accepts reason=refund until 0034 is applied.",
+      "evidence_ids": ["EV-PR-1"],
+      "mitigation": "Merge PR #12, apply 0034",
+      "owner": "founder",
+      "release_blocker": true,
+      "status": "open"
+    },
+    {
+      "id": "R3",
+      "severity": "high",
+      "category": "billing",
+      "description": "Second failed render of a storyboard lost its refund.",
+      "evidence_ids": ["EV-TEST-RED", "EV-TEST-GREEN"],
+      "mitigation": "2c2395f (local)",
+      "owner": "engineering",
+      "release_blocker": true,
+      "status": "mitigated"
+    },
+    {
+      "id": "R4",
+      "severity": "medium",
+      "category": "product",
+      "description": "Reels are 15-30s; the 30-60s target needs 9s clips and a pricing decision.",
+      "evidence_ids": ["EV-CODE-SB"],
+      "mitigation": "Per-storyboard clip length priced per clip-second",
+      "owner": "founder",
+      "release_blocker": false,
+      "status": "open"
+    },
+    {
+      "id": "R5",
+      "severity": "medium",
+      "category": "billing",
+      "description": "PR #8 conflicting: a lost Stripe purchase webhook is not reconciled.",
+      "evidence_ids": ["EV-PR-1"],
+      "mitigation": "Rebase PR #8",
+      "owner": "engineering",
+      "release_blocker": false,
+      "status": "open"
+    },
+    {
+      "id": "R6",
+      "severity": "medium",
+      "category": "operations",
+      "description": "Unknown whether the deployed build still serves the export route the 0031 cron calls.",
+      "evidence_ids": ["EV-DOC-EXPORT"],
+      "mitigation": "Read-only probe of the deployed route",
+      "owner": "founder",
+      "release_blocker": false,
+      "status": "open"
+    }
+  ],
+  "decision": {
+    "status": "NOT_EVALUATED",
+    "evaluated_at": "2026-11-16T13:39:58Z",
+    "gate_results": [
+      {
+        "id": "D0",
+        "status": "NOT_SATISFIED",
+        "evidence_ids": [],
+        "rationale": ["No pilot incident; no decisive fatal flaw evidenced"]
+      },
+      {
+        "id": "D1",
+        "status": "NOT_SATISFIED",
+        "evidence_ids": [],
+        "rationale": ["pilot not_started"]
+      },
+      {
+        "id": "D2",
+        "status": "NOT_APPLICABLE",
+        "evidence_ids": [],
+        "rationale": ["D1 decided"]
+      },
+      {
+        "id": "D3",
+        "status": "NOT_APPLICABLE",
+        "evidence_ids": [],
+        "rationale": ["D1 decided"]
+      },
+      {
+        "id": "D4",
+        "status": "NOT_APPLICABLE",
+        "evidence_ids": [],
+        "rationale": ["D1 decided"]
+      },
+      {
+        "id": "D5",
+        "status": "NOT_APPLICABLE",
+        "evidence_ids": [],
+        "rationale": ["D1 decided"]
+      }
+    ],
+    "rationale": [
+      "Pilot not started; engineering slice incomplete; credits_billing has open release blockers."
+    ],
+    "passed_threshold_ids": [],
+    "failed_threshold_ids": [],
+    "untested_threshold_ids": ["T01", "T02", "T03", "T04", "T05", "T06", "T07", "T08"],
+    "unresolved_blocker_ids": ["R1", "R2"],
+    "corrective_hypothesis": null,
+    "retest_experiment_id": null,
+    "conditions": [
+      "Merge PR #12 and apply 0034",
+      "Port MP4 export to main",
+      "Founder pricing decision for 9s clips"
+    ],
+    "permitted_next_scope": ["Local engineering on feat/creative-studio-slice with stubs"],
+    "next_decisive_test": "Port the export onto main and produce one stubbed 6-shot reel whose ffprobe duration is >=30s, then one real-Luma 4x9s reel under an explicit spend cap.",
+    "prohibited_expansion": [
+      "editor",
+      "scene/asset tables",
+      "model marketplace",
+      "new billing",
+      "pilot dashboard"
+    ],
+    "evidence_ids": ["EV-PR-1", "EV-SPEC"]
+  },
+  "operating_summary": {
+    "verified": [
+      "Refund-collision defect reproduced and fixed locally; 321 tests pass",
+      "PR #9 merged, #8 conflicting, #12 open",
+      "0028-0031 had no git source; snapshot preserved locally"
+    ],
+    "uncertainties": [
+      "Deployed export route state",
+      "Real Luma clip compatibility with export",
+      "Character consistency",
+      "Provider cost per accepted video",
+      "Willingness to pay"
+    ],
+    "biggest_risk": "Production schema and the only working export path live outside main; a cleanup of the stale checkout or an unpushed local ref loses them.",
+    "next_test": "Port export to main and produce a >=30s stubbed MP4 measured by ffprobe.",
+    "do_not_build": [
+      "nonlinear editor",
+      "Creative Studio app layer",
+      "scene/asset/project tables",
+      "model marketplace",
+      "report schema validator before a pilot runs"
+    ]
+  }
+}
