@@ -147,13 +147,14 @@ export function StoryboardForm({ models }: { models: AiModelRow[] }) {
             <input
               type="range"
               min={3}
-              max={6}
+              max={11}
               value={shotCount}
               onChange={(e) => setShotCount(Number(e.target.value))}
               className="accent-[#0099ff]"
             />
             <span className="text-[12px] text-ink-muted">
-              <span className="tabular-nums text-ink">{shotCount}</span> shots ·{' '}
+              <span className="tabular-nums text-ink">{shotCount}</span> shots · about{' '}
+              <span className="tabular-nums text-ink">{shotCount * 5}s</span> once animated ·{' '}
               <span className="tabular-nums text-ink">{totalCost}</span> credits total
             </span>
           </label>

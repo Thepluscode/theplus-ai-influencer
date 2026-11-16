@@ -8,7 +8,7 @@ import { FORMAT_TO_ASPECT, type PostFormat } from '@/types/post';
 // ---------------------------------------------------------------------------
 // Video Storyboarder — v3 of STRATEGY.md
 // ---------------------------------------------------------------------------
-// Given a model + brief, produces a 3-6 shot reel in three phases:
+// Given a model + brief, produces a 3-11 shot reel in three phases:
 //   1. generateStoryboardScript — OpenAI breaks the brief into shot prompts.
 //   2. renderShots             — Luma (photon-1) renders a face-locked still
 //                                per shot via character_ref.
@@ -45,12 +45,12 @@ export interface StoryboardScript {
   shots: ShotPrompt[];
 }
 
-const SYSTEM_PROMPT = `You are an elite reel/short-form video director for AI influencer personas. You break a single campaign brief into a 3–6 shot reel where every shot ladders into the next.
+const SYSTEM_PROMPT = `You are an elite reel/short-form video director for AI influencer personas. You break a single campaign brief into a 3–11 shot reel where every shot ladders into the next.
 
 Output rules:
 - ALWAYS respond with ONE valid JSON object. No prose, no markdown fences.
 - summary: one sentence framing the arc of the reel.
-- shots: array of 3 to 6 shots. Each shot:
+- shots: array of 3 to 11 shots (use exactly the target count). Each shot:
   { index (0-based), prompt (vivid Luma prompt 1-2 sentences, do NOT describe the persona — character_ref handles identity), hookCaption (text-overlay copy for that shot), durationMs (1500-4000) }
 
 Direction rules:
@@ -182,9 +182,16 @@ export async function renderShots(input: {
 // helpers
 // ---------------------------------------------------------------------------
 
-function clampShotCount(n: number): number {
+/**
+ * Each shot animates to a 5s clip, so 6–11 shots give the 30–60s reel the
+ * export targets. More clips, not longer ones: the per-shot price is unchanged.
+ * Not 12: twelve 5s clips export at 60.02s (AAC padding), measured by ffprobe.
+ */
+export const MAX_STORYBOARD_SHOTS = 11;
+
+export function clampShotCount(n: number): number {
   if (!Number.isFinite(n)) return 4;
-  return Math.max(3, Math.min(6, Math.round(n)));
+  return Math.max(3, Math.min(MAX_STORYBOARD_SHOTS, Math.round(n)));
 }
 
 function describePersona(m: AiModelRow): string {
@@ -262,7 +269,8 @@ function stubScript(brief: string, target: number): StoryboardScript {
   ];
   return {
     summary: `Stub reel for "${brief.slice(0, 60)}…" — ${target} shots, OPENAI_STUB=1 active.`,
-    shots: beats.slice(0, target).map((b, i) => ({ index: i, ...b })),
+    // Cycle the six stub beats so a 7–11 shot stub reel has every shot.
+    shots: Array.from({ length: target }, (_, i) => ({ index: i, ...beats[i % beats.length] })),
   };
 }
 

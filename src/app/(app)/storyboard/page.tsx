@@ -49,7 +49,7 @@ export default async function StoryboardIndexPage() {
               In a single shot.
             </h1>
             <p className="mt-3 max-w-2xl text-[13px] leading-[1.5] text-ink-muted">
-              Brief a campaign — the storyboarder writes a 3-6 shot reel script, renders every shot
+              Brief a campaign — the storyboarder writes a 3-11 shot reel script, renders every shot
               with the persona&apos;s face locked, and stitches a preview you can ship to social.
             </p>
             {loadError ? (

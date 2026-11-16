@@ -6,7 +6,12 @@ import { z } from 'zod';
 import { listAiModels } from '@/lib/ai-models';
 import { consumeCredits, COSTS, refundCredits } from '@/lib/credits';
 import { publicEnv, serverEnv } from '@/lib/env';
-import { generateStoryboardScript, renderShots, type RenderedShot } from '@/lib/storyboard';
+import {
+  generateStoryboardScript,
+  MAX_STORYBOARD_SHOTS,
+  renderShots,
+  type RenderedShot,
+} from '@/lib/storyboard';
 import { enqueueAnimationJob, hasActiveJobForStoryboard } from '@/lib/storyboard-jobs';
 import { enqueueStoryboardExport } from '@/lib/storyboard-export-jobs';
 import { createStoryboardReviewComment, updateReviewCommentStatus } from '@/lib/review-comments';
@@ -33,7 +38,7 @@ const StoryboardFormSchema = z.object({
   name: z.string().min(1, 'Storyboard name required').max(120),
   brief: z.string().min(1, 'Describe the reel').max(800),
   format: z.enum(FORMATS).default('portrait'),
-  shotCount: z.coerce.number().int().min(3).max(6).default(4),
+  shotCount: z.coerce.number().int().min(3).max(MAX_STORYBOARD_SHOTS).default(4),
 });
 
 export type ReviewCommentState =
