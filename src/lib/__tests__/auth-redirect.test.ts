@@ -70,3 +70,24 @@ describe('landingAfterAuth', () => {
     expect(landingAfterAuth(null)).toBe('/dashboard');
   });
 });
+
+describe('sanitizeReturnTo — off-origin bypasses (Codex review, 2026-11-11)', () => {
+  // Each of these resolves to another host in a browser (WHATWG URL treats `\` as `/`).
+  it.each([
+    ['/\\evil.example/phish'],
+    ['/\\/evil.example'],
+    ['\\\\evil.example'],
+    ['/\t/evil.example'],
+    ['/\n/evil.example'],
+    ['/ /evil.example'.replace(' ', '\r')],
+  ])('rejects %j', (input) => {
+    expect(sanitizeReturnTo(input)).toBeNull();
+  });
+
+  it('still keeps ordinary same-origin paths, including encoded characters', () => {
+    expect(sanitizeReturnTo('/dashboard')).toBe('/dashboard');
+    expect(sanitizeReturnTo('/create?persona=abc&mode=edit')).toBe('/create?persona=abc&mode=edit');
+    expect(sanitizeReturnTo('/p/%5Cliteral')).toBe('/p/%5Cliteral');
+    expect(sanitizeReturnTo('/a#frag')).toBe('/a#frag');
+  });
+});
