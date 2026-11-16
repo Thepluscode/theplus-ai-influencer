@@ -432,13 +432,16 @@ export async function animateStoryboardAction(
 
     const costPerShot = COSTS.STORYBOARD_VIDEO_RENDER;
     const cost = costPerShot * pending.length;
+    // One id for the job, its debit and any refund. 0021 allows one refund per
+    // ref, and the same storyboard can be rendered (and fail) more than once.
+    const jobId = crypto.randomUUID();
 
     const consume = await consumeCredits({
       workspaceId: ws.id,
       amount: cost,
       reason: 'storyboard_video_render',
-      refKind: 'storyboard',
-      refId: id,
+      refKind: 'storyboard_render_job',
+      refId: jobId,
     });
     if (!consume.ok) {
       return {
@@ -451,6 +454,7 @@ export async function animateStoryboardAction(
     let job;
     try {
       job = await enqueueAnimationJob({
+        id: jobId,
         workspaceId: ws.id,
         storyboardId: id,
         shotsTotal: pending.length,
@@ -464,8 +468,8 @@ export async function animateStoryboardAction(
       await refundCredits({
         workspaceId: ws.id,
         amount: cost,
-        refKind: 'storyboard',
-        refId: id,
+        refKind: 'storyboard_render_job',
+        refId: jobId,
       });
       throw err;
     }

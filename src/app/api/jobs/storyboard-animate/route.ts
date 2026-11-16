@@ -42,7 +42,9 @@ const MAX_RENDER_ATTEMPTS = 4;
  *   5. When shots_completed === shots_total, mark the job completed.
  *
  * On Luma failure: refund the proportional remaining credits and flip
- * the job to `failed`. Already-rendered shots stay saved.
+ * the job to `failed`. Already-rendered shots stay saved. Refunds are keyed
+ * on the job id, not the storyboard id: 0021 allows one refund per ref, and a
+ * storyboard can be rendered (and fail) more than once.
  */
 export async function POST(req: NextRequest) {
   const authHeader = req.headers.get('authorization') ?? '';
@@ -86,8 +88,8 @@ export async function POST(req: NextRequest) {
     await refundCredits({
       workspaceId: job.workspace_id,
       amount: remainingCost(job.shots_total, job.shots_completed, job.cost_per_shot),
-      refKind: 'storyboard',
-      refId: job.storyboard_id,
+      refKind: 'storyboard_render_job',
+      refId: job.id,
     });
     return NextResponse.json({ ran: true, jobId: job.id, status: 'failed' });
   }
@@ -131,8 +133,8 @@ export async function POST(req: NextRequest) {
       await refundCredits({
         workspaceId: job.workspace_id,
         amount: refundAmount,
-        refKind: 'storyboard',
-        refId: job.storyboard_id,
+        refKind: 'storyboard_render_job',
+        refId: job.id,
       });
     }
     return NextResponse.json(
