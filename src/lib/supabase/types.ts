@@ -1030,6 +1030,103 @@ export type Database = {
           },
         ];
       };
+      storyboard_export_jobs: {
+        Row: {
+          id: string;
+          workspace_id: string;
+          storyboard_id: string;
+          approval_decision_id: string;
+          review_version: number;
+          snapshot_hash: string;
+          format: 'square' | 'portrait' | 'landscape';
+          shots_snapshot: unknown;
+          status: 'queued' | 'rendering' | 'completed' | 'failed';
+          output_path: string | null;
+          output_bytes: number | null;
+          output_duration_ms: number | null;
+          output_width: number | null;
+          output_height: number | null;
+          has_audio: boolean | null;
+          captions_burned_in: boolean;
+          attempts: number;
+          claimed_at: string | null;
+          started_at: string | null;
+          completed_at: string | null;
+          last_error: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          workspace_id: string;
+          storyboard_id: string;
+          approval_decision_id: string;
+          review_version: number;
+          snapshot_hash: string;
+          format: 'square' | 'portrait' | 'landscape';
+          shots_snapshot: unknown;
+          status?: 'queued' | 'rendering' | 'completed' | 'failed';
+          output_path?: string | null;
+          output_bytes?: number | null;
+          output_duration_ms?: number | null;
+          output_width?: number | null;
+          output_height?: number | null;
+          has_audio?: boolean | null;
+          captions_burned_in?: boolean;
+          attempts?: number;
+          claimed_at?: string | null;
+          started_at?: string | null;
+          completed_at?: string | null;
+          last_error?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          workspace_id?: string;
+          storyboard_id?: string;
+          approval_decision_id?: string;
+          review_version?: number;
+          snapshot_hash?: string;
+          format?: 'square' | 'portrait' | 'landscape';
+          shots_snapshot?: unknown;
+          status?: 'queued' | 'rendering' | 'completed' | 'failed';
+          output_path?: string | null;
+          output_bytes?: number | null;
+          output_duration_ms?: number | null;
+          output_width?: number | null;
+          output_height?: number | null;
+          has_audio?: boolean | null;
+          captions_burned_in?: boolean;
+          attempts?: number;
+          claimed_at?: string | null;
+          started_at?: string | null;
+          completed_at?: string | null;
+          last_error?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'storyboard_export_jobs_workspace_id_fkey';
+            columns: ['workspace_id'];
+            referencedRelation: 'workspaces';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'storyboard_export_jobs_storyboard_id_fkey';
+            columns: ['storyboard_id'];
+            referencedRelation: 'storyboards';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'storyboard_export_jobs_approval_decision_id_fkey';
+            columns: ['approval_decision_id'];
+            referencedRelation: 'review_decisions';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       content_sources: {
         Row: {
           id: string;
@@ -1374,6 +1471,14 @@ export type Database = {
     };
     Views: Record<never, never>;
     Functions: {
+      get_shared_post_by_token: {
+        Args: { p_token: string };
+        Returns: Database['public']['Tables']['posts']['Row'][];
+      };
+      enqueue_storyboard_export: {
+        Args: { p_workspace_id: string; p_storyboard_id: string };
+        Returns: Database['public']['Tables']['storyboard_export_jobs']['Row'];
+      };
       record_post_review_decision: {
         Args: {
           p_workspace_id: string;
@@ -1423,6 +1528,7 @@ export type DmThreadRow = Database['public']['Tables']['dm_threads']['Row'];
 export type SocialAccountRow = Database['public']['Tables']['social_accounts']['Row'];
 export type SafetyAuditRow = Database['public']['Tables']['safety_audits']['Row'];
 export type StoryboardRenderJobRow = Database['public']['Tables']['storyboard_render_jobs']['Row'];
+export type StoryboardExportJobRow = Database['public']['Tables']['storyboard_export_jobs']['Row'];
 export type ContentSourceRow = Database['public']['Tables']['content_sources']['Row'];
 export type ContentAtomRow = Database['public']['Tables']['content_atoms']['Row'];
 export type ContentPackRow = Database['public']['Tables']['content_packs']['Row'];

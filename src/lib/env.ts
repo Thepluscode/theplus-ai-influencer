@@ -54,10 +54,14 @@ const ServerEnvSchema = z.object({
   // OpenAI speech-to-text 25 MB limit by default. Enforced before upload
   // and re-checked server-side at extraction time.
   CONTENT_SOURCE_MAX_BYTES: z.coerce.number().int().positive().default(26214400),
-  // Shared secret used to authenticate cron-driven worker invocations of
-  // /api/jobs/storyboard-animate. Required for production; if absent in
-  // dev, the route still accepts SUPABASE_SERVICE_ROLE_KEY as a bearer
-  // token so you can curl it locally.
+  FFMPEG_PATH: z.string().min(1).optional(),
+  FFPROBE_PATH: z.string().min(1).optional(),
+  STORYBOARD_EXPORT_MAX_CLIP_BYTES: z.coerce.number().int().positive().default(209715200),
+  // Comma-separated exact HTTPS hostnames controlled by the operator. The
+  // built-in Luma hosts remain allowed; this is for trusted media mirrors.
+  STORYBOARD_EXPORT_ALLOWED_CLIP_HOSTS: z.string().min(1).optional(),
+  // Dedicated secret for cron-driven workers. Never reuse the Supabase
+  // service-role key as an HTTP bearer credential.
   CRON_SECRET: z.string().min(16).optional(),
 });
 
