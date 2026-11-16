@@ -71,6 +71,15 @@ export default defineConfig({
         'src/lib/credits.ts': { lines: 95, statements: 95, branches: 100, functions: 74 },
         'src/lib/publish-safety.ts': { lines: 99, statements: 99, branches: 67, functions: 99 },
         'src/lib/zernio-webhooks.ts': { lines: 93, statements: 85, branches: 55, functions: 99 },
+        // The handlers moved here from the webhook route when the reconciliation
+        // sweep started sharing them. Measured 2026-11-16: lines 66.33,
+        // statements 62.96, branches 54.32, functions 81.81.
+        'src/lib/billing/stripe-events.ts': {
+          lines: 66,
+          statements: 62,
+          branches: 54,
+          functions: 81,
+        },
         'src/app/api/stripe/webhook/route.ts': {
           lines: 60,
           statements: 57,
