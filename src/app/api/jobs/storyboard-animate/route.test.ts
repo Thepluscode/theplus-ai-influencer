@@ -14,6 +14,9 @@ const h = vi.hoisted(() => ({
   jobs: [] as Record<string, unknown>[],
   refunds: [] as Record<string, unknown>[],
   failed: [] as string[],
+  released: [] as string[],
+  animateCalls: 0,
+  animateError: { status: 400, message: 'bad request' } as { status: number; message: string },
 }));
 
 vi.mock('@/lib/env', () => ({
@@ -28,8 +31,9 @@ vi.mock('@/lib/credits', () => ({
 
 vi.mock('@/lib/storyboard', () => ({
   animateSingleShot: async () => {
-    // A concrete 4xx is permanent, so the worker fails and refunds.
-    throw Object.assign(new Error('bad request'), { status: 400 });
+    h.animateCalls++;
+    // Default: a concrete 4xx is permanent, so the worker fails and refunds.
+    throw Object.assign(new Error(h.animateError.message), { status: h.animateError.status });
   },
 }));
 
@@ -41,7 +45,9 @@ vi.mock('@/lib/storyboard-jobs', () => ({
   },
   markJobCompleted: async () => {},
   recordShotProgress: async () => {},
-  releaseJobClaim: async () => {},
+  releaseJobClaim: async (id: string) => {
+    h.released.push(id);
+  },
 }));
 
 vi.mock('@/lib/supabase/admin', () => ({
@@ -67,7 +73,8 @@ function tick() {
   } as unknown as NextRequest);
 }
 
-function job(id: string) {
+function job(id: string, over: Partial<Record<string, number>> = {}) {
+  // `attempts` is bumped by every claim, including the one that returned this row.
   return {
     id,
     workspace_id: 'ws_1',
@@ -76,6 +83,7 @@ function job(id: string) {
     shots_completed: 0,
     cost_per_shot: 25,
     attempts: 1,
+    ...over,
   };
 }
 
@@ -84,6 +92,9 @@ describe('storyboard-animate refunds', () => {
     h.jobs = [];
     h.refunds = [];
     h.failed = [];
+    h.released = [];
+    h.animateCalls = 0;
+    h.animateError = { status: 400, message: 'bad request' };
   });
 
   it('refunds two failed renders of the same storyboard under two distinct refs', async () => {
@@ -103,6 +114,33 @@ describe('storyboard-animate refunds', () => {
     const res = await POST({ headers: new Headers() } as unknown as NextRequest);
     expect(res.status).toBe(401);
     expect(h.jobs).toHaveLength(1);
+    expect(h.refunds).toHaveLength(0);
+  });
+
+  it('fails and refunds a job that keeps being reclaimed without progress, before calling Luma', async () => {
+    // 1 shot done, then 4 claims that never finished a shot (crashes or retries),
+    // and this is the 6th claim.
+    h.jobs = [job('job_loop', { shots_total: 3, shots_completed: 1, attempts: 6 })];
+    const res = await tick();
+    const body = await res.json();
+
+    expect(body.status).toBe('failed');
+    expect(h.animateCalls).toBe(0);
+    expect(h.failed).toEqual(['job_loop']);
+    expect(h.refunds).toEqual([
+      { workspaceId: 'ws_1', amount: 50, refKind: 'storyboard_render_job', refId: 'job_loop' },
+    ]);
+  });
+
+  it('still retries a transient error late in a long, healthy job', async () => {
+    // 7 shots rendered, each consuming one claim; this is the 8th claim and the
+    // first failure. The retry budget must not have been spent by successes.
+    h.animateError = { status: 429, message: 'rate limited' };
+    h.jobs = [job('job_long', { shots_total: 12, shots_completed: 7, attempts: 8 })];
+    const body = await (await tick()).json();
+
+    expect(body.status).toBe('retry');
+    expect(h.released).toEqual(['job_long']);
     expect(h.refunds).toHaveLength(0);
   });
 });

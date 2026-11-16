@@ -22,8 +22,19 @@ export const dynamic = 'force-dynamic';
 
 // A transient Luma failure (429/5xx/network) shouldn't kill the job — the SDK
 // already backs off within a tick; we release for a few more ticks before
-// giving up. `attempts` is bumped on every claim, so this is bounded.
+// giving up. The same budget bounds a job that keeps being reclaimed because
+// the worker crashed mid-shot.
 const MAX_RENDER_ATTEMPTS = 4;
+
+/**
+ * Claims that did not complete a shot, excluding the current one. `attempts`
+ * is bumped by every claim — including the one per successful shot — so it
+ * cannot be compared with the budget directly: a healthy 6-shot job would
+ * exhaust it on successes alone.
+ */
+function unproductiveClaims(job: { attempts: number; shots_completed: number }): number {
+  return Math.max(0, job.attempts - job.shots_completed - 1);
+}
 
 /**
  * Cron worker for animate-to-video.
@@ -68,6 +79,25 @@ export async function POST(req: NextRequest) {
   }
   if (!job) {
     return NextResponse.json({ ran: false, reason: 'empty queue' });
+  }
+
+  // Step 2b: a job reclaimed again and again without progress (a worker that
+  // crashes mid-shot never reaches the failure path below) is failed and
+  // refunded here, before another paid render is attempted.
+  if (unproductiveClaims(job) >= MAX_RENDER_ATTEMPTS) {
+    const refundAmount = remainingCost(job.shots_total, job.shots_completed, job.cost_per_shot);
+    const reason = `Gave up after ${unproductiveClaims(job)} claims without progress.`;
+    console.error('[storyboard-animate] retry budget exhausted', { jobId: job.id, reason });
+    await markJobFailed(job.id, reason, refundAmount);
+    if (refundAmount > 0) {
+      await refundCredits({
+        workspaceId: job.workspace_id,
+        amount: refundAmount,
+        refKind: 'storyboard_render_job',
+        refId: job.id,
+      });
+    }
+    return NextResponse.json({ ran: true, jobId: job.id, status: 'failed', error: reason });
   }
 
   // Step 3: load the storyboard. If it was deleted under us, fail the job.
@@ -118,7 +148,7 @@ export async function POST(req: NextRequest) {
     // Transient upstream failure → release for a bounded retry instead of
     // failing + refunding. Only on retryable errors and under the attempt cap;
     // anything else (or an exhausted job) falls through to the fail path.
-    if (isTransientError(err) && job.attempts < MAX_RENDER_ATTEMPTS) {
+    if (isTransientError(err) && unproductiveClaims(job) + 1 < MAX_RENDER_ATTEMPTS) {
       await releaseJobClaim(job.id);
       return NextResponse.json(
         { ran: true, jobId: job.id, status: 'retry', attempts: job.attempts, error: msg },
