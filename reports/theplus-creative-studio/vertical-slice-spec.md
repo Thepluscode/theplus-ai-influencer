@@ -100,3 +100,5 @@ Nonlinear editor, scene/asset tables, a project-management layer, extra video mo
 | R3    | completed   | R3-G01 PASS                                                                                               |
 | R4    | blocked     | entry fails (R1); G01 PASS (fixture MP4); G02 BLOCKED (full stack)                                        |
 | R5    | blocked     | G01 BLOCKED (Codex usage limit); G02 PASS (report validated)                                              |
+
+**Update after GO:** R1-G04 is PASS on PR #14 (lost-webhook replay, mocked Stripe). The only open R1 gate is G10, the independent review, so R1 stays `blocked`.

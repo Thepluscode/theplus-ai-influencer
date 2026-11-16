@@ -1,7 +1,7 @@
 {
   "schema_version": "2.0.0",
   "report_id": "CS-EXEC-2026-11-16-01",
-  "generated_at": "2026-11-16T14:03:22Z",
+  "generated_at": "2026-11-16T14:24:03Z",
   "project": {
     "name": "ThePlus Creative Studio",
     "product": "ThePlus AI Influencer",
@@ -12,8 +12,8 @@
     "run_id": "claude-2026-11-16-creative-studio",
     "environment": "local worktree, stubs only, no network calls to paid providers",
     "started_at": "2026-11-16T13:31:12Z",
-    "completed_at": "2026-11-16T14:03:22Z",
-    "current_phase": "R0 completed; R1 blocked (PR #8); R2 in_progress; R3 completed; R4 blocked; R5 blocked (review)",
+    "completed_at": "2026-11-16T14:24:03Z",
+    "current_phase": "R0 completed; R1 blocked (review only); R2 in_progress; R3 completed; R4 blocked; R5 blocked (review)",
     "repository": {
       "url": "https://github.com/Thepluscode/theplus-ai-influencer",
       "base_branch": "origin/main",
@@ -26,9 +26,9 @@
       "provider_spend": false,
       "live_payments": false,
       "external_publishing": false,
-      "push_merge_deploy": false,
+      "push_merge_deploy": true,
       "destructive_changes": false,
-      "evidence_ids": []
+      "evidence_ids": ["EV-GO"]
     }
   },
   "evidence": [
@@ -249,14 +249,6 @@
       "description": "0 files: the export path cannot call the publishing client."
     },
     {
-      "id": "EV-PROBE-DENIED",
-      "kind": "observation",
-      "location": "curl unauthenticated POST to deployed /api/jobs/* routes",
-      "commit_sha": null,
-      "observed_at": "2026-11-16T14:03:22Z",
-      "description": "Not executed: denied by the session permission classifier. Deployed state of the export route remains unknown."
-    },
-    {
       "id": "EV-CODEX-BLOCKED",
       "kind": "observation",
       "location": "codex:codex-rescue read-only review of edc593d..45ba43d",
@@ -271,6 +263,54 @@
       "commit_sha": null,
       "observed_at": "2026-11-16T14:03:22Z",
       "description": "See D06; structural and semantic checks plus 6 mutants."
+    },
+    {
+      "id": "EV-PROD-PROBE",
+      "kind": "production",
+      "location": "unauthenticated POST https://web-production-ae84a.up.railway.app/api/jobs/{storyboard-animate,storyboard-export,does-not-exist} at 2026-11-16T14:13:52Z",
+      "commit_sha": null,
+      "observed_at": "2026-11-16T14:24:03Z",
+      "description": "401, 401, 404; GET / 200. The public Railway host serves the export route, which main lacks: production runs the uncommitted September build, and Railway did not auto-deploy main after the 10 Nov merges."
+    },
+    {
+      "id": "EV-PR12-MERGED",
+      "kind": "pull_request",
+      "location": "gh pr merge 12 --merge",
+      "commit_sha": "c2f37d1",
+      "observed_at": "2026-11-16T14:24:03Z",
+      "description": "PR #12 merged 2026-11-16T14:15:36Z. Vercel built main to its \"Production\" environment (deployment 7826461070, success), but that URL redirects to Vercel SSO, so it is not the public host. PR #12 code fixes are not live on Railway."
+    },
+    {
+      "id": "EV-PUSH",
+      "kind": "repository",
+      "location": "git ls-remote origin",
+      "commit_sha": "66f07ba",
+      "observed_at": "2026-11-16T14:24:03Z",
+      "description": "feat/creative-studio-slice and preserve/storyboard-mp4-export-wip pushed after gitleaks found no leaks (245 KB + 198 KB scanned). Draft PR #13 opened for the slice."
+    },
+    {
+      "id": "EV-PR14",
+      "kind": "test",
+      "location": "branch feat/reconcile-billing-sweep-v2 @ 55f9e4e: pre-push (typecheck, lint, vitest --coverage)",
+      "commit_sha": "55f9e4e",
+      "observed_at": "2026-11-16T14:24:03Z",
+      "description": "PR #8 rebuilt on main as draft PR #14: main handlers moved verbatim (diffed) into stripe-events.ts; existing webhook tests unchanged and passing; sweep 5 tests pass, 2 fail when replay is disabled; 3 new route-boundary tests; 50 files / 336 tests and coverage thresholds pass."
+    },
+    {
+      "id": "EV-DISK",
+      "kind": "observation",
+      "location": "df -h /; docker info",
+      "commit_sha": null,
+      "observed_at": "2026-11-16T14:24:03Z",
+      "description": "Host 2.2 GiB free; Colima VM 2 GB RAM. Supabase local images need several GB, so the full local stack was not attempted."
+    },
+    {
+      "id": "EV-GO",
+      "kind": "observation",
+      "location": "founder message \"GO\" (2026-11-16) after the approval list",
+      "commit_sha": null,
+      "observed_at": "2026-11-16T14:24:03Z",
+      "description": "Authorised: production probe, pushing the slice and preserve branches, merging PR #12, and the listed next actions. No deploy to Railway was made."
     }
   ],
   "repository_baseline": {
@@ -331,9 +371,9 @@
     ],
     "findings": ["Production schema 0028-0031 had no git source before this run (EV-MIG-1)."],
     "unresolved_dependencies": [
-      "PR #8 rebase over f0bf952",
       "independent review (Codex usage limit)",
-      "deployed export route state (probe not authorised)"
+      "full local stack (disk)",
+      "PR #14 merge + schedule"
     ]
   },
   "reconciliation": {
@@ -352,10 +392,10 @@
         "item_id": "PR-8",
         "item_type": "pull_request",
         "previous_claim": "open",
-        "observed_state": "open, CONFLICTING",
+        "observed_state": "still open; superseded by draft PR #14 (rebuilt on main)",
         "discrepancy": "cannot merge as-is",
-        "recommended_action": "Rebase onto origin/main",
-        "evidence_ids": ["EV-PR-1"]
+        "recommended_action": "Owner closes #8; review and merge #14",
+        "evidence_ids": ["EV-PR14"]
       },
       {
         "item_id": "PR-12",
@@ -370,19 +410,19 @@
         "item_id": "MIG-0028-0031",
         "item_type": "branch",
         "previous_claim": "applied to production (uncommitted tracker)",
-        "observed_state": "no commit anywhere; now in local preserve branch",
+        "observed_state": "committed on the pushed slice branch (0030 only in the pushed preserve branch); production serves the export route",
         "discrepancy": "production schema not reproducible from git",
         "recommended_action": "Push preserve branch or port export subset to main",
-        "evidence_ids": ["EV-MIG-1", "EV-PRES-1", "EV-DOC-EXPORT"]
+        "evidence_ids": ["EV-PUSH", "EV-PROD-PROBE", "EV-PORT"]
       },
       {
         "item_id": "PR-12-LOCAL",
         "item_type": "pull_request",
         "previous_claim": "open, unmerged",
-        "observed_state": "still open on GitHub; merged into the slice branch locally (b48d14b)",
+        "observed_state": "merged on GitHub 2026-11-16 (c2f37d1); code not live on Railway",
         "discrepancy": null,
-        "recommended_action": "Merge PR #12 on GitHub",
-        "evidence_ids": ["EV-PR12-MERGE", "EV-DB-REPLAY"]
+        "recommended_action": "Deploy with the slice branch, not from main alone",
+        "evidence_ids": ["EV-PR12-MERGED", "EV-PROD-PROBE"]
       },
       {
         "item_id": "SHARE-0028",
@@ -487,7 +527,7 @@
         "name": "Billing and security (local scope)",
         "implementation_status": "blocked",
         "acceptance_criteria": ["R1-G01..G10 all PASS"],
-        "evidence_ids": ["EV-PR8-TRIAL"]
+        "evidence_ids": ["EV-PR14", "EV-CODEX-BLOCKED"]
       },
       {
         "id": "R2",
@@ -569,11 +609,15 @@
       "blockers": ["Deployed cross-user probe not run"]
     },
     "credits_billing": {
-      "status": "BLOCKED",
-      "evidence_ids": ["EV-PR8-TRIAL", "EV-DB-REPLAY", "EV-RECLAIM-TEST"],
-      "findings": ["Per-job refunds, 0034 and bounded retries verified locally"],
+      "status": "PASS",
+      "evidence_ids": ["EV-TEST-GREEN", "EV-RECLAIM-TEST", "EV-DB-REPLAY", "EV-DB-MUT", "EV-PR14"],
+      "findings": [
+        "Local scope: per-job refunds, 0034 refund-squat block, bounded retries, webhook idempotency and lost-webhook replay all executed"
+      ],
       "blockers": [
-        "Lost Stripe webhook recovery (PR #8) conflicts with main; not verifiable until rebased"
+        "No independent review",
+        "Sweep lives on PR #14, not yet on the slice or main",
+        "Not exercised against live Stripe test mode"
       ]
     },
     "asynchronous_jobs": {
@@ -846,11 +890,11 @@
         "id": "R1-G04",
         "name": "Stripe webhook duplicate delivery and lost-webhook recovery",
         "method": "unit",
-        "command": null,
-        "exit_code": null,
-        "status": "BLOCKED",
-        "observed_result": "duplicate delivery covered by existing webhook tests (in suite); recovery sweep (PR #8) conflicts with main",
-        "evidence_ids": ["EV-PR8-TRIAL", "EV-SUITE2"]
+        "command": "pre-push on feat/reconcile-billing-sweep-v2 (PR #14)",
+        "exit_code": 0,
+        "status": "PASS",
+        "observed_result": "duplicate delivery and lost-webhook replay verified with mocked Stripe/Supabase; 2/5 sweep tests fail with replay disabled",
+        "evidence_ids": ["EV-PR14"]
       },
       {
         "id": "R1-G05",
@@ -949,8 +993,8 @@
         "command": null,
         "exit_code": null,
         "status": "BLOCKED",
-        "observed_result": "no local Supabase; docker image pulls fail (credential helper docker-credential-desktop missing)",
-        "evidence_ids": []
+        "observed_result": "not attempted: 2.2 GiB host disk, 2 GB Colima VM; Supabase images need several GB",
+        "evidence_ids": ["EV-DISK"]
       },
       {
         "id": "R3-G01",
@@ -979,8 +1023,8 @@
         "command": null,
         "exit_code": null,
         "status": "BLOCKED",
-        "observed_result": "needs the full local stack (R2-G04)",
-        "evidence_ids": []
+        "observed_result": "not attempted: 2.2 GiB host disk, 2 GB Colima VM; Supabase images need several GB",
+        "evidence_ids": ["EV-DISK"]
       },
       {
         "id": "R5-G01",
@@ -1244,9 +1288,9 @@
       "id": "R1",
       "severity": "critical",
       "category": "evidence_integrity",
-      "description": "Production schema 0028/0029/0031 and the export code had no git source; now committed on the unpushed local slice branch (0030 only in the preserve branch).",
-      "evidence_ids": ["EV-MIG-1", "EV-PRES-1", "EV-PORT"],
-      "mitigation": "Push the slice and preserve branches (needs approval)",
+      "description": "Production schema and export code had no git source; now pushed (slice + preserve branches) but not on main.",
+      "evidence_ids": ["EV-PUSH", "EV-PORT"],
+      "mitigation": "Merge PR #13 after review",
       "owner": "founder",
       "release_blocker": true,
       "status": "mitigated"
@@ -1289,22 +1333,22 @@
       "severity": "medium",
       "category": "billing",
       "description": "PR #8 conflicting: a lost Stripe purchase webhook is not reconciled.",
-      "evidence_ids": ["EV-PR-1"],
-      "mitigation": "Rebase PR #8",
+      "evidence_ids": ["EV-PR14"],
+      "mitigation": "PR #14 rebuilds the sweep on main; needs review, merge and a schedule",
       "owner": "engineering",
       "release_blocker": false,
-      "status": "open"
+      "status": "mitigated"
     },
     {
       "id": "R6",
       "severity": "medium",
       "category": "operations",
-      "description": "Unknown whether the deployed build still serves the export route the 0031 cron calls.",
-      "evidence_ids": ["EV-DOC-EXPORT", "EV-PROBE-DENIED"],
-      "mitigation": "Read-only probe of the deployed route",
+      "description": "Deployed export route state was unknown.",
+      "evidence_ids": ["EV-PROD-PROBE"],
+      "mitigation": "Probed: Railway serves it (401).",
       "owner": "founder",
       "release_blocker": false,
-      "status": "open"
+      "status": "resolved"
     },
     {
       "id": "R7",
@@ -1349,11 +1393,22 @@
       "owner": "founder",
       "release_blocker": true,
       "status": "open"
+    },
+    {
+      "id": "R11",
+      "severity": "high",
+      "category": "operations",
+      "description": "Railway production runs a build that is not main. A deploy of main to Railway would remove the export route, re-allow the service-role bearer on workers, and break anonymous share links if 0028 is live.",
+      "evidence_ids": ["EV-PROD-PROBE", "EV-PR12-MERGED"],
+      "mitigation": "Do not deploy main to Railway; deploy from PR #13 once reviewed",
+      "owner": "founder",
+      "release_blocker": true,
+      "status": "open"
     }
   ],
   "decision": {
     "status": "NOT_EVALUATED",
-    "evaluated_at": "2026-11-16T14:03:22Z",
+    "evaluated_at": "2026-11-16T14:24:03Z",
     "gate_results": [
       {
         "id": "D0",
@@ -1398,14 +1453,14 @@
     "passed_threshold_ids": [],
     "failed_threshold_ids": [],
     "untested_threshold_ids": ["T01", "T02", "T03", "T04", "T05", "T06", "T07", "T08"],
-    "unresolved_blocker_ids": ["R1", "R10", "R2", "R3"],
+    "unresolved_blocker_ids": ["R1", "R10", "R11", "R2", "R3"],
     "corrective_hypothesis": null,
     "retest_experiment_id": null,
     "conditions": [
-      "Rebase PR #8 over f0bf952",
-      "Codex review of edc593d..45ba43d",
-      "Merge PR #12 on GitHub",
-      "Push slice/preserve branches (approval)"
+      "Codex review of PRs #13 and #14 (after 2026-11-18 06:48)",
+      "Merge #14 then #13, align sweep auth to CRON_SECRET and schedule it",
+      "Deploy to Railway only from the merged result",
+      "Full local-stack run once disk allows"
     ],
     "permitted_next_scope": ["Local engineering on feat/creative-studio-slice with stubs"],
     "next_decisive_test": "Run the full local stack (Supabase CLI) and drive one 7-shot stubbed storyboard from brief to authorised MP4 download, then one capped real-Luma 7-shot reel.",
@@ -1425,15 +1480,18 @@
       "0034 blocks refund-squatting (mutation-checked)",
       "Per-job refunds and bounded retries (RED->GREEN)",
       "Real fixture MP4s: 6 shots 30.02s, 11 shots 55.02s; 12 shots 60.02s rejected",
-      "57 files / 355 tests, typecheck and lint clean"
+      "57 files / 355 tests, typecheck and lint clean",
+      "Railway production serves the export route (probe, 401/401/404)",
+      "PR #12 merged to main (c2f37d1)",
+      "Lost-webhook sweep rebuilt on main (PR #14), tests and gates pass"
     ],
     "uncertainties": [
-      "Deployed export route and share links",
       "Real Luma clip duration/compatibility",
       "claim/reclaim SQL under execution",
-      "Character consistency, cost per accepted video, willingness to pay"
+      "Character consistency, cost per accepted video, willingness to pay",
+      "Whether Railway build includes every 0028-0031 behaviour on the slice"
     ],
-    "biggest_risk": "Money and authorisation changes have had no independent review, and the code production reportedly runs exists only on unpushed local branches.",
+    "biggest_risk": "Production runs a build that is not main; money and authorisation changes on PRs #13/#14 have had no independent review.",
     "next_test": "Codex review after 2026-11-18, then a full local-stack stubbed 7-shot run to authorised download.",
     "do_not_build": [
       "nonlinear editor",

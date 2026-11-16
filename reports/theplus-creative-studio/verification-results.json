@@ -1,6 +1,6 @@
 {
   "source": "execution-report.v2.json#/verification/checks",
-  "generated_at": "2026-11-16T14:03:22Z",
+  "generated_at": "2026-11-16T14:24:03Z",
   "head_sha": "45ba43d9e1b79269bab26d1fb021cbc43c2d59d9",
   "media_probes": [
     {
@@ -125,11 +125,11 @@
       "check_id": "R1-G04",
       "name": "Stripe webhook duplicate delivery and lost-webhook recovery",
       "method": "unit",
-      "command": null,
-      "exit_code": null,
-      "status": "BLOCKED",
-      "observed_result": "duplicate delivery covered by existing webhook tests (in suite); recovery sweep (PR #8) conflicts with main",
-      "evidence_ids": ["EV-PR8-TRIAL", "EV-SUITE2"]
+      "command": "pre-push on feat/reconcile-billing-sweep-v2 (PR #14)",
+      "exit_code": 0,
+      "status": "PASS",
+      "observed_result": "duplicate delivery and lost-webhook replay verified with mocked Stripe/Supabase; 2/5 sweep tests fail with replay disabled",
+      "evidence_ids": ["EV-PR14"]
     },
     {
       "check_id": "R1-G05",
@@ -228,8 +228,8 @@
       "command": null,
       "exit_code": null,
       "status": "BLOCKED",
-      "observed_result": "no local Supabase; docker image pulls fail (credential helper docker-credential-desktop missing)",
-      "evidence_ids": []
+      "observed_result": "not attempted: 2.2 GiB host disk, 2 GB Colima VM; Supabase images need several GB",
+      "evidence_ids": ["EV-DISK"]
     },
     {
       "check_id": "R3-G01",
@@ -258,8 +258,8 @@
       "command": null,
       "exit_code": null,
       "status": "BLOCKED",
-      "observed_result": "needs the full local stack (R2-G04)",
-      "evidence_ids": []
+      "observed_result": "not attempted: 2.2 GiB host disk, 2 GB Colima VM; Supabase images need several GB",
+      "evidence_ids": ["EV-DISK"]
     },
     {
       "check_id": "R5-G01",

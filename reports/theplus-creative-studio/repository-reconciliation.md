@@ -75,3 +75,15 @@ The uncommitted `FEATURE_TRACKER.md` in the primary checkout (2026-09-27) says m
 | Export        | ported (`87d8dbf`) with `0028`, `0029`, `0031`. `0030` and the outbound-webhook code remain only in `bae1497`                                                  | `EV-PORT`         |
 | Share links   | `origin/main` reads shared posts with a direct table SELECT; `0028` removes anonymous SELECT. If `0028` is live, a deploy of `main` breaks share links (R8)    | `EV-PORT`         |
 | Deployed host | not probed: the unauthenticated request was denied by the session permission classifier                                                                        | `EV-PROBE-DENIED` |
+
+## 9. After the founder's GO (2026-11-16)
+
+| Action                             | Result                                                                                                                                                                 |
+| ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Production probe (unauthenticated) | Railway: `storyboard-animate` 401, `storyboard-export` 401, unknown route 404, `/` 200. **Production runs the uncommitted September build, not `main`.**               |
+| Push                               | `feat/creative-studio-slice` and `preserve/storyboard-mp4-export-wip` pushed after gitleaks found no leaks. Draft PR #13                                               |
+| PR #12                             | merged (`c2f37d1`). Vercel built `main` to a "Production" environment behind Vercel SSO, so it is not the public host. The PR's code fixes are **not** live on Railway |
+| PR #8                              | rebuilt on `main` as draft PR #14 (handlers moved verbatim); #8 left open with a pointer for its owner                                                                 |
+| Full local stack                   | not attempted: 2.2 GiB host disk, 2 GB Colima VM                                                                                                                       |
+
+**Do not deploy `main` to Railway** (R11). It would remove the export route, re-allow the service-role key as a worker bearer, and break anonymous share links if `0028` is live.
