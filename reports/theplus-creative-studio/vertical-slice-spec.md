@@ -59,12 +59,12 @@ post:       draft --publish-safety pass--> scheduled --Zernio--> published
 
 ## 6. Safety invariants: enforcement points
 
-| Invariant         | Enforced at                                                                                                | Open risk                                                                                                                        |
-| ----------------- | ---------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| Identity / tenant | RLS `owner_user_id = auth.uid()`; `assert_workspace_owner` in credit RPCs; actions re-check `workspace_id` | `0033` column lock is on main; the cross-user probe was not re-run this session                                                  |
-| Credits           | `consume_credits` / `grant_credits` RPCs, 0021 unique refund ref                                           | **PR #12/`0034` open**: an owner can pre-occupy a refund ref. PR #8 is open, so lost Stripe purchase webhooks are not reconciled |
-| Async jobs        | SKIP LOCKED claim, 6-minute reclaim, attempt cap 4                                                         | a Luma output whose save fails is re-rendered (provider charged twice, user charged once)                                        |
-| Publishing        | brand-safety gate; demo hard-block before network                                                          | no storyboard path reaches publishing yet, so there is nothing to bypass                                                         |
+| Invariant         | Enforced at                                                                                                | Open risk                                                                                                                                        |
+| ----------------- | ---------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Identity / tenant | RLS `owner_user_id = auth.uid()`; `assert_workspace_owner` in credit RPCs; actions re-check `workspace_id` | `0033` column lock is on main; the cross-user probe was not re-run this session                                                                  |
+| Credits           | `consume_credits` / `grant_credits` RPCs, 0021 unique refund ref                                           | **PR #12/`0034` open**: an owner can pre-occupy a refund ref. PR #8 is open, so lost Stripe purchase webhooks are not reconciled                 |
+| Async jobs        | SKIP LOCKED claim, 6-minute reclaim, attempt cap 4 (transient errors only)                                 | a Luma output whose save fails is re-rendered (provider charged twice); a job that keeps crashing the worker is reclaimed forever with no refund |
+| Publishing        | brand-safety gate; demo hard-block before network                                                          | no storyboard path reaches publishing yet, so there is nothing to bypass                                                                         |
 
 ## 7. Phase entry and exit criteria
 
