@@ -19,6 +19,8 @@ const h = vi.hoisted(() => ({
   chargeCustomer: 'cus_1' as string | null,
   // Rows returned by the customer → workspace lookup on the dispute path.
   workspaceLookup: [{ id: 'ws_1' }] as { id: string }[],
+  // When set, every credit RPC fails — a handler failure mid-event.
+  rpcFails: false,
 }));
 
 vi.mock('@/lib/env', () => ({
@@ -86,7 +88,7 @@ vi.mock('@supabase/supabase-js', () => ({
     },
     rpc: (fn: string, params: Record<string, unknown>) => {
       h.grantCalls.push({ fn, params });
-      return Promise.resolve({ error: null });
+      return Promise.resolve({ error: h.rpcFails ? { message: 'db down' } : null });
     },
   }),
 }));
@@ -114,6 +116,41 @@ beforeEach(() => {
   h.processedIds.clear();
   h.grantCalls.length = 0;
   h.workspaceUpdates.length = 0;
+  h.rpcFails = false;
+});
+
+// The route is a thin verify-then-apply wrapper; these are its own failure paths.
+describe('webhook route boundaries', () => {
+  it('rejects a request with no stripe-signature header, before claiming anything', async () => {
+    const res = await POST({
+      headers: { get: () => null },
+      text: async () => '{}',
+    } as unknown as NextRequest);
+    expect(res.status).toBe(400);
+    expect(h.processedIds.size).toBe(0);
+  });
+
+  it('rejects a body that fails verification', async () => {
+    const res = await POST({
+      headers: { get: (k: string) => (k === 'stripe-signature' ? 'sig_x' : null) },
+      text: async () => 'not json',
+    } as unknown as NextRequest);
+    expect(res.status).toBe(400);
+    expect(h.grantCalls).toHaveLength(0);
+  });
+
+  it('answers 500 on a handler failure and releases the claim so the retry grants once', async () => {
+    h.rpcFails = true;
+    const first = await POST(topupReq('evt_fail_then_retry'));
+    expect(first.status).toBe(500);
+    expect(h.processedIds.has('evt_fail_then_retry')).toBe(false);
+
+    h.rpcFails = false;
+    h.grantCalls.length = 0;
+    const retry = await POST(topupReq('evt_fail_then_retry'));
+    expect(retry.status).toBe(200);
+    expect(h.grantCalls).toHaveLength(1);
+  });
 });
 
 describe('Stripe webhook — topup replay idempotency', () => {
