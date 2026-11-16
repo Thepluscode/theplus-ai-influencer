@@ -15,6 +15,8 @@ import type { StoryboardRenderJobRow } from '@/lib/supabase/types';
 
 /** Insert a new pending job. Caller must have already charged credits. */
 export async function enqueueAnimationJob(input: {
+  /** Minted by the caller so the debit and any refund share the job's id as their ref. */
+  id: string;
   workspaceId: string;
   storyboardId: string;
   shotsTotal: number;
@@ -25,6 +27,7 @@ export async function enqueueAnimationJob(input: {
   const { data, error } = await supabase
     .from('storyboard_render_jobs')
     .insert({
+      id: input.id,
       workspace_id: input.workspaceId,
       storyboard_id: input.storyboardId,
       status: 'pending',

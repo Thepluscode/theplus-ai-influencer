@@ -11,6 +11,7 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "test:database-boundaries": "sh scripts/test-database-boundaries.sh",
     "test:coverage": "vitest run --coverage",
     "lint:tracker": "python3 ~/.claude/skills/deployed-truth-probes/scripts/status_lint.py FEATURE_TRACKER.md --label 'NOT A DEFECT'",
     "test:watch": "vitest",
