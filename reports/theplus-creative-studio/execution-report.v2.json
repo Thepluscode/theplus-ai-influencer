@@ -1,7 +1,7 @@
 {
   "schema_version": "2.0.0",
   "report_id": "CS-EXEC-2026-11-16-01",
-  "generated_at": "2026-11-16T13:39:58Z",
+  "generated_at": "2026-11-16T13:42:56Z",
   "project": {
     "name": "ThePlus Creative Studio",
     "product": "ThePlus AI Influencer",
@@ -12,15 +12,15 @@
     "run_id": "claude-2026-11-16-creative-studio",
     "environment": "local worktree, stubs only, no network calls to paid providers",
     "started_at": "2026-11-16T13:31:12Z",
-    "completed_at": "2026-11-16T13:39:58Z",
+    "completed_at": "2026-11-16T13:42:56Z",
     "current_phase": "D (build) - 1 of 5 connections done; C blocked",
     "repository": {
       "url": "https://github.com/Thepluscode/theplus-ai-influencer",
       "base_branch": "origin/main",
       "working_branch": "feat/creative-studio-slice",
-      "head_sha": "2c2395f",
-      "worktree_dirty": true,
-      "checked_at": "2026-11-16T13:39:58Z"
+      "head_sha": "009d439fcf711890665276f61439071479dd74bd",
+      "worktree_dirty": false,
+      "checked_at": "2026-11-16T13:42:56Z"
     },
     "authorisations": {
       "provider_spend": false,
@@ -135,6 +135,30 @@
       "commit_sha": null,
       "observed_at": "2026-11-16T13:39:58Z",
       "description": "D05 incl. phase entry/exit criteria."
+    },
+    {
+      "id": "EV-SQL-0021",
+      "kind": "repository",
+      "location": "supabase/migrations/0021_grant_credits_ref_idempotency.sql:90-97",
+      "commit_sha": "edc593d04864f23c128714814928db153fc73140",
+      "observed_at": "2026-11-16T13:42:56Z",
+      "description": "On unique_violation grant_credits returns the current balance without crediting: a colliding refund is skipped silently. Read, not executed."
+    },
+    {
+      "id": "EV-SQL-0023",
+      "kind": "repository",
+      "location": "supabase/migrations/0023_credit_rpc_ownership_guard.sql:128-161",
+      "commit_sha": "edc593d04864f23c128714814928db153fc73140",
+      "observed_at": "2026-11-16T13:42:56Z",
+      "description": "Latest consume_credits on main writes p_reason unrestricted, so an owner-issued reason=refund row with a ref can occupy the 0021 slot (PR #12 / 0034 restricts it). Read, not executed."
+    },
+    {
+      "id": "EV-SQL-0019",
+      "kind": "repository",
+      "location": "supabase/migrations/0019_storyboard_reclaim_and_lock.sql:27; storyboard-animate/route.ts:121",
+      "commit_sha": "edc593d04864f23c128714814928db153fc73140",
+      "observed_at": "2026-11-16T13:42:56Z",
+      "description": "Reclaim resets stalled processing jobs to pending with no attempt cap or refund; the cap applies only to transient Luma errors. A job that repeatedly crashes the worker is reclaimed indefinitely and never refunded. Read, not executed."
     }
   ],
   "repository_baseline": {
@@ -352,18 +376,27 @@
     },
     "credits_billing": {
       "status": "FAIL",
-      "evidence_ids": ["EV-PR-1", "EV-TEST-RED"],
-      "findings": ["render refund collision found and fixed locally"],
+      "evidence_ids": ["EV-PR-1", "EV-TEST-RED", "EV-SQL-0021", "EV-SQL-0023"],
+      "findings": [
+        "Render refund ref reuse reproduced by test; the DB-side skip is read from 0021, not executed; fixed locally in 2c2395f",
+        "consume_credits on main accepts reason=refund (read from 0023; PR #12 reports and fixes it)"
+      ],
       "blockers": [
         "PR #12 / 0034 unmerged: owner can pre-occupy refund ref",
         "PR #8 conflicting: lost Stripe purchase webhooks not reconciled"
       ]
     },
     "asynchronous_jobs": {
-      "status": "PASS",
-      "evidence_ids": ["EV-TEST-GREEN"],
-      "findings": ["claim/reclaim/attempt cap present; refund per job unit-tested with mocks"],
-      "blockers": []
+      "status": "NOT_TESTED",
+      "evidence_ids": ["EV-TEST-GREEN", "EV-SQL-0019"],
+      "findings": [
+        "Per-job refund on permanent failure unit-tested with mocks",
+        "Claim/reclaim/attempt cap read, not run"
+      ],
+      "blockers": [
+        "Reclaim has no cap or refund path for a job that keeps crashing the worker",
+        "Save-fail after a Luma render re-renders (provider charged twice)"
+      ]
     },
     "publishing_audit": {
       "status": "NOT_TESTED",
@@ -410,9 +443,27 @@
         "operation": "created",
         "purpose": "D05",
         "evidence_ids": ["EV-SPEC"]
+      },
+      {
+        "path": "FEATURE_TRACKER.md",
+        "operation": "modified",
+        "purpose": "record refund fix and preserved export state",
+        "evidence_ids": ["EV-SPEC"]
+      },
+      {
+        "path": "reports/theplus-creative-studio/execution-report.v2.json",
+        "operation": "created",
+        "purpose": "D01",
+        "evidence_ids": ["EV-SPEC"]
+      },
+      {
+        "path": "reports/theplus-creative-studio/verification-results.json",
+        "operation": "created",
+        "purpose": "D06",
+        "evidence_ids": ["EV-SUITE"]
       }
     ],
-    "commits": ["2c2395f"],
+    "commits": ["2c2395f", "009d439"],
     "unfinished_work": ["port MP4 export", "9s clip option", "export to post link", "cost view"],
     "known_regressions": []
   },
@@ -722,7 +773,7 @@
       "severity": "high",
       "category": "billing",
       "description": "consume_credits accepts reason=refund until 0034 is applied.",
-      "evidence_ids": ["EV-PR-1"],
+      "evidence_ids": ["EV-PR-1", "EV-SQL-0023"],
       "mitigation": "Merge PR #12, apply 0034",
       "owner": "founder",
       "release_blocker": true,
@@ -732,8 +783,8 @@
       "id": "R3",
       "severity": "high",
       "category": "billing",
-      "description": "Second failed render of a storyboard lost its refund.",
-      "evidence_ids": ["EV-TEST-RED", "EV-TEST-GREEN"],
+      "description": "Render refunds reused the storyboard id as ref; reproduced by test. 0021 skips a colliding refund silently (read, not executed), so a retried failure would lose its refund.",
+      "evidence_ids": ["EV-TEST-RED", "EV-TEST-GREEN", "EV-SQL-0021"],
       "mitigation": "2c2395f (local)",
       "owner": "engineering",
       "release_blocker": true,
@@ -769,6 +820,17 @@
       "evidence_ids": ["EV-DOC-EXPORT"],
       "mitigation": "Read-only probe of the deployed route",
       "owner": "founder",
+      "release_blocker": false,
+      "status": "open"
+    },
+    {
+      "id": "R7",
+      "severity": "medium",
+      "category": "async_jobs",
+      "description": "A render job that repeatedly crashes the worker is reclaimed indefinitely with no cap and no refund.",
+      "evidence_ids": ["EV-SQL-0019"],
+      "mitigation": "Cap reclaims via attempts and fail+refund under job.id",
+      "owner": "engineering",
       "release_blocker": false,
       "status": "open"
     }
@@ -820,7 +882,7 @@
     "passed_threshold_ids": [],
     "failed_threshold_ids": [],
     "untested_threshold_ids": ["T01", "T02", "T03", "T04", "T05", "T06", "T07", "T08"],
-    "unresolved_blocker_ids": ["R1", "R2"],
+    "unresolved_blocker_ids": ["R1", "R2", "R3"],
     "corrective_hypothesis": null,
     "retest_experiment_id": null,
     "conditions": [
@@ -841,7 +903,7 @@
   },
   "operating_summary": {
     "verified": [
-      "Refund-collision defect reproduced and fixed locally; 321 tests pass",
+      "Render refund ref reuse reproduced (test RED->GREEN) and fixed locally; 321 tests pass. DB-side silent skip read from 0021, not executed",
       "PR #9 merged, #8 conflicting, #12 open",
       "0028-0031 had no git source; snapshot preserved locally"
     ],

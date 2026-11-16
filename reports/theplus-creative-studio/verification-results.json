@@ -1,0 +1,55 @@
+{
+  "source": "execution-report.v2.json#/verification/checks",
+  "checks": [
+    {
+      "name": "refund collision regression (pre-fix)",
+      "method": "unit",
+      "command": "pnpm exec vitest run src/app/api/jobs/storyboard-animate/route.test.ts",
+      "exit_code": 1,
+      "status": "FAIL",
+      "observed_result": "refIds [sb_1, sb_1]",
+      "evidence_ids": ["EV-TEST-RED"],
+      "check_id": "CHECK-001"
+    },
+    {
+      "name": "refund collision regression (post-fix)",
+      "method": "unit",
+      "command": "pnpm exec vitest run src/app/api/jobs/storyboard-animate/route.test.ts",
+      "exit_code": 0,
+      "status": "PASS",
+      "observed_result": "2 passed",
+      "evidence_ids": ["EV-TEST-GREEN"],
+      "check_id": "CHECK-002"
+    },
+    {
+      "name": "typecheck + lint + full suite",
+      "method": "unit",
+      "command": "pnpm typecheck && pnpm lint && pnpm test",
+      "exit_code": 0,
+      "status": "PASS",
+      "observed_result": "49 files, 321 tests passed",
+      "evidence_ids": ["EV-SUITE"],
+      "check_id": "CHECK-003"
+    },
+    {
+      "name": "migration replay 0001-0034 + 0029",
+      "method": "integration",
+      "command": null,
+      "exit_code": null,
+      "status": "NOT_TESTED",
+      "observed_result": null,
+      "evidence_ids": [],
+      "check_id": "CHECK-004"
+    },
+    {
+      "name": "real Luma render and export",
+      "method": "real_provider",
+      "command": null,
+      "exit_code": null,
+      "status": "NOT_TESTED",
+      "observed_result": null,
+      "evidence_ids": [],
+      "check_id": "CHECK-005"
+    }
+  ]
+}
