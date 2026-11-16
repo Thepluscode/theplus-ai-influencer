@@ -63,3 +63,15 @@ The uncommitted `FEATURE_TRACKER.md` in the primary checkout (2026-09-27) says m
 2. Push `preserve/storyboard-mp4-export-wip`, or port its export subset onto `main` (next engineering task, §D05).
 3. Merge #12 and apply `0034` before any paid pilot.
 4. Read the deployed host's export route to settle the UNKNOWN in §5.
+
+## 8. Recovery session (2026-11-16, later the same day)
+
+| Item          | Observed                                                                                                                                                       | Evidence          |
+| ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------- |
+| Refs          | `origin/main` still `edc593d`; slice branch `45ba43d` (local, unpushed); preserve branch `bae1497`                                                             | `git rev-parse`   |
+| Preservation  | 60/60 dirty paths byte-identical in `bae1497`. Not in it: `.env.local` (secrets, June, deliberately excluded) and generated husky/next-env files               | `EV-R0-MANIFEST`  |
+| PR #12        | still open on GitHub; merged into the slice branch locally (`b48d14b`). Its tracker says `0034` was applied to production on 11 Nov (documented, not observed) | `EV-PR12-MERGE`   |
+| PR #8         | cherry-pick conflicts: it moves every webhook handler into `stripe-events.ts`, and `main` rewrote those handlers in `f0bf952`. Not resolved here               | `EV-PR8-TRIAL`    |
+| Export        | ported (`87d8dbf`) with `0028`, `0029`, `0031`. `0030` and the outbound-webhook code remain only in `bae1497`                                                  | `EV-PORT`         |
+| Share links   | `origin/main` reads shared posts with a direct table SELECT; `0028` removes anonymous SELECT. If `0028` is live, a deploy of `main` breaks share links (R8)    | `EV-PORT`         |
+| Deployed host | not probed: the unauthenticated request was denied by the session permission classifier                                                                        | `EV-PROBE-DENIED` |

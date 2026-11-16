@@ -81,3 +81,22 @@ post:       draft --publish-safety pass--> scheduled --Zernio--> published
 ## 8. Do not build yet
 
 Nonlinear editor, scene/asset tables, a project-management layer, extra video models, new payment infrastructure, a pilot dashboard, or a JSON-schema validator for a pilot that has not run.
+
+## 9. Recovery outcome (2026-11-16)
+
+**Duration strategy (R3, selected):** more 5s clips at the unchanged per-shot price, not longer clips. The ceiling moves from 6 to 11 shots. The real renderer was run on SYNTHETIC 5s fixtures and the output measured with `ffprobe`: 6 shots → 30.02s, 11 → 55.02s, 12 → 60.02s (rejected: AAC padding pushes it over 60s). A 6-shot reel clears the floor by 21ms, so the pilot brief should ask for ≥7 shots until real Luma clip lengths are measured. Credits at today's prices: 7 shots = 15 + 7×20 + 7×60 = 575; 11 shots = 895. Provider cost per clip is UNKNOWN (not re-verified).
+
+**Retry contract (changed):** a render job's budget counts only claims that did not complete a shot (`attempts − shots_completed − 1`). Four of those fail the job and refund the remaining shots under the job id, before another paid render.
+
+**Worker auth (changed):** `/api/jobs/*` accept only `CRON_SECRET`. The service-role key is no longer a bearer credential.
+
+**Resolving the "local R1 completion" contradiction.** Every R1 gate is defined at local scope: a scratch database, mocked SDKs and fixture media. Production or provider verification is never an R1 gate. It belongs to release readiness, recorded as risks and evidence levels. So R1 can complete without production access, but it cannot complete while any local gate is BLOCKED or NOT_TESTED. Today G04 (PR #8) is BLOCKED and G10 (review) is NOT_TESTED, so R1 is `blocked`. `scripts/validate_creative_studio_report.py` enforces this: a phase marked `completed` with any non-PASS gate is invalid.
+
+| Phase | Status      | Gate results                                                                                              |
+| ----- | ----------- | --------------------------------------------------------------------------------------------------------- |
+| R0    | completed   | R0-G01 PASS                                                                                               |
+| R1    | blocked     | G01–G03, G05–G09 PASS; G04 BLOCKED (PR #8); G10 NOT_TESTED (no review)                                    |
+| R2    | in_progress | G01, G02 PASS; G03 BLOCKED (0031 needs pg_cron/Vault); G04 BLOCKED (no local Supabase; docker pulls fail) |
+| R3    | completed   | R3-G01 PASS                                                                                               |
+| R4    | blocked     | entry fails (R1); G01 PASS (fixture MP4); G02 BLOCKED (full stack)                                        |
+| R5    | blocked     | G01 BLOCKED (Codex usage limit); G02 PASS (report validated)                                              |

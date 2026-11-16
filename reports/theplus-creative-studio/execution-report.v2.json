@@ -1,7 +1,7 @@
 {
   "schema_version": "2.0.0",
   "report_id": "CS-EXEC-2026-11-16-01",
-  "generated_at": "2026-11-16T13:42:56Z",
+  "generated_at": "2026-11-16T14:03:22Z",
   "project": {
     "name": "ThePlus Creative Studio",
     "product": "ThePlus AI Influencer",
@@ -12,15 +12,15 @@
     "run_id": "claude-2026-11-16-creative-studio",
     "environment": "local worktree, stubs only, no network calls to paid providers",
     "started_at": "2026-11-16T13:31:12Z",
-    "completed_at": "2026-11-16T13:42:56Z",
-    "current_phase": "D (build) - 1 of 5 connections done; C blocked",
+    "completed_at": "2026-11-16T14:03:22Z",
+    "current_phase": "R0 completed; R1 blocked (PR #8); R2 in_progress; R3 completed; R4 blocked; R5 blocked (review)",
     "repository": {
       "url": "https://github.com/Thepluscode/theplus-ai-influencer",
       "base_branch": "origin/main",
       "working_branch": "feat/creative-studio-slice",
-      "head_sha": "009d439fcf711890665276f61439071479dd74bd",
+      "head_sha": "45ba43d9e1b79269bab26d1fb021cbc43c2d59d9",
       "worktree_dirty": false,
-      "checked_at": "2026-11-16T13:42:56Z"
+      "checked_at": "2026-11-16T14:03:22Z"
     },
     "authorisations": {
       "provider_spend": false,
@@ -159,6 +159,118 @@
       "commit_sha": "edc593d04864f23c128714814928db153fc73140",
       "observed_at": "2026-11-16T13:42:56Z",
       "description": "Reclaim resets stalled processing jobs to pending with no attempt cap or refund; the cap applies only to transient Luma errors. A job that repeatedly crashes the worker is reclaimed indefinitely and never refunded. Read, not executed."
+    },
+    {
+      "id": "EV-R0-MANIFEST",
+      "kind": "repository",
+      "location": "git hash-object <path> vs git rev-parse preserve/storyboard-mp4-export-wip:<path>",
+      "commit_sha": "bae14979478db20a2290cc5f039108be1b19f734",
+      "observed_at": "2026-11-16T14:03:22Z",
+      "description": "60 of 60 dirty/untracked paths in the primary checkout are byte-identical in bae1497. Outside it: .env.local (secrets, last modified 23 Jun, deliberately not snapshotted) and generated husky/next-env files."
+    },
+    {
+      "id": "EV-PR12-MERGE",
+      "kind": "repository",
+      "location": "commit b48d14b (local merge of origin/fix/codex-review-findings fb27326)",
+      "commit_sha": "b48d14b",
+      "observed_at": "2026-11-16T14:03:22Z",
+      "description": "PR #12 merged into the slice branch locally; only conflict was two appended FEATURE_TRACKER sections, both kept. PR #12 tracker states 0034 was applied to production 2026-11-11 (documented, not observed)."
+    },
+    {
+      "id": "EV-DB-REPLAY",
+      "kind": "test",
+      "location": "scratch Postgres 17.11: psql -v ON_ERROR_STOP=1 -f scripts/sql/database-boundaries.sql (fresh initdb cluster per run)",
+      "commit_sha": "45ba43d9e1b79269bab26d1fb021cbc43c2d59d9",
+      "observed_at": "2026-11-16T14:03:22Z",
+      "description": "exit 0, \"database boundary tests passed\". Replays 0001-0034 in numeric order except 0031; asserts anon share-post lock, self-credit and cross-workspace credit denial, export enqueue idempotency and cross-workspace denial, approval invalidation on edit and withdrawal, private export bucket, 0034 refuses reason=refund, per-job render refunds land once each and the legacy per-storyboard ref dedupes."
+    },
+    {
+      "id": "EV-DB-MUT",
+      "kind": "test",
+      "location": "same harness with the 0034 include removed",
+      "commit_sha": "45ba43d9e1b79269bab26d1fb021cbc43c2d59d9",
+      "observed_at": "2026-11-16T14:03:22Z",
+      "description": "exit 3: \"consume_credits accepted reason refund\"; restored harness exit 0."
+    },
+    {
+      "id": "EV-PR8-TRIAL",
+      "kind": "repository",
+      "location": "git cherry-pick --no-commit 5ee606a in a throwaway worktree (removed)",
+      "commit_sha": null,
+      "observed_at": "2026-11-16T14:03:22Z",
+      "description": "Conflict in src/app/api/stripe/webhook/route.ts: PR #8 moves all handlers into src/lib/billing/stripe-events.ts while main changed them in f0bf952 (+118/-19). Not resolved here."
+    },
+    {
+      "id": "EV-RECLAIM-TEST",
+      "kind": "test",
+      "location": "pnpm exec vitest run src/app/api/jobs/storyboard-animate/route.test.ts",
+      "commit_sha": "60d5ce6",
+      "observed_at": "2026-11-16T14:03:22Z",
+      "description": "Before the fix: 2 failed / 2 passed (crash-loop job not failed; healthy 12-shot job failed on its first 429). After: 4 passed."
+    },
+    {
+      "id": "EV-REEL",
+      "kind": "test",
+      "location": "REEL_EVIDENCE_DIR=<scratch> pnpm exec vitest run src/lib/__tests__/storyboard-reel-duration.test.ts; ffprobe of each output",
+      "commit_sha": "45ba43d",
+      "observed_at": "2026-11-16T14:03:22Z",
+      "description": "SYNTHETIC lavfi 5s fixture clips through the real renderer. 6 shots: 30.021333s, h264 720x1280 + aac, 517136 bytes, sha256 cf38a26347e86cfb...; 11 shots: 55.021333s, h264 720x1280 + aac, 934116 bytes, sha256 9d0ef88fed2e6557.... 12 shots measured 60.021333s and failed the 60s ceiling."
+    },
+    {
+      "id": "EV-REEL-MUT",
+      "kind": "test",
+      "location": "MAX_STORYBOARD_SHOTS set to 6, same two test files",
+      "commit_sha": "45ba43d",
+      "observed_at": "2026-11-16T14:03:22Z",
+      "description": "3 failed / 1 passed; restored file passes."
+    },
+    {
+      "id": "EV-SUITE2",
+      "kind": "test",
+      "location": "pnpm typecheck; pnpm lint; pnpm test",
+      "commit_sha": "45ba43d9e1b79269bab26d1fb021cbc43c2d59d9",
+      "observed_at": "2026-11-16T14:03:22Z",
+      "description": "typecheck exit 0; lint exit 0 with 0 warnings; vitest exit 0, 57 files / 355 tests."
+    },
+    {
+      "id": "EV-PORT",
+      "kind": "repository",
+      "location": "commit 87d8dbf",
+      "commit_sha": "87d8dbf",
+      "observed_at": "2026-11-16T14:03:22Z",
+      "description": "Export, 0028/0029/0031, cron-auth and boundary harness ported from bae1497 by 3-way patch; 0030, outbound webhooks, the Next.js bump and landing/pricing edits left in the preserve branch."
+    },
+    {
+      "id": "EV-NO-PUBLISH-IMPORT",
+      "kind": "repository",
+      "location": "grep -E \"zernio|publish-safety|createPost\" over export modules, routes and panel",
+      "commit_sha": "45ba43d9e1b79269bab26d1fb021cbc43c2d59d9",
+      "observed_at": "2026-11-16T14:03:22Z",
+      "description": "0 files: the export path cannot call the publishing client."
+    },
+    {
+      "id": "EV-PROBE-DENIED",
+      "kind": "observation",
+      "location": "curl unauthenticated POST to deployed /api/jobs/* routes",
+      "commit_sha": null,
+      "observed_at": "2026-11-16T14:03:22Z",
+      "description": "Not executed: denied by the session permission classifier. Deployed state of the export route remains unknown."
+    },
+    {
+      "id": "EV-CODEX-BLOCKED",
+      "kind": "observation",
+      "location": "codex:codex-rescue read-only review of edc593d..45ba43d",
+      "commit_sha": null,
+      "observed_at": "2026-11-16T14:03:22Z",
+      "description": "Codex failed before any check: usage limit, retry after 2026-11-18 06:48. No findings and no \"none found\"."
+    },
+    {
+      "id": "EV-VALIDATOR",
+      "kind": "test",
+      "location": "python3 scripts/validate_creative_studio_report.py && --selftest",
+      "commit_sha": null,
+      "observed_at": "2026-11-16T14:03:22Z",
+      "description": "See D06; structural and semantic checks plus 6 mutants."
     }
   ],
   "repository_baseline": {
@@ -184,25 +296,29 @@
         "name": "Durable render job with refund",
         "evidence_level": "locally_tested",
         "branch": "feat/creative-studio-slice",
-        "commit_sha": "2c2395f",
-        "evidence_ids": ["EV-TEST-RED", "EV-TEST-GREEN"],
-        "gaps": ["refund ref defect fixed only on local branch"]
+        "commit_sha": "60d5ce6",
+        "evidence_ids": ["EV-TEST-RED", "EV-TEST-GREEN", "EV-RECLAIM-TEST"],
+        "gaps": ["claim/reclaim SQL not executed; worker logic tested with mocks"]
       },
       {
-        "name": "Clip length",
-        "evidence_level": "implemented",
-        "branch": "origin/main",
-        "commit_sha": "edc593d04864f23c128714814928db153fc73140",
-        "evidence_ids": ["EV-CODE-SB"],
-        "gaps": ["5s only: reel 15-30s, target 30-60s reachable only at 6x5s"]
+        "name": "Reel length 30-55s via 6-11 five-second shots",
+        "evidence_level": "locally_tested",
+        "branch": "feat/creative-studio-slice",
+        "commit_sha": "45ba43d",
+        "evidence_ids": ["EV-REEL", "EV-REEL-MUT"],
+        "gaps": ["real Luma clip durations unverified; 6-shot reel is 21ms above the 30s floor"]
       },
       {
         "name": "Stitched MP4 export",
-        "evidence_level": "documented",
-        "branch": "preserve/storyboard-mp4-export-wip",
-        "commit_sha": "bae14979478db20a2290cc5f039108be1b19f734",
-        "evidence_ids": ["EV-DOC-EXPORT", "EV-PRES-1"],
-        "gaps": ["not on main", "not re-verified", "real Luma clip never exported"]
+        "evidence_level": "locally_tested",
+        "branch": "feat/creative-studio-slice",
+        "commit_sha": "87d8dbf",
+        "evidence_ids": ["EV-PORT", "EV-REEL", "EV-DB-REPLAY", "EV-DOC-EXPORT"],
+        "gaps": [
+          "worker->storage->download not run against a real Supabase stack",
+          "real Luma clip never exported",
+          "deployed route unknown"
+        ]
       },
       {
         "name": "Storyboard output to brand-safety gated post",
@@ -215,9 +331,9 @@
     ],
     "findings": ["Production schema 0028-0031 had no git source before this run (EV-MIG-1)."],
     "unresolved_dependencies": [
-      "PR #12 + migration 0034",
-      "PR #8 rebase",
-      "founder pricing decision for 9s clips"
+      "PR #8 rebase over f0bf952",
+      "independent review (Codex usage limit)",
+      "deployed export route state (probe not authorised)"
     ]
   },
   "reconciliation": {
@@ -258,6 +374,24 @@
         "discrepancy": "production schema not reproducible from git",
         "recommended_action": "Push preserve branch or port export subset to main",
         "evidence_ids": ["EV-MIG-1", "EV-PRES-1", "EV-DOC-EXPORT"]
+      },
+      {
+        "item_id": "PR-12-LOCAL",
+        "item_type": "pull_request",
+        "previous_claim": "open, unmerged",
+        "observed_state": "still open on GitHub; merged into the slice branch locally (b48d14b)",
+        "discrepancy": null,
+        "recommended_action": "Merge PR #12 on GitHub",
+        "evidence_ids": ["EV-PR12-MERGE", "EV-DB-REPLAY"]
+      },
+      {
+        "item_id": "SHARE-0028",
+        "item_type": "other",
+        "previous_claim": "0028 applied to production (uncommitted tracker)",
+        "observed_state": "origin/main getPostByShareToken still SELECTs posts as the caller; 0028 removes anonymous SELECT",
+        "discrepancy": "If 0028 is live, anonymous share links on a main build would resolve nothing",
+        "recommended_action": "Ship the RPC read (87d8dbf) with or before any deploy of main; verify a share link on the deployed host",
+        "evidence_ids": ["EV-PORT", "EV-DOC-EXPORT"]
       }
     ]
   },
@@ -315,24 +449,24 @@
         "name": "Approval-gated paid render with once-only refunds",
         "implementation_status": "completed",
         "acceptance_criteria": ["retry after refunded failure refunds again"],
-        "evidence_ids": ["EV-TEST-GREEN"]
+        "evidence_ids": ["EV-TEST-GREEN", "EV-RECLAIM-TEST", "EV-DB-REPLAY"]
       },
       {
         "id": "S3",
-        "name": "30-60s reel length",
-        "implementation_status": "blocked",
-        "acceptance_criteria": ["ffprobe duration 30-60s"],
-        "evidence_ids": ["EV-CODE-SB"]
+        "name": "30-60s reel length (6-11 shots x 5s)",
+        "implementation_status": "completed",
+        "acceptance_criteria": ["ffprobe 30-60s on the exported MP4"],
+        "evidence_ids": ["EV-REEL", "EV-REEL-MUT"]
       },
       {
         "id": "S4",
         "name": "MP4 export pinned to approval",
-        "implementation_status": "planned",
+        "implementation_status": "in_progress",
         "acceptance_criteria": [
           "edit after approval refuses export",
           "second workspace sees nothing"
         ],
-        "evidence_ids": ["EV-PRES-1"]
+        "evidence_ids": ["EV-PORT", "EV-DB-REPLAY", "EV-REEL"]
       },
       {
         "id": "S5",
@@ -340,6 +474,51 @@
         "implementation_status": "not_started",
         "acceptance_criteria": ["publish-safety evaluated", "DemoModeBlockedError surfaces"],
         "evidence_ids": ["EV-CODE-PUB"]
+      },
+      {
+        "id": "R0",
+        "name": "Preservation and recovery",
+        "implementation_status": "completed",
+        "acceptance_criteria": ["every dirty path byte-identical in a git object"],
+        "evidence_ids": ["EV-R0-MANIFEST", "EV-PRES-1"]
+      },
+      {
+        "id": "R1",
+        "name": "Billing and security (local scope)",
+        "implementation_status": "blocked",
+        "acceptance_criteria": ["R1-G01..G10 all PASS"],
+        "evidence_ids": ["EV-PR8-TRIAL"]
+      },
+      {
+        "id": "R2",
+        "name": "MP4 recovery and integration",
+        "implementation_status": "in_progress",
+        "acceptance_criteria": ["R2-G01..G04 all PASS"],
+        "evidence_ids": ["EV-PORT", "EV-DB-REPLAY"]
+      },
+      {
+        "id": "R3",
+        "name": "Duration strategy",
+        "implementation_status": "completed",
+        "acceptance_criteria": ["a supported strategy reaches >=30s on a probed artifact"],
+        "evidence_ids": ["EV-REEL"]
+      },
+      {
+        "id": "R4",
+        "name": "End-to-end verification",
+        "implementation_status": "blocked",
+        "acceptance_criteria": ["entry: R1-R3 exit gates PASS", "R4-G01..G02 PASS"],
+        "evidence_ids": ["EV-REEL"]
+      },
+      {
+        "id": "R5",
+        "name": "Independent review and reporting",
+        "implementation_status": "blocked",
+        "acceptance_criteria": [
+          "R5-G01 independent review recorded with findings",
+          "R5-G02 report validated"
+        ],
+        "evidence_ids": ["EV-CODEX-BLOCKED", "EV-VALIDATOR"]
       }
     ],
     "contracts": [
@@ -360,49 +539,54 @@
         "existing_or_new": "new",
         "source": null,
         "description": "proposed nullable link"
+      },
+      {
+        "name": "MAX_STORYBOARD_SHOTS = 11",
+        "existing_or_new": "extended",
+        "source": "45ba43d",
+        "description": "3-11 shots; per-shot price unchanged"
+      },
+      {
+        "name": "cron-auth: CRON_SECRET only",
+        "existing_or_new": "extended",
+        "source": "87d8dbf",
+        "description": "service-role key no longer accepted as a worker bearer"
       }
     ],
     "known_gaps": [
-      "S3 needs founder pricing decision",
-      "S4 needs migration replay 0001-0034 + 0029"
+      "Export -> brand-safety gated post link not built",
+      "Full stack (Supabase storage + worker + download) not run locally",
+      "Real provider clips unverified"
     ]
   },
   "safety_invariants": {
     "identity_policy": {
-      "status": "NOT_TESTED",
-      "evidence_ids": ["EV-CODE-SB"],
-      "findings": ["RLS + owner guard exist on main"],
-      "blockers": ["cross-user probe not re-run this session"]
+      "status": "PASS",
+      "evidence_ids": ["EV-DB-REPLAY", "EV-SUITE2"],
+      "findings": [
+        "Local scope: scratch-DB replay denies cross-workspace credits, export enqueue/visibility and anonymous post enumeration; download route unit tests"
+      ],
+      "blockers": ["Deployed cross-user probe not run"]
     },
     "credits_billing": {
-      "status": "FAIL",
-      "evidence_ids": ["EV-PR-1", "EV-TEST-RED", "EV-SQL-0021", "EV-SQL-0023"],
-      "findings": [
-        "Render refund ref reuse reproduced by test; the DB-side skip is read from 0021, not executed; fixed locally in 2c2395f",
-        "consume_credits on main accepts reason=refund (read from 0023; PR #12 reports and fixes it)"
-      ],
+      "status": "BLOCKED",
+      "evidence_ids": ["EV-PR8-TRIAL", "EV-DB-REPLAY", "EV-RECLAIM-TEST"],
+      "findings": ["Per-job refunds, 0034 and bounded retries verified locally"],
       "blockers": [
-        "PR #12 / 0034 unmerged: owner can pre-occupy refund ref",
-        "PR #8 conflicting: lost Stripe purchase webhooks not reconciled"
+        "Lost Stripe webhook recovery (PR #8) conflicts with main; not verifiable until rebased"
       ]
     },
     "asynchronous_jobs": {
       "status": "NOT_TESTED",
-      "evidence_ids": ["EV-TEST-GREEN", "EV-SQL-0019"],
-      "findings": [
-        "Per-job refund on permanent failure unit-tested with mocks",
-        "Claim/reclaim/attempt cap read, not run"
-      ],
-      "blockers": [
-        "Reclaim has no cap or refund path for a job that keeps crashing the worker",
-        "Save-fail after a Luma render re-renders (provider charged twice)"
-      ]
+      "evidence_ids": ["EV-RECLAIM-TEST"],
+      "findings": ["Worker retry/terminal logic unit-tested with mocks"],
+      "blockers": ["claim_storyboard_render_job / reclaim SQL not executed"]
     },
     "publishing_audit": {
       "status": "NOT_TESTED",
-      "evidence_ids": ["EV-CODE-PUB"],
-      "findings": ["no storyboard publish path exists yet"],
-      "blockers": []
+      "evidence_ids": ["EV-NO-PUBLISH-IMPORT"],
+      "findings": ["Export path has no publishing import; no storyboard->post path exists yet"],
+      "blockers": ["Nothing to test until the post link is built"]
     }
   },
   "implementation": {
@@ -461,14 +645,112 @@
         "operation": "created",
         "purpose": "D06",
         "evidence_ids": ["EV-SUITE"]
+      },
+      {
+        "path": "supabase/migrations/0028_restrict_shared_post_reads.sql",
+        "operation": "created",
+        "purpose": "ported from bae1497",
+        "evidence_ids": ["EV-PORT", "EV-DB-REPLAY"]
+      },
+      {
+        "path": "supabase/migrations/0029_storyboard_exports.sql",
+        "operation": "created",
+        "purpose": "ported from bae1497",
+        "evidence_ids": ["EV-PORT", "EV-DB-REPLAY"]
+      },
+      {
+        "path": "supabase/migrations/0031_schedule_worker_routes.sql",
+        "operation": "created",
+        "purpose": "ported from bae1497; not replayable without pg_cron/Vault",
+        "evidence_ids": ["EV-PORT"]
+      },
+      {
+        "path": "src/lib/storyboard-export.ts",
+        "operation": "created",
+        "purpose": "MP4 renderer (ported)",
+        "evidence_ids": ["EV-PORT", "EV-REEL"]
+      },
+      {
+        "path": "src/lib/storyboard-export-jobs.ts",
+        "operation": "created",
+        "purpose": "export job queue (ported)",
+        "evidence_ids": ["EV-PORT"]
+      },
+      {
+        "path": "src/lib/cron-auth.ts",
+        "operation": "created",
+        "purpose": "CRON_SECRET-only worker auth (ported)",
+        "evidence_ids": ["EV-PORT"]
+      },
+      {
+        "path": "src/app/api/jobs/storyboard-export/route.ts",
+        "operation": "created",
+        "purpose": "export worker (ported)",
+        "evidence_ids": ["EV-PORT"]
+      },
+      {
+        "path": "src/app/api/storyboards/[storyboardId]/exports/[jobId]/download/route.ts",
+        "operation": "created",
+        "purpose": "authorised download (ported)",
+        "evidence_ids": ["EV-PORT"]
+      },
+      {
+        "path": "src/app/(app)/storyboard/[id]/export-panel.tsx",
+        "operation": "created",
+        "purpose": "export UI (ported)",
+        "evidence_ids": ["EV-PORT"]
+      },
+      {
+        "path": "src/app/api/jobs/storyboard-animate/route.ts",
+        "operation": "modified",
+        "purpose": "bounded retries by unproductive claims; cron-auth",
+        "evidence_ids": ["EV-RECLAIM-TEST"]
+      },
+      {
+        "path": "src/lib/storyboard.ts",
+        "operation": "modified",
+        "purpose": "3-11 shots",
+        "evidence_ids": ["EV-REEL"]
+      },
+      {
+        "path": "src/lib/__tests__/storyboard-reel-duration.test.ts",
+        "operation": "created",
+        "purpose": "real-ffmpeg 30-60s artifact test",
+        "evidence_ids": ["EV-REEL", "EV-REEL-MUT"]
+      },
+      {
+        "path": "scripts/sql/database-boundaries.sql",
+        "operation": "created",
+        "purpose": "full ordered replay + 0034 and per-job refund assertions",
+        "evidence_ids": ["EV-DB-REPLAY", "EV-DB-MUT"]
+      },
+      {
+        "path": "scripts/validate_creative_studio_report.py",
+        "operation": "created",
+        "purpose": "D03 report validator",
+        "evidence_ids": ["EV-VALIDATOR"]
       }
     ],
-    "commits": ["2c2395f", "009d439"],
-    "unfinished_work": ["port MP4 export", "9s clip option", "export to post link", "cost view"],
+    "commits": [
+      "2c2395f",
+      "009d439",
+      "07243f2",
+      "5244859",
+      "b48d14b",
+      "87d8dbf",
+      "60d5ce6",
+      "45ba43d"
+    ],
+    "unfinished_work": [
+      "PR #8 rebase",
+      "export -> post through brand-safety gate",
+      "full local stack run",
+      "independent review"
+    ],
     "known_regressions": []
   },
   "verification": {
-    "status": "completed",
+    "status": "in_progress",
     "checks": [
       {
         "id": "CHECK-001",
@@ -501,16 +783,6 @@
         "evidence_ids": ["EV-SUITE"]
       },
       {
-        "id": "CHECK-004",
-        "name": "migration replay 0001-0034 + 0029",
-        "method": "integration",
-        "command": null,
-        "exit_code": null,
-        "status": "NOT_TESTED",
-        "observed_result": null,
-        "evidence_ids": []
-      },
-      {
         "id": "CHECK-005",
         "name": "real Luma render and export",
         "method": "real_provider",
@@ -519,13 +791,224 @@
         "status": "NOT_TESTED",
         "observed_result": null,
         "evidence_ids": []
+      },
+      {
+        "id": "CHECK-004",
+        "name": "migration replay 0001-0034 (+0029), excl. 0031",
+        "method": "integration",
+        "command": "psql -f scripts/sql/database-boundaries.sql on scratch PG 17.11",
+        "exit_code": 0,
+        "status": "PASS",
+        "observed_result": "passed",
+        "evidence_ids": ["EV-DB-REPLAY"]
+      },
+      {
+        "id": "R0-G01",
+        "name": "preservation byte-compare",
+        "method": "manual",
+        "command": "git hash-object vs preserve tree",
+        "exit_code": 0,
+        "status": "PASS",
+        "observed_result": "60/60 identical",
+        "evidence_ids": ["EV-R0-MANIFEST"]
+      },
+      {
+        "id": "R1-G01",
+        "name": "refund and charge paths inspected",
+        "method": "manual",
+        "command": null,
+        "exit_code": null,
+        "status": "PASS",
+        "observed_result": "animate action, worker, 0021, 0023, 0034, webhook route read",
+        "evidence_ids": ["EV-SQL-0021", "EV-SQL-0023"]
+      },
+      {
+        "id": "R1-G02",
+        "name": "repeated-render refund collisions",
+        "method": "unit",
+        "command": "vitest storyboard-animate route.test.ts + DB harness",
+        "exit_code": 0,
+        "status": "PASS",
+        "observed_result": "distinct job refs; DB credits 50 for two jobs, 0 for a retried ref",
+        "evidence_ids": ["EV-TEST-RED", "EV-TEST-GREEN", "EV-DB-REPLAY"]
+      },
+      {
+        "id": "R1-G03",
+        "name": "owner refund manipulation blocked at DB",
+        "method": "integration",
+        "command": "DB harness (+ mutation without 0034)",
+        "exit_code": 0,
+        "status": "PASS",
+        "observed_result": "0034 refuses reason=refund; removing it fails the harness",
+        "evidence_ids": ["EV-DB-REPLAY", "EV-DB-MUT"]
+      },
+      {
+        "id": "R1-G04",
+        "name": "Stripe webhook duplicate delivery and lost-webhook recovery",
+        "method": "unit",
+        "command": null,
+        "exit_code": null,
+        "status": "BLOCKED",
+        "observed_result": "duplicate delivery covered by existing webhook tests (in suite); recovery sweep (PR #8) conflicts with main",
+        "evidence_ids": ["EV-PR8-TRIAL", "EV-SUITE2"]
+      },
+      {
+        "id": "R1-G05",
+        "name": "repeated reclaim reaches a bounded terminal outcome",
+        "method": "unit",
+        "command": "vitest storyboard-animate route.test.ts",
+        "exit_code": 0,
+        "status": "PASS",
+        "observed_result": "crash-looping job failed before calling Luma",
+        "evidence_ids": ["EV-RECLAIM-TEST"]
+      },
+      {
+        "id": "R1-G06",
+        "name": "failed/terminal jobs refund remaining credits",
+        "method": "unit",
+        "command": "vitest storyboard-animate route.test.ts + DB harness",
+        "exit_code": 0,
+        "status": "PASS",
+        "observed_result": "refund = remaining shots x cost under job id",
+        "evidence_ids": ["EV-RECLAIM-TEST", "EV-DB-REPLAY"]
+      },
+      {
+        "id": "R1-G07",
+        "name": "financial constraints and migrations on scratch DB",
+        "method": "integration",
+        "command": "DB harness",
+        "exit_code": 0,
+        "status": "PASS",
+        "observed_result": "0021/0022/0023/0025/0026/0033/0034 replayed and asserted",
+        "evidence_ids": ["EV-DB-REPLAY"]
+      },
+      {
+        "id": "R1-G08",
+        "name": "workspace and user authorisation boundaries",
+        "method": "integration",
+        "command": "DB harness + download route unit tests",
+        "exit_code": 0,
+        "status": "PASS",
+        "observed_result": "cross-workspace credit/export/share denied",
+        "evidence_ids": ["EV-DB-REPLAY", "EV-SUITE2"]
+      },
+      {
+        "id": "R1-G09",
+        "name": "tests, typecheck, lint",
+        "method": "unit",
+        "command": "pnpm typecheck && pnpm lint && pnpm test",
+        "exit_code": 0,
+        "status": "PASS",
+        "observed_result": "57 files / 355 tests",
+        "evidence_ids": ["EV-SUITE2"]
+      },
+      {
+        "id": "R1-G10",
+        "name": "no unresolved critical/high R1 defect",
+        "method": "security",
+        "command": null,
+        "exit_code": null,
+        "status": "NOT_TESTED",
+        "observed_result": "independent review did not run",
+        "evidence_ids": ["EV-CODEX-BLOCKED"]
+      },
+      {
+        "id": "R2-G01",
+        "name": "export unit tests (renderer, SSRF allowlist, download auth, worker)",
+        "method": "unit",
+        "command": "pnpm test",
+        "exit_code": 0,
+        "status": "PASS",
+        "observed_result": "included in 355",
+        "evidence_ids": ["EV-SUITE2"]
+      },
+      {
+        "id": "R2-G02",
+        "name": "0028/0029 replay and export boundaries",
+        "method": "integration",
+        "command": "DB harness",
+        "exit_code": 0,
+        "status": "PASS",
+        "observed_result": "idempotent enqueue, approval pinning, private bucket",
+        "evidence_ids": ["EV-DB-REPLAY"]
+      },
+      {
+        "id": "R2-G03",
+        "name": "0031 scheduler replay",
+        "method": "integration",
+        "command": null,
+        "exit_code": null,
+        "status": "BLOCKED",
+        "observed_result": "needs pg_cron, pg_net and Vault; not available on plain Postgres",
+        "evidence_ids": []
+      },
+      {
+        "id": "R2-G04",
+        "name": "worker -> storage -> download against a local Supabase stack",
+        "method": "end_to_end",
+        "command": null,
+        "exit_code": null,
+        "status": "BLOCKED",
+        "observed_result": "no local Supabase; docker image pulls fail (credential helper docker-credential-desktop missing)",
+        "evidence_ids": []
+      },
+      {
+        "id": "R3-G01",
+        "name": ">=30s strategy on a probed artifact",
+        "method": "integration",
+        "command": "vitest storyboard-reel-duration.test.ts + ffprobe",
+        "exit_code": 0,
+        "status": "PASS",
+        "observed_result": "6 shots 30.02s, 11 shots 55.02s; 12 shots 60.02s rejected",
+        "evidence_ids": ["EV-REEL", "EV-REEL-MUT"]
+      },
+      {
+        "id": "R4-G01",
+        "name": "fixture MP4 30-60s, h264/aac, 720x1280",
+        "method": "integration",
+        "command": "vitest storyboard-reel-duration.test.ts",
+        "exit_code": 0,
+        "status": "PASS",
+        "observed_result": "two artifacts probed",
+        "evidence_ids": ["EV-REEL"]
+      },
+      {
+        "id": "R4-G02",
+        "name": "authorised creator through UI: brief -> render -> export -> download",
+        "method": "end_to_end",
+        "command": null,
+        "exit_code": null,
+        "status": "BLOCKED",
+        "observed_result": "needs the full local stack (R2-G04)",
+        "evidence_ids": []
+      },
+      {
+        "id": "R5-G01",
+        "name": "independent security/correctness review",
+        "method": "security",
+        "command": null,
+        "exit_code": null,
+        "status": "BLOCKED",
+        "observed_result": "Codex usage limit until 2026-11-18 06:48",
+        "evidence_ids": ["EV-CODEX-BLOCKED"]
+      },
+      {
+        "id": "R5-G02",
+        "name": "canonical report validated",
+        "method": "manual",
+        "command": "python3 scripts/validate_creative_studio_report.py",
+        "exit_code": 0,
+        "status": "PASS",
+        "observed_result": "see D06",
+        "evidence_ids": ["EV-VALIDATOR"]
       }
     ],
     "untested_areas": [
-      "action-path refund (covered by typecheck and source-walk test only)",
-      "cross-user probe",
-      "deployed export route",
-      "browser demo"
+      "claim/reclaim SQL executed",
+      "full local stack",
+      "real Luma clips",
+      "deployed host state",
+      "independent review"
     ]
   },
   "pilot": {
@@ -569,8 +1052,8 @@
       {
         "id": "P03",
         "status": "BLOCKED",
-        "evidence_ids": ["EV-PR-1"],
-        "blockers": ["PR #12 / 0034 unmerged", "PR #8 conflicting"]
+        "evidence_ids": ["EV-PR8-TRIAL", "EV-CODEX-BLOCKED"],
+        "blockers": ["credits_billing BLOCKED (PR #8)", "independent review not run"]
       },
       {
         "id": "P04",
@@ -761,9 +1244,9 @@
       "id": "R1",
       "severity": "critical",
       "category": "evidence_integrity",
-      "description": "Production schema 0028-0031 and the export code had no git source; now only in an unpushed local branch.",
-      "evidence_ids": ["EV-MIG-1", "EV-PRES-1"],
-      "mitigation": "Push preserve branch or port to main",
+      "description": "Production schema 0028/0029/0031 and the export code had no git source; now committed on the unpushed local slice branch (0030 only in the preserve branch).",
+      "evidence_ids": ["EV-MIG-1", "EV-PRES-1", "EV-PORT"],
+      "mitigation": "Push the slice and preserve branches (needs approval)",
       "owner": "founder",
       "release_blocker": true,
       "status": "mitigated"
@@ -773,11 +1256,11 @@
       "severity": "high",
       "category": "billing",
       "description": "consume_credits accepts reason=refund until 0034 is applied.",
-      "evidence_ids": ["EV-PR-1", "EV-SQL-0023"],
-      "mitigation": "Merge PR #12, apply 0034",
+      "evidence_ids": ["EV-PR-1", "EV-SQL-0023", "EV-PR12-MERGE", "EV-DB-REPLAY"],
+      "mitigation": "0034 merged locally and verified on replay; production application documented by PR #12 only",
       "owner": "founder",
       "release_blocker": true,
-      "status": "open"
+      "status": "mitigated"
     },
     {
       "id": "R3",
@@ -794,12 +1277,12 @@
       "id": "R4",
       "severity": "medium",
       "category": "product",
-      "description": "Reels are 15-30s; the 30-60s target needs 9s clips and a pricing decision.",
-      "evidence_ids": ["EV-CODE-SB"],
-      "mitigation": "Per-storyboard clip length priced per clip-second",
+      "description": "Reels capped at 30s by the 6-shot ceiling.",
+      "evidence_ids": ["EV-REEL"],
+      "mitigation": "3-11 shots (45ba43d)",
       "owner": "founder",
       "release_blocker": false,
-      "status": "open"
+      "status": "mitigated"
     },
     {
       "id": "R5",
@@ -817,7 +1300,7 @@
       "severity": "medium",
       "category": "operations",
       "description": "Unknown whether the deployed build still serves the export route the 0031 cron calls.",
-      "evidence_ids": ["EV-DOC-EXPORT"],
+      "evidence_ids": ["EV-DOC-EXPORT", "EV-PROBE-DENIED"],
       "mitigation": "Read-only probe of the deployed route",
       "owner": "founder",
       "release_blocker": false,
@@ -828,16 +1311,49 @@
       "severity": "medium",
       "category": "async_jobs",
       "description": "A render job that repeatedly crashes the worker is reclaimed indefinitely with no cap and no refund.",
-      "evidence_ids": ["EV-SQL-0019"],
-      "mitigation": "Cap reclaims via attempts and fail+refund under job.id",
+      "evidence_ids": ["EV-SQL-0019", "EV-RECLAIM-TEST"],
+      "mitigation": "60d5ce6 bounds by unproductive claims; also fixes healthy multi-shot jobs exhausting the transient-retry budget",
       "owner": "engineering",
       "release_blocker": false,
+      "status": "mitigated"
+    },
+    {
+      "id": "R8",
+      "severity": "medium",
+      "category": "product",
+      "description": "If 0028 is live, a deploy of origin/main (direct posts SELECT) breaks anonymous share links.",
+      "evidence_ids": ["EV-DOC-EXPORT", "EV-PORT"],
+      "mitigation": "Deploy the RPC read with 0028; verify a share link",
+      "owner": "founder",
+      "release_blocker": false,
+      "status": "open"
+    },
+    {
+      "id": "R9",
+      "severity": "medium",
+      "category": "product",
+      "description": "A 6-shot reel exports at 30.02s: 21ms above the floor. Real Luma clip lengths are unverified.",
+      "evidence_ids": ["EV-REEL"],
+      "mitigation": "Measure real clip durations in the first capped provider test; default pilot brief to >=7 shots",
+      "owner": "engineering",
+      "release_blocker": false,
+      "status": "open"
+    },
+    {
+      "id": "R10",
+      "severity": "high",
+      "category": "assurance",
+      "description": "No independent review of the money and authorisation changes on this branch.",
+      "evidence_ids": ["EV-CODEX-BLOCKED"],
+      "mitigation": "Rerun Codex after 2026-11-18 06:48",
+      "owner": "founder",
+      "release_blocker": true,
       "status": "open"
     }
   ],
   "decision": {
     "status": "NOT_EVALUATED",
-    "evaluated_at": "2026-11-16T13:39:58Z",
+    "evaluated_at": "2026-11-16T14:03:22Z",
     "gate_results": [
       {
         "id": "D0",
@@ -882,16 +1398,17 @@
     "passed_threshold_ids": [],
     "failed_threshold_ids": [],
     "untested_threshold_ids": ["T01", "T02", "T03", "T04", "T05", "T06", "T07", "T08"],
-    "unresolved_blocker_ids": ["R1", "R2", "R3"],
+    "unresolved_blocker_ids": ["R1", "R10", "R2", "R3"],
     "corrective_hypothesis": null,
     "retest_experiment_id": null,
     "conditions": [
-      "Merge PR #12 and apply 0034",
-      "Port MP4 export to main",
-      "Founder pricing decision for 9s clips"
+      "Rebase PR #8 over f0bf952",
+      "Codex review of edc593d..45ba43d",
+      "Merge PR #12 on GitHub",
+      "Push slice/preserve branches (approval)"
     ],
     "permitted_next_scope": ["Local engineering on feat/creative-studio-slice with stubs"],
-    "next_decisive_test": "Port the export onto main and produce one stubbed 6-shot reel whose ffprobe duration is >=30s, then one real-Luma 4x9s reel under an explicit spend cap.",
+    "next_decisive_test": "Run the full local stack (Supabase CLI) and drive one 7-shot stubbed storyboard from brief to authorised MP4 download, then one capped real-Luma 7-shot reel.",
     "prohibited_expansion": [
       "editor",
       "scene/asset tables",
@@ -899,29 +1416,33 @@
       "new billing",
       "pilot dashboard"
     ],
-    "evidence_ids": ["EV-PR-1", "EV-SPEC"]
+    "evidence_ids": ["EV-PR-1", "EV-SPEC", "EV-REEL"]
   },
   "operating_summary": {
     "verified": [
-      "Render refund ref reuse reproduced (test RED->GREEN) and fixed locally; 321 tests pass. DB-side silent skip read from 0021, not executed",
-      "PR #9 merged, #8 conflicting, #12 open",
-      "0028-0031 had no git source; snapshot preserved locally"
+      "60/60 dirty paths preserved byte-identically (bae1497)",
+      "Export ported; 0001-0034 replay passes on scratch PG 17 (0031 excluded)",
+      "0034 blocks refund-squatting (mutation-checked)",
+      "Per-job refunds and bounded retries (RED->GREEN)",
+      "Real fixture MP4s: 6 shots 30.02s, 11 shots 55.02s; 12 shots 60.02s rejected",
+      "57 files / 355 tests, typecheck and lint clean"
     ],
     "uncertainties": [
-      "Deployed export route state",
-      "Real Luma clip compatibility with export",
-      "Character consistency",
-      "Provider cost per accepted video",
-      "Willingness to pay"
+      "Deployed export route and share links",
+      "Real Luma clip duration/compatibility",
+      "claim/reclaim SQL under execution",
+      "Character consistency, cost per accepted video, willingness to pay"
     ],
-    "biggest_risk": "Production schema and the only working export path live outside main; a cleanup of the stale checkout or an unpushed local ref loses them.",
-    "next_test": "Port export to main and produce a >=30s stubbed MP4 measured by ffprobe.",
+    "biggest_risk": "Money and authorisation changes have had no independent review, and the code production reportedly runs exists only on unpushed local branches.",
+    "next_test": "Codex review after 2026-11-18, then a full local-stack stubbed 7-shot run to authorised download.",
     "do_not_build": [
       "nonlinear editor",
       "Creative Studio app layer",
       "scene/asset/project tables",
       "model marketplace",
-      "report schema validator before a pilot runs"
+      "report schema validator before a pilot runs",
+      "12+ shot reels (exceeds 60s)",
+      "longer/pricier clips before real 5s clips are measured"
     ]
   }
 }
