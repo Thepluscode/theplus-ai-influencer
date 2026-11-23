@@ -75,7 +75,35 @@ store a status for each platform.
 | `generate_slideshow`, `generate_motion_video`, `generate_talking_video` | The app does not generate these on `/create`. Video comes in the Video slice. Talking video and slideshows don't exist.                                                    |
 | `create_post_draft`                                                     | Needs the idempotency store.                                                                                                                                               |
 | `schedule_post`                                                         | Needs an approval record bound to user, draft revision, accounts, action and time. `review_decisions` doesn't bind those. It must also pass through the brand-safety gate. |
-| Remote (Streamable HTTP)                                                | Needs OAuth for MCP clients. Not exposed.                                                                                                                                  |
+
+## Remote (Streamable HTTP) — `/api/mcp`
+
+The same four read-only tools, served over HTTP for Claude, ChatGPT and other
+remote MCP clients. Built 2026-11-23 on `feat/finished-shorts`.
+
+- **Authorization server:** Supabase Auth's OAuth 2.1 server (PKCE, dynamic
+  client registration). We do not run our own.
+- **Resource server:** `src/app/api/mcp/route.ts` — stateless; reads the
+  Bearer token, asks Supabase who it is (`openSession` → `auth.getUser`), and
+  acts through an anon-key client carrying that token, so RLS applies. Rejects
+  a foreign browser `Origin` (403), rate-limits each token (120/min, per
+  instance), and answers missing/invalid tokens with 401 + `WWW-Authenticate:
+  … resource_metadata=` without calling Supabase for anonymous requests.
+- **Discovery:** `/.well-known/oauth-protected-resource/api/mcp` names this app
+  as the resource and `https://<ref>.supabase.co/auth/v1` as the authorization server.
+- **Consent:** `/oauth/consent` (outside the app shell) — signed-out users go to
+  `/sign-in?returnTo=…` and come back; Allow/Deny call
+  `supabase.auth.oauth.approveAuthorization` / `denyAuthorization`.
+
+**To turn it on (Supabase dashboard, production auth setting):** Authentication
+→ OAuth Server → enable the OAuth server, enable dynamic client registration,
+and set the authorization URL to `https://<app-host>/oauth/consent`. Until then
+the discovery endpoint answers `feature_disabled` (observed 2026-11-23) and no
+client can complete sign-in.
+
+**Not yet verified:** a full OAuth sign-in from a real MCP client (needs the
+switch above); RLS against a real OAuth-issued token. Write tools remain blocked
+on the items in the table above.
 
 ## Tests
 
