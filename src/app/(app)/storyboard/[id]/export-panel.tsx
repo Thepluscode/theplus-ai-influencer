@@ -25,11 +25,14 @@ export function ExportPanel({
   allAnimated,
   reviewApproved,
   initialExport,
+  voiceover,
 }: {
   storyboardId: string;
   currentReviewVersion: number;
   allAnimated: boolean;
   reviewApproved: boolean;
+  /** Whether this deployment narrates hook captions into exports. */
+  voiceover: boolean;
   initialExport: ExportView;
 }) {
   const router = useRouter();
@@ -131,8 +134,16 @@ export function ExportPanel({
 
       <div className="mt-3 space-y-1 text-[11px] leading-[1.45] text-ink-muted">
         <p>One H.264 MP4 in the storyboard aspect ratio. Assembly costs no extra credits.</p>
-        <p>Source clip audio is preserved; silent clips receive silence for stable playback.</p>
-        <p>Captions are not burned into this export. No soundtrack or voiceover mix is added.</p>
+        <p>
+          New exports burn each shot&apos;s hook caption into the video (Latin script; emoji are
+          left out of the on-screen text).
+        </p>
+        <p>
+          {voiceover
+            ? 'Each hook caption is narrated over the shot; clip audio is ducked underneath.'
+            : 'No voiceover is added. Source clip audio is preserved; silent clips stay silent.'}
+        </p>
+        <p>No music track is added.</p>
       </div>
     </section>
   );

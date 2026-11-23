@@ -60,6 +60,17 @@ const ServerEnvSchema = z.object({
   // Comma-separated exact HTTPS hostnames controlled by the operator. The
   // built-in Luma hosts remain allowed; this is for trusted media mirrors.
   STORYBOARD_EXPORT_ALLOWED_CLIP_HOSTS: z.string().min(1).optional(),
+  // Narrate each shot's hook caption into the exported MP4. Off by default:
+  // it calls a paid speech API. When on and speech fails, the export job
+  // fails and retries rather than shipping a silently voiceless video.
+  STORYBOARD_EXPORT_VOICEOVER: z
+    .string()
+    .optional()
+    .transform((v) => v === '1' || v?.toLowerCase() === 'true'),
+  // OpenAI /v1/audio/speech. Its models are scheduled to shut down on
+  // 2027-01-06 (OpenAI API reference, checked 2026-11-23).
+  OPENAI_TTS_MODEL: z.string().min(1).default('gpt-4o-mini-tts'),
+  OPENAI_TTS_VOICE: z.string().min(1).default('alloy'),
   // Dedicated secret for cron-driven workers. Never reuse the Supabase
   // service-role key as an HTTP bearer credential.
   CRON_SECRET: z.string().min(16).optional(),

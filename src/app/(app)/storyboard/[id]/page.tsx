@@ -13,7 +13,7 @@ import {
   Share2,
 } from 'lucide-react';
 import { getStoryboard } from '@/lib/storyboards';
-import { publicEnv } from '@/lib/env';
+import { publicEnv, serverEnv } from '@/lib/env';
 import { listAiModels } from '@/lib/ai-models';
 import { getDemoModels, getDemoStoryboards, isDemoMode } from '@/lib/demo-mode';
 import { getSupabaseServerClient } from '@/lib/supabase/server';
@@ -176,6 +176,7 @@ export default async function StoryboardDetailPage({ params }: Props) {
             currentReviewVersion={reviewVersion}
             allAnimated={allAnimated}
             reviewApproved={reviewApproved}
+            voiceover={serverEnv.STORYBOARD_EXPORT_VOICEOVER}
             initialExport={
               latestExport
                 ? {

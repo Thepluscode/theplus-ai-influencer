@@ -7,6 +7,7 @@ import path from 'node:path';
 import { z } from 'zod';
 import { serverEnv } from '@/lib/env';
 import { getLumaClient } from '@/lib/luma';
+import type { ShotFinishing } from '@/lib/storyboard-finishing';
 import type { PostFormat } from '@/types/post';
 
 const ExportShotSchema = z
@@ -14,6 +15,8 @@ const ExportShotSchema = z
     index: z.number().int().nonnegative(),
     videoUrl: z.string().url(),
     videoGenerationId: z.string().min(1).optional(),
+    // Feeds the burned caption and the paid speech call, so it is bounded.
+    hookCaption: z.string().max(2000).optional(),
   })
   .passthrough();
 
@@ -41,6 +44,8 @@ export interface RenderedMp4 {
   height: number;
   hasAudio: boolean;
   sourceAudioShots: number;
+  captionedShots: number;
+  voicedShots: number;
 }
 
 export function getAllowedStoryboardClipHosts(
@@ -141,9 +146,15 @@ export async function downloadStoryboardClips(
   return paths;
 }
 
+export function storyboardExportDimensions(format: PostFormat): { width: number; height: number } {
+  return DIMENSIONS[format];
+}
+
 export async function renderStoryboardMp4(input: {
   clipPaths: string[];
   format: PostFormat;
+  /** Per-shot caption PNG / voiceover audio, aligned with clipPaths. */
+  finishing?: ShotFinishing[];
   workDir: string;
   outputPath: string;
   timeoutMs?: number;
@@ -159,6 +170,11 @@ export async function renderStoryboardMp4(input: {
   const deadline = Date.now() + timeoutMs;
   const normalized: string[] = [];
   let sourceAudioShots = 0;
+  let captionedShots = 0;
+  let voicedShots = 0;
+  if (input.finishing && input.finishing.length !== input.clipPaths.length) {
+    throw new Error('Shot finishing does not match the clips being exported.');
+  }
 
   for (const [position, clipPath] of input.clipPaths.entries()) {
     const probe = await probeMedia(ffprobePath, clipPath, remainingMs(deadline));
@@ -173,30 +189,42 @@ export async function renderStoryboardMp4(input: {
       `normalized-${position.toString().padStart(2, '0')}.mp4`,
     );
     const videoFilter = `scale=${dimensions.width}:${dimensions.height}:force_original_aspect_ratio=increase,crop=${dimensions.width}:${dimensions.height},fps=30,format=yuv420p`;
-    const common = ['-nostdin', '-hide_banner', '-loglevel', 'error', '-y', '-i', clipPath];
-    const args = hasSourceAudio
-      ? [
-          ...common,
-          '-filter_complex',
-          `[0:v:0]${videoFilter}[v];[0:a:0]aresample=async=1:first_pts=0,apad[a]`,
-          '-map',
-          '[v]',
-          '-map',
-          '[a]',
-        ]
-      : [
-          ...common,
-          '-f',
-          'lavfi',
-          '-i',
-          'anullsrc=channel_layout=stereo:sample_rate=48000',
-          '-filter_complex',
-          `[0:v:0]${videoFilter}[v];[1:a:0]asetpts=N/SR/TB[a]`,
-          '-map',
-          '[v]',
-          '-map',
-          '[a]',
-        ];
+    const finish = input.finishing?.[position];
+    const args = ['-nostdin', '-hide_banner', '-loglevel', 'error', '-y', '-i', clipPath];
+    let nextInput = 1;
+    let baseAudio: string;
+    if (hasSourceAudio) {
+      baseAudio = `[0:a:0]aresample=async=1:first_pts=0,apad`;
+    } else {
+      args.push('-f', 'lavfi', '-i', 'anullsrc=channel_layout=stereo:sample_rate=48000');
+      baseAudio = `[${nextInput}:a:0]asetpts=N/SR/TB`;
+      nextInput += 1;
+    }
+    const filters = [`[0:v:0]${videoFilter}[base]`];
+    if (finish?.captionPath) {
+      args.push('-loop', '1', '-i', finish.captionPath);
+      filters.push(`[base][${nextInput}:v:0]overlay=0:0:shortest=1,format=yuv420p[v]`);
+      nextInput += 1;
+      captionedShots += 1;
+    } else {
+      filters.push('[base]null[v]');
+    }
+    if (finish?.voicePath) {
+      args.push('-i', finish.voicePath);
+      // Duck the clip's own audio under the narration. normalize=0 keeps the
+      // voice at full level (amix otherwise halves every input). A line longer
+      // than its clip is cut at the clip's end by -t below.
+      filters.push(
+        `${baseAudio},volume=0.35[bg]`,
+        `[${nextInput}:a:0]aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo,apad[vo]`,
+        '[bg][vo]amix=inputs=2:duration=first:normalize=0[a]',
+      );
+      nextInput += 1;
+      voicedShots += 1;
+    } else {
+      filters.push(`${baseAudio}[a]`);
+    }
+    args.push('-filter_complex', filters.join(';'), '-map', '[v]', '-map', '[a]');
 
     args.push(
       '-t',
@@ -278,6 +306,8 @@ export async function renderStoryboardMp4(input: {
     height: dimensions.height,
     hasAudio,
     sourceAudioShots,
+    captionedShots,
+    voicedShots,
   };
 }
 

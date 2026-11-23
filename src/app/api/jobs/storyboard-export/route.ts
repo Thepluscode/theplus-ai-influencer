@@ -19,7 +19,10 @@ import {
   parseExportShots,
   readRenderedMp4,
   renderStoryboardMp4,
+  storyboardExportDimensions,
 } from '@/lib/storyboard-export';
+import { serverEnv } from '@/lib/env';
+import { prepareShotFinishing } from '@/lib/storyboard-finishing';
 
 export const runtime = 'nodejs';
 export const maxDuration = 120;
@@ -60,9 +63,17 @@ export async function POST(req: NextRequest) {
     const clipPaths = await downloadStoryboardClips(shots, workDir, {
       timeoutMs: remainingMs(deadline),
     });
+    const finishing = await prepareShotFinishing({
+      shots,
+      dimensions: storyboardExportDimensions(job.format),
+      workDir,
+      voiceover: serverEnv.STORYBOARD_EXPORT_VOICEOVER,
+      remainingMs: () => remainingMs(deadline),
+    });
     const rendered = await renderStoryboardMp4({
       clipPaths,
       format: job.format,
+      finishing,
       workDir,
       outputPath,
       timeoutMs: remainingMs(deadline),
@@ -94,6 +105,8 @@ export async function POST(req: NextRequest) {
       height: rendered.height,
       hasAudio: rendered.hasAudio,
       sourceAudioShots: rendered.sourceAudioShots,
+      captionedShots: rendered.captionedShots,
+      voicedShots: rendered.voicedShots,
     });
   } catch (error) {
     const message = toMessage(error);

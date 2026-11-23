@@ -18,7 +18,9 @@ vi.mock('@/lib/storyboard-export', () => ({
   parseExportShots: vi.fn(),
   readRenderedMp4: vi.fn(),
   renderStoryboardMp4: vi.fn(),
+  storyboardExportDimensions: vi.fn(() => ({ width: 720, height: 1280 })),
 }));
+vi.mock('@/lib/storyboard-finishing', () => ({ prepareShotFinishing: vi.fn() }));
 
 import { POST } from './route';
 import { isCronAuthorized } from '@/lib/cron-auth';
@@ -38,6 +40,7 @@ import {
   readRenderedMp4,
   renderStoryboardMp4,
 } from '@/lib/storyboard-export';
+import { prepareShotFinishing } from '@/lib/storyboard-finishing';
 
 const job = {
   id: 'job-1',
@@ -67,7 +70,12 @@ describe('storyboard MP4 worker', () => {
       height: 1280,
       hasAudio: true,
       sourceAudioShots: 0,
+      captionedShots: 1,
+      voicedShots: 0,
     });
+    vi.mocked(prepareShotFinishing).mockResolvedValue([
+      { captionPath: '/tmp/finish-00.png', voicePath: null },
+    ]);
     vi.mocked(readRenderedMp4).mockResolvedValue(Buffer.from('mp4'));
     vi.mocked(uploadStoryboardExport).mockResolvedValue('workspace/storyboard/job.mp4');
   });
@@ -121,6 +129,25 @@ describe('storyboard MP4 worker', () => {
       'ffmpeg temporarily unavailable',
     );
     expect(markStoryboardExportFailed).not.toHaveBeenCalled();
+  });
+
+  it('passes caption and voice finishing to the renderer and reports it', async () => {
+    const response = await POST(request());
+
+    expect(vi.mocked(renderStoryboardMp4).mock.calls[0]?.[0].finishing).toEqual([
+      { captionPath: '/tmp/finish-00.png', voicePath: null },
+    ]);
+    expect(await response.json()).toMatchObject({ captionedShots: 1, voicedShots: 0 });
+  });
+
+  it('retries instead of shipping a voiceless video when speech fails', async () => {
+    vi.mocked(prepareShotFinishing).mockRejectedValue(new Error('Speech synthesis failed (503).'));
+    const response = await POST(request());
+
+    expect(await response.json()).toMatchObject({ status: 'retry' });
+    expect(renderStoryboardMp4).not.toHaveBeenCalled();
+    expect(uploadStoryboardExport).not.toHaveBeenCalled();
+    expect(markStoryboardExportCompleted).not.toHaveBeenCalled();
   });
 });
 
