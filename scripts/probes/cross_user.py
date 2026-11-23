@@ -131,6 +131,7 @@ def run(env) -> int:
             print(f"  SETUP FAILED: expected 2 workspaces, got {len(workspaces)}")
             return 1
         ws_a = next(w for w in workspaces if w["name"].endswith("-A"))
+        ws_b = next(w for w in workspaces if w["name"].endswith("-B"))
 
         # Sign both in for real JWTs.
         tokens = []
@@ -182,6 +183,41 @@ def run(env) -> int:
         p.check("LEAK", "B cannot credit any workspace via grant_credits",
                 st >= 400, f"status={st} body={got}")
 
+        st, got = call("POST", f"{url}/rest/v1/rpc/grant_credits", token=tok_b, apikey=anon,
+                       body={"p_workspace_id": ws_b["id"], "p_amount": 999999, "p_reason": "refund"})
+        p.check("LEAK", "B cannot grant credits to B's own workspace",
+                st >= 400, f"status={st} body={got}")
+
+        # A shared row must be reachable only through possession of its exact
+        # token. A table-wide anon SELECT policy makes every shared post
+        # enumerable even though UUID tokens themselves are unguessable.
+        share_token = secrets.token_hex(16)
+        share_token = (f"{share_token[:8]}-{share_token[8:12]}-{share_token[12:16]}-"
+                       f"{share_token[16:20]}-{share_token[20:]}")
+        st, created = admin("POST", "/rest/v1/posts", {
+            "workspace_id": ws_a["id"],
+            "name": marker,
+            "format": "portrait",
+            "prompt_inputs": {},
+            "variants": [],
+            "share_token": share_token,
+        })
+        p.check("CONTROL", "a shared fixture post can be created",
+                st in (200, 201), f"status={st} body={created}")
+
+        st, got = call("GET", f"{url}/rest/v1/posts?share_token=not.is.null&select=id,name",
+                       apikey=anon)
+        leaked = [r for r in (got or []) if isinstance(r, dict) and r.get("name") == marker]
+        p.check("LEAK", "anonymous callers cannot enumerate shared posts",
+                st == 200 and not leaked, f"status={st} leaked_fixture_count={len(leaked)}")
+
+        st, got = call("POST", f"{url}/rest/v1/rpc/get_shared_post_by_token", apikey=anon,
+                       body={"p_token": share_token})
+        p.check("CONTROL", "the exact share token still resolves its post",
+                st == 200 and isinstance(got, list) and len(got) == 1
+                and got[0].get("name") == marker,
+                f"status={st} row_count={len(got) if isinstance(got, list) else 'n/a'}")
+
         # Balance must be untouched by all of the above.
         st, got = admin("GET", f"/rest/v1/workspaces?id=eq.{ws_a['id']}&select=credits")
         p.check("CONTROL", "A's balance is unchanged after every attempt",
@@ -189,7 +225,7 @@ def run(env) -> int:
 
         p.notes.append("HTML/page-fragment caching is NOT covered by this probe — it needs an "
                        "authenticated browser session. Treat page caching as unverified.")
-        return p.summary(expected=8)
+        return p.summary(expected=12)
 
     finally:
         for w in workspaces:
@@ -224,12 +260,12 @@ def selftest() -> int:
     # A run that asserts less than expected is a failure even with 0 fails.
     p3 = Probe()
     p3.check("CONTROL", "only one thing ran", True)
-    check("under-count is reported as failure", p3.summary(expected=8) == 1)
+    check("under-count is reported as failure", p3.summary(expected=12) == 1)
 
     p4 = Probe()
-    for i in range(8):
+    for i in range(12):
         p4.check("LEAK", f"x{i}", True)
-    check("a full clean run passes", p4.summary(expected=8) == 0)
+    check("a full clean run passes", p4.summary(expected=12) == 0)
 
     st, body = call("GET", "http://127.0.0.1:1/nope")
     check("an unreachable host is status 0, never mistaken for a 200", st == 0)

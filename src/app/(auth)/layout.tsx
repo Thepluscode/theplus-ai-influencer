@@ -109,16 +109,14 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           </div>
           <div className="auth-proof-card">
             <div>
-              <strong>10×</strong>
-              <span>More output same team</span>
+              <strong>Private</strong>
+              <span>Workspace-scoped assets</span>
             </div>
             <div>
-              <strong>98%</strong>
-              <span>Brand-safe first pass</span>
+              <strong>Gated</strong>
+              <span>Approval before publishing</span>
             </div>
-            <blockquote>
-              “We went from scattered content to a predictable pipeline that compounds.”
-            </blockquote>
+            <p>Customer outcomes appear only after they are measured and attributable.</p>
           </div>
         </div>
 

@@ -26,6 +26,7 @@ import {
 import { ThePlusTechBrand } from '@/components/brand/theplus-tech-logo';
 import { PlatformIcon, type PlatformName } from '@/components/icons/platform-icon';
 import { LandingMotion } from '@/components/landing/landing-motion';
+import { PLANS } from '@/lib/billing/plans';
 
 const channels: PlatformName[] = [
   'LinkedIn',
@@ -119,14 +120,12 @@ const process = [
   },
 ];
 
-const proof = [
-  ['74%', 'less time spent repurposing content'],
-  ['3.2×', 'more content shipped per campaign'],
-  ['52%', 'higher engagement across native channels'],
-  ['98%', 'approval confidence before publishing'],
+const verifiedCapabilities = [
+  ['Private', 'workspace-scoped source files and rendered exports'],
+  ['Gated', 'explicit review approval before distribution or export'],
+  ['MP4', 'one downloadable render from an approved storyboard'],
+  ['9 formats', 'channel-specific drafts generated from one source'],
 ];
-
-const trusted = ['PIVOT', 'Arcadia', 'NEXORA', 'LUMEN', 'VECTOR'];
 
 const problemPoints = [
   { icon: Clock3, label: 'Teams waste hours repurposing manually.' },
@@ -139,33 +138,17 @@ const solutionPoints = [
   { icon: ScanSearch, label: 'Extract reusable content atoms.' },
   { icon: PanelsTopLeft, label: 'Repackage natively for every platform.' },
   { icon: BadgeCheck, label: 'Keep your voice, brand, and intent.' },
-  { icon: Send, label: 'Approve once. Publish everywhere.' },
+  { icon: Send, label: 'Approve, then publish through connected accounts.' },
 ];
 
-const plans = [
-  {
-    name: 'Launch',
-    price: '£149',
-    note: 'For operators validating a content engine.',
-    items: ['1 workspace', 'Source extraction', 'Multi-channel packs', 'Approval calendar'],
-    href: '/sign-up',
-  },
-  {
-    name: 'Studio',
-    price: '£499',
-    note: 'For brands running always-on AI influencer production.',
-    items: ['Content OS', 'Persona studio', 'Storyboard pipeline', 'Zernio scheduling'],
-    href: '/sign-up',
-    featured: true,
-  },
-  {
-    name: 'Agency',
-    price: 'Custom',
-    note: 'For teams operating portfolios and client workflows.',
-    items: ['Multiple workspaces', 'Review links', 'Brand safety gates', 'Priority implementation'],
-    href: '/sign-up',
-  },
-];
+const plans = PLANS.filter((plan) => plan.id !== 'free').map((plan) => ({
+  name: plan.name,
+  price: `$${plan.monthlyPriceUsd}`,
+  note: plan.tagline,
+  items: plan.features.slice(0, 4),
+  href: '/sign-up',
+  featured: plan.id === 'studio',
+}));
 
 export default function LandingPage() {
   return (
@@ -264,14 +247,6 @@ function HeroSection() {
                 See the workflow
                 <Play size={14} className="fill-current" />
               </Link>
-            </div>
-          </div>
-          <div className="trusted-strip">
-            <span>Trusted by innovative brands</span>
-            <div>
-              {trusted.map((item) => (
-                <strong key={item}>{item}</strong>
-              ))}
             </div>
           </div>
         </div>
@@ -531,7 +506,7 @@ function FeatureSection() {
               <RadioTower size={16} />
               <p>Zernio distribution</p>
             </div>
-            <h3>Publish everywhere after approval</h3>
+            <h3>Publish through connected accounts after approval</h3>
             <span>
               Approved work moves through connected accounts with brand safety, scheduling, and
               platform-specific output intact.
@@ -550,15 +525,15 @@ function ProofSection() {
       <div className="mx-auto max-w-[1380px] border-y border-white/12 py-12 lg:py-16" data-reveal>
         <div className="proof-heading">
           <div>
-            <p className="landing-index">03 / Real results</p>
+            <p className="landing-index">03 / Verified capabilities</p>
             <h2 className="mt-5 text-[clamp(38px,4.8vw,76px)] font-medium leading-[0.96] text-white">
-              Built for creators. Backed by results.
+              Product truth, not vanity metrics.
             </h2>
           </div>
         </div>
         <div className="proof-content">
           <div className="proof-grid">
-            {proof.map(([value, label]) => (
+            {verifiedCapabilities.map(([value, label]) => (
               <div key={label}>
                 <strong>{value}</strong>
                 <span>{label}</span>
@@ -567,22 +542,15 @@ function ProofSection() {
           </div>
           <div className="proof-testimonials">
             <blockquote>
-              <p>“ThePlus.AI Influencer turned our content chaos into a media machine.”</p>
+              <p>
+                Outcome claims and customer quotes will appear here only after they are measured and
+                attributable.
+              </p>
               <footer>
-                <span>SC</span>
+                <span>✓</span>
                 <div>
-                  <strong>Sarah Chen</strong>
-                  <small>Head of Growth, Pivot</small>
-                </div>
-              </footer>
-            </blockquote>
-            <blockquote>
-              <p>“We went from one post a week to a full-funnel content engine.”</p>
-              <footer>
-                <span>ML</span>
-                <div>
-                  <strong>Marcus Lee</strong>
-                  <small>CMO, Arcadia</small>
+                  <strong>Evidence standard</strong>
+                  <small>No invented proof</small>
                 </div>
               </footer>
             </blockquote>
@@ -656,7 +624,7 @@ function OfferSection() {
             >
               <div>
                 <p>{plan.name}</p>
-                <strong>{plan.price}</strong>
+                <strong>{plan.price}/mo</strong>
                 <span>{plan.note}</span>
               </div>
               <ul>
