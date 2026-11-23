@@ -1,4 +1,4 @@
-# Codex review brief — `feat/finished-shorts` (`207b06b..45e1319`)
+# Codex review brief — `feat/finished-shorts` (`207b06b..a18cbfc`)
 
 Status: **NOT RUN.** Codex usage limit resets 2026-11-25 08:03. This branch is
 stacked on PR #13 (`feat/creative-studio-slice`), which has its own pending brief
@@ -19,8 +19,8 @@ Independent, adversarial code review. Report findings only. Do NOT edit tracked 
 
 Repo: /Users/theophilusogieva/projects/ai/theplus-ai-influencer (Next.js 16 + Supabase). Read AGENTS.md and CLAUDE.md first.
 
-Target: exact range 207b06b..45e1319 on branch feat/finished-shorts (five code commits: b1cfc03 captions+voiceover in the MP4 export, b60543e Runway as second shot-animation provider, 4ab2579 remote MCP over HTTP with Supabase OAuth, 1c113ab review fixes, 45e1319 Runway clip persistence + migration 0035; the brief-only commits between them change no code). Create your own worktree:
-  git -C /Users/theophilusogieva/projects/ai/theplus-ai-influencer worktree add --detach /Users/theophilusogieva/projects/ai/theplus-ai-influencer-codex-review4 45e1319
+Target: exact range 207b06b..a18cbfc on branch feat/finished-shorts (six code commits: b1cfc03 captions+voiceover in the MP4 export, b60543e Runway as second shot-animation provider, 4ab2579 remote MCP over HTTP with Supabase OAuth, 1c113ab review fixes, 45e1319 Runway clip persistence + migration 0035, a18cbfc its stream-reader fix; the brief-only commits between them change no code). Create your own worktree:
+  git -C /Users/theophilusogieva/projects/ai/theplus-ai-influencer worktree add --detach /Users/theophilusogieva/projects/ai/theplus-ai-influencer-codex-review4 a18cbfc
 
 Challenge:
 1. src/lib/storyboard-finishing.ts + storyboard-export.ts: can any caption text reach a network fetch (next/og loads Google Fonts / emoji CDN for glyphs outside its bundled font)? Is OFFLINE_GLYPHS truly offline-safe? Does the ffmpeg graph (overlay, amix normalize=0, apad, -t) produce valid 48 kHz stereo AAC segments the `-c copy` concat accepts, for clips with and without source audio? Can a voice failure ship a voiceless video marked complete?
