@@ -89,6 +89,15 @@ $$;
 \ir ../../supabase/migrations/0027_persona_refs_bucket.sql
 \ir ../../supabase/migrations/0028_restrict_shared_post_reads.sql
 \ir ../../supabase/migrations/0029_storyboard_exports.sql
+
+-- A webhook registered before 0030 has no secret; 0030 must disable it.
+insert into auth.users (id, email) values
+  ('33333333-3333-3333-3333-333333333333', 'legacy@example.com');
+insert into public.workspace_webhooks (workspace_id, name, url)
+select id, 'legacy unsigned', 'https://example.com/legacy'
+from public.workspaces
+where owner_user_id = '33333333-3333-3333-3333-333333333333';
+\ir ../../supabase/migrations/0030_secure_workspace_webhooks.sql
 \ir ../../supabase/migrations/0032_creations.sql
 \ir ../../supabase/migrations/0033_lock_workspace_columns.sql
 \ir ../../supabase/migrations/0034_consume_credits_spend_reasons.sql
@@ -379,5 +388,31 @@ begin
 end;
 $$;
 reset role;
+
+do $$
+declare
+  legacy public.workspace_webhooks%rowtype;
+  ws uuid := 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+begin
+  select * into strict legacy from public.workspace_webhooks where name = 'legacy unsigned';
+  if legacy.active or char_length(legacy.signing_secret) <> 64 then
+    raise exception '0030 left a legacy webhook active or without a generated secret';
+  end if;
+  begin
+    insert into public.workspace_webhooks (workspace_id, name, url)
+    values (ws, 'no secret', 'https://example.com/a');
+    raise exception 'webhook without a signing secret was accepted';
+  exception when not_null_violation then null;
+  end;
+  begin
+    insert into public.workspace_webhooks (workspace_id, name, url, signing_secret)
+    values (ws, 'short secret', 'https://example.com/b', 'too-short');
+    raise exception 'webhook with a short signing secret was accepted';
+  exception when check_violation then null;
+  end;
+  insert into public.workspace_webhooks (workspace_id, name, url, signing_secret)
+  values (ws, 'signed', 'https://example.com/c', repeat('s', 32));
+end;
+$$;
 
 \echo 'database boundary tests passed'

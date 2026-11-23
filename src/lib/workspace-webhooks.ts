@@ -3,6 +3,7 @@ import { getSupabaseAdminClient } from '@/lib/supabase/admin';
 import { getSupabaseServerClient } from '@/lib/supabase/server';
 import type { WorkspaceWebhookRow } from '@/lib/supabase/types';
 import type { WebhookEvent } from '@/lib/workspace-controls-schema';
+import { postSignedWebhook } from '@/lib/outbound-webhook';
 
 interface DispatchInput {
   workspaceId: string;
@@ -77,31 +78,29 @@ async function deliverWebhook(
 ): Promise<boolean> {
   const deliveryId = crypto.randomUUID();
   const body = buildWorkspaceWebhookBody(input, deliveryId);
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 5_000);
+  const serializedBody = JSON.stringify(body);
   let status: number | null = null;
   let delivered = false;
 
   try {
-    const response = await fetch(webhook.url, {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        'x-theplus-event': input.event,
-        'x-theplus-workspace-id': input.workspaceId,
-        'x-theplus-delivery-id': deliveryId,
-      },
-      body: JSON.stringify(body),
-      signal: controller.signal,
+    if (!webhook.signing_secret) {
+      throw new Error('Webhook is missing a signing secret and must be reconfigured.');
+    }
+    status = await postSignedWebhook({
+      url: webhook.url,
+      secret: webhook.signing_secret,
+      event: input.event,
+      workspaceId: input.workspaceId,
+      deliveryId,
+      body: serializedBody,
     });
-    status = response.status;
-    delivered = response.ok;
-    if (!response.ok) {
+    delivered = status >= 200 && status < 300;
+    if (!delivered) {
       console.error('Workspace webhook delivery returned non-2xx', {
         webhookId: webhook.id,
         workspaceId: input.workspaceId,
         event: input.event,
-        status: response.status,
+        status,
       });
     }
   } catch (err) {
@@ -111,8 +110,6 @@ async function deliverWebhook(
       event: input.event,
       error: err instanceof Error ? err.message : String(err),
     });
-  } finally {
-    clearTimeout(timeout);
   }
 
   const { error } = await supabase

@@ -46,6 +46,7 @@ describe('workspace control schemas', () => {
       WebhookFormSchema.safeParse({
         name: 'Ops',
         url: 'https://example.com/webhooks/theplus',
+        signingSecret: 'a-secure-signing-secret-with-32-characters',
         events: ['post.published'],
       }).success,
     ).toBe(true);
@@ -54,6 +55,7 @@ describe('workspace control schemas', () => {
       WebhookFormSchema.safeParse({
         name: 'Ops',
         url: 'http://example.com/webhooks/theplus',
+        signingSecret: 'a-secure-signing-secret-with-32-characters',
         events: ['post.published'],
       }).success,
     ).toBe(false);
@@ -62,7 +64,17 @@ describe('workspace control schemas', () => {
       WebhookFormSchema.safeParse({
         name: 'Ops',
         url: 'https://example.com/webhooks/theplus',
+        signingSecret: 'a-secure-signing-secret-with-32-characters',
         events: [],
+      }).success,
+    ).toBe(false);
+
+    expect(
+      WebhookFormSchema.safeParse({
+        name: 'Ops',
+        url: 'https://example.com/webhooks/theplus',
+        signingSecret: 'too-short',
+        events: ['post.published'],
       }).success,
     ).toBe(false);
   });

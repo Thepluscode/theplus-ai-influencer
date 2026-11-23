@@ -133,6 +133,7 @@ export type Database = {
           workspace_id: string;
           name: string;
           url: string;
+          signing_secret: string;
           events: Array<
             'post.scheduled' | 'post.published' | 'review.approved' | 'comment.created'
           >;
@@ -147,6 +148,7 @@ export type Database = {
           workspace_id: string;
           name: string;
           url: string;
+          signing_secret: string;
           events?: Array<
             'post.scheduled' | 'post.published' | 'review.approved' | 'comment.created'
           >;
@@ -161,6 +163,7 @@ export type Database = {
           workspace_id?: string;
           name?: string;
           url?: string;
+          signing_secret?: string;
           events?: Array<
             'post.scheduled' | 'post.published' | 'review.approved' | 'comment.created'
           >;

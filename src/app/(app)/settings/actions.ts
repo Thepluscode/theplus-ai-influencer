@@ -7,6 +7,7 @@ import { CREDIT_TOPUP, stripePriceForPlan, type PlanId } from '@/lib/billing/pla
 import { getStripeClient, isStripeConfigured } from '@/lib/billing/stripe';
 import { isDemoMode } from '@/lib/demo-mode';
 import { publicEnv } from '@/lib/env';
+import { resolvePublicWebhookDestination } from '@/lib/outbound-webhook';
 import { getSupabaseServerClient } from '@/lib/supabase/server';
 import { getOrCreateCurrentWorkspace } from '@/lib/workspace';
 import {
@@ -330,6 +331,7 @@ export async function createWebhookAction(formData: FormData) {
   const parsed = WebhookFormSchema.safeParse({
     name: formData.get('name'),
     url: formData.get('url'),
+    signingSecret: formData.get('signingSecret'),
     events: formData.getAll('events'),
   });
   if (!parsed.success) {
@@ -341,10 +343,12 @@ export async function createWebhookAction(formData: FormData) {
 
   try {
     const { supabase, workspace } = await requireWorkspace();
+    await resolvePublicWebhookDestination(parsed.data.url);
     const { error } = await supabase.from('workspace_webhooks').insert({
       workspace_id: workspace.id,
       name: parsed.data.name,
       url: parsed.data.url,
+      signing_secret: parsed.data.signingSecret,
       events: parsed.data.events,
     });
     if (error) throw new Error(error.message);
