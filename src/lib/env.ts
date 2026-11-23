@@ -71,6 +71,12 @@ const ServerEnvSchema = z.object({
   // 2027-01-06 (OpenAI API reference, checked 2026-11-23).
   OPENAI_TTS_MODEL: z.string().min(1).default('gpt-4o-mini-tts'),
   OPENAI_TTS_VOICE: z.string().min(1).default('alloy'),
+  // Which provider animates storyboard shots (image → video). Luma stays the
+  // default; stills are always Luma. Runway needs RUNWAYML_API_SECRET, and its
+  // output host must be added to STORYBOARD_EXPORT_ALLOWED_CLIP_HOSTS for export.
+  STORYBOARD_VIDEO_PROVIDER: z.enum(['luma', 'runway']).default('luma'),
+  RUNWAYML_API_SECRET: z.preprocess(emptyStringToUndefined, z.string().min(1).optional()),
+  RUNWAY_VIDEO_MODEL: z.string().min(1).default('gen4_turbo'),
   // Dedicated secret for cron-driven workers. Never reuse the Supabase
   // service-role key as an HTTP bearer credential.
   CRON_SECRET: z.string().min(16).optional(),

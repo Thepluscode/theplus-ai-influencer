@@ -1,6 +1,7 @@
 import 'server-only';
 import { serverEnv } from '@/lib/env';
 import { getLumaClient } from '@/lib/luma';
+import { animateWithRunway } from '@/lib/runway';
 import { stubStoryboardImage, stubStoryboardVideo } from '@/lib/luma-stub';
 import type { AiModelRow } from '@/lib/supabase/types';
 import { FORMAT_TO_ASPECT, type PostFormat } from '@/types/post';
@@ -317,6 +318,23 @@ export async function animateSingleShot(input: {
       ...input.shot,
       videoUrl: stubStoryboardVideo(input.shot.index, 1),
       videoGenerationId: `stub-video-${input.shot.index}`,
+      videoDurationMs: duration * 1000,
+    };
+  }
+
+  if (serverEnv.STORYBOARD_VIDEO_PROVIDER === 'runway') {
+    const animated = await animateWithRunway({
+      imageUrl: input.shot.imageUrl,
+      prompt: input.shot.prompt,
+      format: input.format,
+      durationSeconds: duration,
+      timeoutMs: PER_SHOT_TIMEOUT_MS,
+      pollIntervalMs: POLL_INTERVAL_MS,
+    });
+    return {
+      ...input.shot,
+      videoUrl: animated.videoUrl,
+      videoGenerationId: animated.generationId,
       videoDurationMs: duration * 1000,
     };
   }

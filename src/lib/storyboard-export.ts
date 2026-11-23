@@ -7,6 +7,7 @@ import path from 'node:path';
 import { z } from 'zod';
 import { serverEnv } from '@/lib/env';
 import { getLumaClient } from '@/lib/luma';
+import { isRunwayGenerationId, refreshRunwayVideoUrl } from '@/lib/runway';
 import type { ShotFinishing } from '@/lib/storyboard-finishing';
 import type { PostFormat } from '@/types/post';
 
@@ -123,7 +124,7 @@ export async function downloadStoryboardClips(
   dependencies: DownloadDependencies = {},
 ): Promise<string[]> {
   const fetchImpl = dependencies.fetchImpl ?? fetch;
-  const refreshClipUrl = dependencies.refreshClipUrl ?? refreshLumaClipUrl;
+  const refreshClipUrl = dependencies.refreshClipUrl ?? refreshProviderClipUrl;
   const allowedHosts = dependencies.allowedHosts ?? getAllowedStoryboardClipHosts();
   const deadline = Date.now() + (dependencies.timeoutMs ?? 90_000);
   const paths: string[] = [];
@@ -371,6 +372,12 @@ async function fetchAllowed(
     current = assertAllowedStoryboardClipUrl(new URL(location, current).toString(), allowedHosts);
   }
   throw new Error('Clip provider returned too many redirects.');
+}
+
+async function refreshProviderClipUrl(generationId: string): Promise<string> {
+  return isRunwayGenerationId(generationId)
+    ? refreshRunwayVideoUrl(generationId)
+    : refreshLumaClipUrl(generationId);
 }
 
 async function refreshLumaClipUrl(generationId: string): Promise<string> {
