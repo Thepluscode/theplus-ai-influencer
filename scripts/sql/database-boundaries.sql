@@ -101,6 +101,7 @@ where owner_user_id = '33333333-3333-3333-3333-333333333333';
 \ir ../../supabase/migrations/0032_creations.sql
 \ir ../../supabase/migrations/0033_lock_workspace_columns.sql
 \ir ../../supabase/migrations/0034_consume_credits_spend_reasons.sql
+\ir ../../supabase/migrations/0035_storyboard_clips_bucket.sql
 
 drop trigger if exists on_auth_user_created on auth.users;
 
@@ -327,6 +328,18 @@ do $$
 begin
   if (select public from storage.buckets where id = 'storyboard-exports') is distinct from false then
     raise exception 'storyboard export bucket is not private';
+  end if;
+  -- Provider clips: public by URL, but no storage.objects policy may name the
+  -- bucket, so users can neither list nor write it (service role only).
+  if (select public from storage.buckets where id = 'storyboard-clips') is distinct from true then
+    raise exception 'storyboard clips bucket is missing or not public';
+  end if;
+  if exists (
+    select 1 from pg_policies
+    where schemaname = 'storage' and tablename = 'objects'
+      and coalesce(qual, '') || coalesce(with_check, '') like '%storyboard-clips%'
+  ) then
+    raise exception 'storyboard clips bucket has a storage.objects policy';
   end if;
   if has_function_privilege(
     'authenticated',

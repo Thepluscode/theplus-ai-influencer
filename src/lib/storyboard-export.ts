@@ -5,7 +5,7 @@ import { open, readFile, stat, writeFile } from 'node:fs/promises';
 import { isIP } from 'node:net';
 import path from 'node:path';
 import { z } from 'zod';
-import { serverEnv } from '@/lib/env';
+import { publicEnv, serverEnv } from '@/lib/env';
 import { getLumaClient } from '@/lib/luma';
 import { isRunwayGenerationId, refreshRunwayVideoUrl } from '@/lib/runway';
 import type { ShotFinishing } from '@/lib/storyboard-finishing';
@@ -49,8 +49,11 @@ export interface RenderedMp4 {
 
 export function getAllowedStoryboardClipHosts(
   configured = serverEnv.STORYBOARD_EXPORT_ALLOWED_CLIP_HOSTS,
+  supabaseUrl = publicEnv.NEXT_PUBLIC_SUPABASE_URL,
 ): ReadonlySet<string> {
   const hosts = new Set(DEFAULT_ALLOWED_CLIP_HOSTS);
+  // Our own storage: provider clips that expire (Runway) are copied there.
+  if (supabaseUrl) hosts.add(new URL(supabaseUrl).hostname);
   if (!configured) return hosts;
 
   for (const entry of configured.split(',')) {

@@ -8,7 +8,27 @@ vi.hoisted(() => {
   process.env.STORYBOARD_VIDEO_PROVIDER = 'runway';
   process.env.RUNWAYML_API_SECRET = 'test-runway-secret';
   process.env.LUMA_STUB = '';
+  process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://proj.supabase.co';
 });
+
+const uploads: Array<{ bucket: string; path: string; bytes: number; contentType?: string }> = [];
+let uploadError: { message: string } | null = null;
+vi.mock('@/lib/supabase/admin', () => ({
+  getSupabaseAdminClient: () => ({
+    storage: {
+      from: (bucket: string) => ({
+        upload: async (path: string, body: Buffer, opts: { contentType?: string }) => {
+          if (uploadError) return { data: null, error: uploadError };
+          uploads.push({ bucket, path, bytes: body.byteLength, contentType: opts.contentType });
+          return { data: { path }, error: null };
+        },
+        getPublicUrl: (path: string) => ({
+          data: { publicUrl: `https://proj.supabase.co/storage/v1/object/public/${bucket}/${path}` },
+        }),
+      }),
+    },
+  }),
+}));
 
 vi.mock('@/lib/luma', () => ({
   getLumaClient: () => {
@@ -18,25 +38,37 @@ vi.mock('@/lib/luma', () => ({
 
 import { animateWithRunway, isRunwayGenerationId, refreshRunwayVideoUrl } from '@/lib/runway';
 import { animateSingleShot } from '@/lib/storyboard';
-import { downloadStoryboardClips } from '@/lib/storyboard-export';
+import { downloadStoryboardClips, getAllowedStoryboardClipHosts } from '@/lib/storyboard-export';
 
 type Reply = { status?: number; body: unknown };
 let replies: Reply[] = [];
 let fetchMock: ReturnType<typeof vi.fn>;
+/** What the Runway output CDN serves for a clip download. */
+let clipResponse: () => Response;
+const apiCalls = () =>
+  fetchMock.mock.calls.filter(([url]) => String(url).startsWith('https://api.dev.runwayml.com'));
 
 beforeEach(() => {
   replies = [];
-  fetchMock = vi.fn(async () => {
+  uploads.length = 0;
+  uploadError = null;
+  clipResponse = () => new Response(new Uint8Array(2048), { status: 200 });
+  fetchMock = vi.fn(async (input: string | URL) => {
+    if (!String(input).startsWith('https://api.dev.runwayml.com')) return clipResponse();
     const next = replies.shift();
     if (!next) throw new Error('Unexpected fetch');
     return new Response(JSON.stringify(next.body), { status: next.status ?? 200 });
   });
   vi.stubGlobal('fetch', fetchMock);
+  vi.spyOn(console, 'warn').mockImplementation(() => {});
 });
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
+
+const STORED = 'https://proj.supabase.co/storage/v1/object/public/storyboard-clips/runway/';
 
 const fast = { timeoutMs: 1_000, pollIntervalMs: 1 };
 
@@ -57,7 +89,7 @@ describe('Runway image-to-video', () => {
     });
 
     expect(result).toEqual({
-      videoUrl: 'https://cdn.example/v.mp4',
+      videoUrl: `${STORED}task-1.mp4`,
       generationId: 'runway:task-1',
     });
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
@@ -152,7 +184,7 @@ describe('Runway image-to-video', () => {
         ...fast,
       }),
     ).rejects.toThrow('failed (503)');
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(apiCalls()).toHaveLength(1);
   });
 
   it('reports an HTTP error without echoing the request', async () => {
@@ -192,6 +224,74 @@ describe('Runway URL refresh', () => {
   });
 });
 
+describe('Runway clip persistence', () => {
+  const animate = () =>
+    animateWithRunway({
+      imageUrl: 'https://i',
+      prompt: 'p',
+      format: 'portrait',
+      durationSeconds: 5,
+      ...fast,
+    });
+  const succeed = (id: string) =>
+    replies.push(
+      { body: { id } },
+      { body: { id, status: 'SUCCEEDED', output: [`https://cdn.example/${id}.mp4`] } },
+    );
+
+  it('copies the finished clip into our bucket and returns the permanent URL', async () => {
+    succeed('keep-1');
+    const result = await animate();
+
+    expect(uploads).toEqual([
+      { bucket: 'storyboard-clips', path: 'runway/keep-1.mp4', bytes: 2048, contentType: 'video/mp4' },
+    ]);
+    expect(result.videoUrl).toBe(`${STORED}keep-1.mp4`);
+    expect(fetchMock.mock.calls.map(([u]) => String(u))).toContain('https://cdn.example/keep-1.mp4');
+  });
+
+  it('keeps the Runway URL, warns, and never re-creates the paid task when the copy fails', async () => {
+    succeed('up-fail');
+    uploadError = { message: 'bucket not found' };
+    const result = await animate();
+
+    expect(result).toEqual({
+      videoUrl: 'https://cdn.example/up-fail.mp4',
+      generationId: 'runway:up-fail',
+    });
+    expect(console.warn).toHaveBeenCalledWith(expect.stringContaining('runway_clip_persist_failed'));
+    const creates = apiCalls().filter(([u]) => String(u).endsWith('/v1/image_to_video'));
+    expect(creates).toHaveLength(1);
+  });
+
+  it('refuses to store a clip larger than the bucket limit', async () => {
+    succeed('huge');
+    clipResponse = () =>
+      new Response(new Uint8Array(16), {
+        status: 200,
+        headers: { 'content-length': String(101 * 1024 * 1024) },
+      });
+    const result = await animate();
+
+    expect(uploads).toEqual([]);
+    expect(result.videoUrl).toBe('https://cdn.example/huge.mp4');
+  });
+
+  it('falls back when the clip download fails', async () => {
+    succeed('gone');
+    clipResponse = () => new Response('nope', { status: 403 });
+    const result = await animate();
+
+    expect(uploads).toEqual([]);
+    expect(result.videoUrl).toBe('https://cdn.example/gone.mp4');
+  });
+
+  it('lets the MP4 export download clips from our own storage host', () => {
+    expect(getAllowedStoryboardClipHosts(undefined).has('proj.supabase.co')).toBe(true);
+    expect(getAllowedStoryboardClipHosts(undefined, '').has('proj.supabase.co')).toBe(false);
+  });
+});
+
 describe('provider dispatch', () => {
   it('animates storyboard shots through Runway when it is the configured provider', async () => {
     replies.push(
@@ -211,7 +311,7 @@ describe('provider dispatch', () => {
       format: 'portrait',
     });
     expect(shot).toMatchObject({
-      videoUrl: 'https://cdn.example/shot.mp4',
+      videoUrl: `${STORED}shot-task.mp4`,
       videoGenerationId: 'runway:shot-task',
       videoDurationMs: 5000,
     });
