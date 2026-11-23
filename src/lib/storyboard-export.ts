@@ -16,8 +16,6 @@ const ExportShotSchema = z
     index: z.number().int().nonnegative(),
     videoUrl: z.string().url(),
     videoGenerationId: z.string().min(1).optional(),
-    // Feeds the burned caption and the paid speech call, so it is bounded.
-    hookCaption: z.string().max(2000).optional(),
   })
   .passthrough();
 

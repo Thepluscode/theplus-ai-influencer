@@ -88,14 +88,20 @@ remote MCP clients. Built 2026-11-23 on `feat/finished-shorts`.
   acts through an anon-key client carrying that token, so RLS applies. Rejects
   a foreign browser `Origin` (403), rate-limits each token (120/min, per
   instance), and answers missing/invalid tokens with 401 + `WWW-Authenticate:
-  … resource_metadata=` without calling Supabase for anonymous requests.
+… resource_metadata=` without calling Supabase for anonymous requests.
+- **Switch:** off unless `THEPLUS_MCP_REMOTE=1` (404 otherwise). Per-IP cap
+  (300/min) runs before any Supabase call; per-token cap 120/min.
+- **Tokens accepted:** any valid Supabase access token for this project — an
+  OAuth-issued MCP token or the user's own app session token. Same user, same
+  RLS, so neither widens access.
 - **Discovery:** `/.well-known/oauth-protected-resource/api/mcp` names this app
   as the resource and `https://<ref>.supabase.co/auth/v1` as the authorization server.
 - **Consent:** `/oauth/consent` (outside the app shell) — signed-out users go to
   `/sign-in?returnTo=…` and come back; Allow/Deny call
   `supabase.auth.oauth.approveAuthorization` / `denyAuthorization`.
 
-**To turn it on (Supabase dashboard, production auth setting):** Authentication
+**To turn it on:** set `THEPLUS_MCP_REMOTE=1` on the deployment, and in the
+Supabase dashboard (a production auth setting): Authentication
 → OAuth Server → enable the OAuth server, enable dynamic client registration,
 and set the authorization URL to `https://<app-host>/oauth/consent`. Until then
 the discovery endpoint answers `feature_disabled` (observed 2026-11-23) and no

@@ -56,7 +56,10 @@ describe('Runway image-to-video', () => {
       ...fast,
     });
 
-    expect(result).toEqual({ videoUrl: 'https://cdn.example/v.mp4', generationId: 'runway:task-1' });
+    expect(result).toEqual({
+      videoUrl: 'https://cdn.example/v.mp4',
+      generationId: 'runway:task-1',
+    });
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
     expect(url).toBe('https://api.dev.runwayml.com/v1/image_to_video');
     expect(init.method).toBe('POST');
@@ -82,8 +85,16 @@ describe('Runway image-to-video', () => {
       { body: { id: 't' } },
       { body: { id: 't', status: 'SUCCEEDED', output: ['https://cdn.example/x.mp4'] } },
     );
-    await animateWithRunway({ imageUrl: 'https://i', prompt: 'p', format, durationSeconds: 5, ...fast });
-    expect(JSON.parse(String((fetchMock.mock.calls[0]?.[1] as RequestInit).body)).ratio).toBe(ratio);
+    await animateWithRunway({
+      imageUrl: 'https://i',
+      prompt: 'p',
+      format,
+      durationSeconds: 5,
+      ...fast,
+    });
+    expect(JSON.parse(String((fetchMock.mock.calls[0]?.[1] as RequestInit).body)).ratio).toBe(
+      ratio,
+    );
   });
 
   it('surfaces a failed task with its failure code', async () => {
@@ -92,7 +103,13 @@ describe('Runway image-to-video', () => {
       { body: { id: 'task-2', status: 'FAILED', failureCode: 'SAFETY.INPUT.IMAGE' } },
     );
     await expect(
-      animateWithRunway({ imageUrl: 'https://i', prompt: 'p', format: 'portrait', durationSeconds: 5, ...fast }),
+      animateWithRunway({
+        imageUrl: 'https://i',
+        prompt: 'p',
+        format: 'portrait',
+        durationSeconds: 5,
+        ...fast,
+      }),
     ).rejects.toThrow('Runway task task-2 failed: SAFETY.INPUT.IMAGE');
   });
 
@@ -114,14 +131,40 @@ describe('Runway image-to-video', () => {
   it('rejects a create response without a task id', async () => {
     replies.push({ body: {} });
     await expect(
-      animateWithRunway({ imageUrl: 'https://i', prompt: 'p', format: 'portrait', durationSeconds: 5, ...fast }),
+      animateWithRunway({
+        imageUrl: 'https://i',
+        prompt: 'p',
+        format: 'portrait',
+        durationSeconds: 5,
+        ...fast,
+      }),
     ).rejects.toThrow('returned no task id');
+  });
+
+  it('never retries the paid create call, even on a 5xx', async () => {
+    replies.push({ status: 503, body: {} }, { body: { id: 'second-task' } });
+    await expect(
+      animateWithRunway({
+        imageUrl: 'https://i',
+        prompt: 'p',
+        format: 'portrait',
+        durationSeconds: 5,
+        ...fast,
+      }),
+    ).rejects.toThrow('failed (503)');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it('reports an HTTP error without echoing the request', async () => {
     replies.push({ status: 401, body: { error: 'bad key' } });
     await expect(
-      animateWithRunway({ imageUrl: 'https://i', prompt: 'p', format: 'portrait', durationSeconds: 5, ...fast }),
+      animateWithRunway({
+        imageUrl: 'https://i',
+        prompt: 'p',
+        format: 'portrait',
+        durationSeconds: 5,
+        ...fast,
+      }),
     ).rejects.toThrow('Runway POST /v1/image_to_video failed (401).');
   });
 });
@@ -133,8 +176,12 @@ describe('Runway URL refresh', () => {
   });
 
   it('re-reads the task for a fresh output URL', async () => {
-    replies.push({ body: { id: 'abc', status: 'SUCCEEDED', output: ['https://cdn.example/fresh.mp4'] } });
-    await expect(refreshRunwayVideoUrl('runway:abc')).resolves.toBe('https://cdn.example/fresh.mp4');
+    replies.push({
+      body: { id: 'abc', status: 'SUCCEEDED', output: ['https://cdn.example/fresh.mp4'] },
+    });
+    await expect(refreshRunwayVideoUrl('runway:abc')).resolves.toBe(
+      'https://cdn.example/fresh.mp4',
+    );
     expect(fetchMock.mock.calls[0]?.[0]).toBe('https://api.dev.runwayml.com/v1/tasks/abc');
   });
 
@@ -171,7 +218,9 @@ describe('provider dispatch', () => {
   });
 
   it('refreshes an expired Runway clip URL during export', async () => {
-    replies.push({ body: { id: 'old', status: 'SUCCEEDED', output: ['https://cdn.example/fresh.mp4'] } });
+    replies.push({
+      body: { id: 'old', status: 'SUCCEEDED', output: ['https://cdn.example/fresh.mp4'] },
+    });
     const workDir = await mkdtemp(path.join(tmpdir(), 'runway-export-'));
     try {
       const clipFetch = vi.fn(async (input: string | URL) =>

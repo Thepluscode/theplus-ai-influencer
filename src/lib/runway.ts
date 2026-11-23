@@ -40,16 +40,22 @@ export async function animateWithRunway(input: {
   timeoutMs: number;
   pollIntervalMs: number;
 }): Promise<{ videoUrl: string; generationId: string }> {
-  const created = await runwayRequest<{ id?: string }>('/v1/image_to_video', {
-    method: 'POST',
-    body: JSON.stringify({
-      model: serverEnv.RUNWAY_VIDEO_MODEL,
-      promptImage: input.imageUrl,
-      promptText: input.prompt.slice(0, 1000),
-      ratio: RATIO[input.format],
-      duration: input.durationSeconds,
-    }),
-  });
+  const created = await runwayRequest<{ id?: string }>(
+    '/v1/image_to_video',
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        model: serverEnv.RUNWAY_VIDEO_MODEL,
+        promptImage: input.imageUrl,
+        promptText: input.prompt.slice(0, 1000),
+        ratio: RATIO[input.format],
+        duration: input.durationSeconds,
+      }),
+    },
+    // Never retry the create: a dropped response or 5xx may still have started
+    // a paid task, and a retry would start (and bill) a second one.
+    0,
+  );
   if (!created.id) throw new Error('Runway image-to-video returned no task id.');
 
   const deadline = Date.now() + input.timeoutMs;
@@ -62,7 +68,9 @@ export async function animateWithRunway(input: {
     }
     if (task.status === 'FAILED' || task.status === 'CANCELLED') {
       const reason = task.status === 'FAILED' ? (task.failureCode ?? task.failure) : 'cancelled';
-      throw new Error(`Runway task ${created.id} ${task.status.toLowerCase()}: ${reason ?? 'unknown'}`);
+      throw new Error(
+        `Runway task ${created.id} ${task.status.toLowerCase()}: ${reason ?? 'unknown'}`,
+      );
     }
     await new Promise((resolve) => setTimeout(resolve, input.pollIntervalMs));
   }
@@ -91,21 +99,27 @@ async function getTask(id: string): Promise<RunwayTask> {
   return task;
 }
 
-async function runwayRequest<T>(pathname: string, init: RequestInit): Promise<T> {
+async function runwayRequest<T>(pathname: string, init: RequestInit, retries = 2): Promise<T> {
   if (!serverEnv.RUNWAYML_API_SECRET) {
     throw new Error('STORYBOARD_VIDEO_PROVIDER=runway but RUNWAYML_API_SECRET is not set.');
   }
-  const response = await fetchWithRetry(`${API_BASE}${pathname}`, {
-    ...init,
-    headers: {
-      Authorization: `Bearer ${serverEnv.RUNWAYML_API_SECRET}`,
-      'X-Runway-Version': API_VERSION,
-      'Content-Type': 'application/json',
+  const response = await fetchWithRetry(
+    `${API_BASE}${pathname}`,
+    {
+      ...init,
+      headers: {
+        Authorization: `Bearer ${serverEnv.RUNWAYML_API_SECRET}`,
+        'X-Runway-Version': API_VERSION,
+        'Content-Type': 'application/json',
+      },
+      signal: AbortSignal.timeout(30_000),
     },
-    signal: AbortSignal.timeout(30_000),
-  });
+    { retries },
+  );
   if (!response.ok) {
-    throw new Error(`Runway ${init.method} ${pathname.split('/').slice(0, 3).join('/')} failed (${response.status}).`);
+    throw new Error(
+      `Runway ${init.method} ${pathname.split('/').slice(0, 3).join('/')} failed (${response.status}).`,
+    );
   }
   return (await response.json()) as T;
 }

@@ -10,6 +10,14 @@ import { openSession } from '@/mcp/session';
 // The service-role key is never reachable from here (same rule as src/mcp).
 //
 // Stateless: a new server + transport per request, no session ids to track.
+//
+// Any valid Supabase access token for this project is accepted — an
+// OAuth-issued MCP token or the user's own app session token. Both identify
+// the same user and RLS applies to both, so neither widens access.
+//
+// Off unless THEPLUS_MCP_REMOTE=1: the route is pointless (and only an
+// auth-probing surface) until the Supabase OAuth server is switched on.
+// Read directly, not via serverEnv, to keep the service-role key out of reach.
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -17,6 +25,9 @@ export const dynamic = 'force-dynamic';
 const RESOURCE_METADATA_PATH = '/.well-known/oauth-protected-resource/api/mcp';
 // ponytail: per-instance window; move to a shared store if we run >1 instance under load.
 const RATE_LIMIT = { windowMs: 60_000, max: 120 };
+// Per client IP, checked before any Supabase call, so a flood of distinct
+// garbage tokens cannot turn into a flood of auth requests.
+const IP_RATE_LIMIT = { windowMs: 60_000, max: 300 };
 const hits = new Map<string, { count: number; resetAt: number }>();
 
 export async function POST(req: Request) {
@@ -30,6 +41,9 @@ export async function DELETE(req: Request) {
 }
 
 async function handle(req: Request): Promise<Response> {
+  if (!isRemoteMcpEnabled()) {
+    return jsonError(404, 'not_found', 'Remote MCP is not enabled on this deployment.');
+  }
   const appOrigin = new URL(publicEnv.NEXT_PUBLIC_APP_URL).origin;
   // Browsers send Origin; server-side MCP clients do not. A foreign Origin is
   // a cross-site page trying to use a visitor's token (DNS-rebinding class).
@@ -41,7 +55,7 @@ async function handle(req: Request): Promise<Response> {
   const token = /^Bearer\s+(\S+)$/i.exec(req.headers.get('authorization') ?? '')?.[1];
   if (!token) return unauthorized(appOrigin, 'Sign in with OAuth to use this MCP server.');
 
-  if (!allow(token)) {
+  if (!allow(`ip:${clientIp(req)}`, IP_RATE_LIMIT) || !allow(`token:${token}`, RATE_LIMIT)) {
     return jsonError(429, 'rate_limited', 'Too many MCP requests; slow down.', {
       'Retry-After': String(Math.ceil(RATE_LIMIT.windowMs / 1000)),
     });
@@ -71,16 +85,27 @@ async function handle(req: Request): Promise<Response> {
   }
 }
 
-function allow(token: string): boolean {
+export function isRemoteMcpEnabled(): boolean {
+  const flag = process.env.THEPLUS_MCP_REMOTE;
+  return flag === '1' || flag?.toLowerCase() === 'true';
+}
+
+// ponytail: first X-Forwarded-For hop is only trustworthy behind our proxy
+// (Railway/Cloudflare set it); direct hits can spoof it.
+function clientIp(req: Request): string {
+  return req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
+}
+
+function allow(key: string, limit: { windowMs: number; max: number }): boolean {
   const now = Date.now();
-  const entry = hits.get(token);
+  const entry = hits.get(key);
   if (!entry || entry.resetAt <= now) {
     if (hits.size > 10_000) hits.clear();
-    hits.set(token, { count: 1, resetAt: now + RATE_LIMIT.windowMs });
+    hits.set(key, { count: 1, resetAt: now + limit.windowMs });
     return true;
   }
   entry.count += 1;
-  return entry.count <= RATE_LIMIT.max;
+  return entry.count <= limit.max;
 }
 
 function unauthorized(appOrigin: string, description: string): Response {

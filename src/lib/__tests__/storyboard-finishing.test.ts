@@ -13,6 +13,7 @@ vi.hoisted(() => {
 import { renderStoryboardMp4 } from '@/lib/storyboard-export';
 import {
   MAX_CAPTION_CHARS,
+  OFFLINE_GLYPHS,
   burnableCaption,
   captionTextForShot,
   prepareShotFinishing,
@@ -57,12 +58,45 @@ describe('caption PNG', () => {
     expect(networkCalls(fetchSpy)).toEqual([]);
   });
 
+  it('renders every allowed character from the bundled font with no network call', async () => {
+    const allowed: string[] = [];
+    for (let cp = 0x21; cp <= 0x20cf; cp += 1) {
+      const ch = String.fromCodePoint(cp);
+      if (OFFLINE_GLYPHS.test(ch)) allowed.push(ch);
+    }
+    expect(allowed.length).toBeGreaterThan(300);
+    // Network fails here (only the inlined data: WASM loads), so a font cache
+    // populated by an earlier render cannot hide a missing glyph.
+    const realFetch = globalThis.fetch;
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockImplementation((input, init) =>
+        String(input).startsWith('data:')
+          ? realFetch(input, init)
+          : Promise.reject(new Error('network blocked in test')),
+      );
+    for (let i = 0; i < allowed.length; i += 60) {
+      await renderCaptionPng(allowed.slice(i, i + 60).join(''), { width: 400, height: 200 });
+    }
+    expect(networkCalls(fetchSpy)).toEqual([]);
+  });
+
+  it('refuses characters the sweep saw fetch fonts, and composes decomposed accents', () => {
+    // Ĕ ŀ ǅ ‐ ‽ ₡ each made next/og request a font during the sweep.
+    for (const ch of ['Ĕ', 'ŀ', 'ǅ', '‐', '‽', '₡']) {
+      expect(burnableCaption(`Price ${ch}`)).toBeNull();
+    }
+    expect(burnableCaption('Café naivë')).toBe('Café naivë');
+  });
+
   it('drops emoji from the burned text and refuses scripts the font lacks', async () => {
     expect(burnableCaption('Launch day 🎬🔥')).toBe('Launch day');
     expect(burnableCaption('👍🏽')).toBeNull();
     expect(burnableCaption('日本語 キャプション')).toBeNull();
     expect(burnableCaption('مرحبا')).toBeNull();
-    await expect(renderCaptionPng('日本語', portrait)).rejects.toThrow('cannot be rendered offline');
+    await expect(renderCaptionPng('日本語', portrait)).rejects.toThrow(
+      'cannot be rendered offline',
+    );
   });
 
   it('prepares an unburned shot (but keeps narration) for a non-Latin caption', async () => {

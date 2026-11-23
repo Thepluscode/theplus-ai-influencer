@@ -11,6 +11,7 @@ vi.hoisted(() => {
   process.env.NEXT_PUBLIC_APP_URL = 'https://app.example';
   process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://proj.supabase.co';
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'anon-key';
+  process.env.THEPLUS_MCP_REMOTE = '1';
 });
 
 const calls: Array<{ table: string; eq: [string, unknown][] }> = [];
@@ -65,11 +66,13 @@ async function connect(token: string) {
 
 describe('remote MCP route', () => {
   it('answers an anonymous request with a 401 that points at the resource metadata', async () => {
-    const res = await POST(new Request('https://app.example/api/mcp', { method: 'POST', body: '{}' }));
+    const res = await POST(
+      new Request('https://app.example/api/mcp', { method: 'POST', body: '{}' }),
+    );
     expect(res.status).toBe(401);
     expect(res.headers.get('www-authenticate')).toContain(
       'resource_metadata="https://app.example/.well-known/oauth-protected-resource/api/mcp"',
-    );    // Anonymous traffic is turned away before any call to Supabase Auth.
+    ); // Anonymous traffic is turned away before any call to Supabase Auth.
     expect(openSession).not.toHaveBeenCalled();
   });
 
@@ -142,6 +145,40 @@ describe('remote MCP route', () => {
     const limited = await send();
     expect(limited.status).toBe(429);
     expect(limited.headers.get('retry-after')).toBe('60');
+  });
+});
+
+describe('remote MCP gating', () => {
+  it('is a 404 until THEPLUS_MCP_REMOTE is switched on', async () => {
+    process.env.THEPLUS_MCP_REMOTE = '';
+    try {
+      const res = await POST(
+        new Request('https://app.example/api/mcp', {
+          method: 'POST',
+          headers: { Authorization: 'Bearer good-gate' },
+          body: '{}',
+        }),
+      );
+      expect(res.status).toBe(404);
+      expect(openSession).not.toHaveBeenCalled();
+    } finally {
+      process.env.THEPLUS_MCP_REMOTE = '1';
+    }
+  });
+
+  it('caps one IP before any Supabase call, whatever tokens it sends', async () => {
+    const send = (i: number) =>
+      POST(
+        new Request('https://app.example/api/mcp', {
+          method: 'POST',
+          headers: { Authorization: `Bearer junk-${i}`, 'x-forwarded-for': '203.0.113.9' },
+          body: '{}',
+        }),
+      );
+    for (let i = 0; i < 300; i += 1) expect((await send(i)).status).toBe(401);
+    vi.mocked(openSession).mockClear();
+    expect((await send(300)).status).toBe(429);
+    expect(openSession).not.toHaveBeenCalled();
   });
 });
 

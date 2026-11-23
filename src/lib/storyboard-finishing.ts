@@ -43,10 +43,15 @@ export function captionTextForShot(shot: { hookCaption?: unknown }): string | nu
 // another script is not burned at all.
 // ponytail: Latin-only burn-in; bundle Noto fonts via the `fonts` option to add scripts.
 const EMOJI = /[\p{Extended_Pictographic}\u{FE0F}\u{200D}\u{1F3FB}-\u{1F3FF}]/gu;
-const OFFLINE_GLYPHS = /^[ -ɏ -⁯₠-⃏]*$/u;
+// Exactly the code points observed to render from the bundled font with no
+// network fetch, from a sweep of U+0020–024F, U+2000–206F and U+20A0–20CF with
+// fetch blocked (2026-11-23, next 16.3.6; blocking defeats the font cache that
+// hid misses in a first pass). Re-run after a Next.js upgrade; the caption test renders this whole set offline.
+export const OFFLINE_GLYPHS =
+  /^[\u0020-\u007E\u00A1-\u00A8\u00AA-\u00AC\u00AF-\u0113\u0116-\u012B\u012E-\u0137\u0139-\u013E\u0141-\u0148\u014A-\u014D\u0150-\u017E\u018F\u0192\u01A0-\u01A1\u01AF-\u01B0\u01CD-\u01CE\u01E4-\u01E9\u0218-\u021B\u0237\u2013-\u2014\u2018-\u201A\u201C-\u201E\u2020-\u2022\u2026\u2030\u2032-\u2033\u2039-\u203A\u2044\u20AA\u20AC\u20B1\u20B4\u20B9\u20BD]*$/u;
 
 export function burnableCaption(text: string): string | null {
-  const withoutEmoji = text.replace(EMOJI, '').replace(/\s+/g, ' ').trim();
+  const withoutEmoji = text.normalize('NFC').replace(EMOJI, '').replace(/\s+/g, ' ').trim();
   if (!withoutEmoji || !OFFLINE_GLYPHS.test(withoutEmoji)) return null;
   return withoutEmoji;
 }
@@ -58,7 +63,7 @@ export async function renderCaptionPng(
   if (burnableCaption(text) !== text) {
     throw new Error('Caption contains characters that cannot be rendered offline.');
   }
-  const short =Math.min(dimensions.width, dimensions.height);
+  const short = Math.min(dimensions.width, dimensions.height);
   const fontSize = Math.round(short * 0.058);
   const response = new ImageResponse(
     h(
@@ -138,7 +143,8 @@ export async function synthesizeSpeech(text: string, timeoutMs: number): Promise
  * audio (when enabled) for each shot, in shot order.
  */
 export async function prepareShotFinishing(input: {
-  shots: Array<{ hookCaption?: unknown }>;
+  /** Shot snapshots; hookCaption is read defensively (see captionTextForShot). */
+  shots: ReadonlyArray<Record<string, unknown>>;
   dimensions: FinishingDimensions;
   workDir: string;
   voiceover: boolean;
