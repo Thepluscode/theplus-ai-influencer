@@ -277,6 +277,27 @@ describe('Runway clip persistence', () => {
     expect(result.videoUrl).toBe('https://cdn.example/huge.mp4');
   });
 
+  it('stops reading a clip that exceeds the limit without declaring its length', async () => {
+    succeed('stream');
+    const mb = new Uint8Array(1024 * 1024);
+    let sent = 0;
+    clipResponse = () =>
+      new Response(
+        new ReadableStream({
+          pull(controller) {
+            if (sent++ < 120) controller.enqueue(mb);
+            else controller.close();
+          },
+        }),
+        { status: 200 },
+      );
+    const result = await animate();
+
+    expect(uploads).toEqual([]);
+    expect(sent).toBeLessThan(110);
+    expect(result.videoUrl).toBe('https://cdn.example/stream.mp4');
+  });
+
   it('falls back when the clip download fails', async () => {
     succeed('gone');
     clipResponse = () => new Response('nope', { status: 403 });

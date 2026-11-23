@@ -109,10 +109,16 @@ async function persistRunwayClip(taskId: string, runwayUrl: string): Promise<str
     }
     const chunks: Uint8Array[] = [];
     let bytes = 0;
-    for await (const chunk of response.body) {
-      bytes += chunk.byteLength;
-      if (bytes > MAX_CLIP_BYTES) throw new Error('Runway clip exceeds the storage size limit.');
-      chunks.push(chunk);
+    const reader = response.body.getReader();
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      bytes += value.byteLength;
+      if (bytes > MAX_CLIP_BYTES) {
+        await reader.cancel();
+        throw new Error('Runway clip exceeds the storage size limit.');
+      }
+      chunks.push(value);
     }
     if (bytes === 0) throw new Error('Runway clip download was empty.');
 
