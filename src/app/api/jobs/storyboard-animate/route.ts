@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { refundCredits } from '@/lib/credits';
-import { serverEnv } from '@/lib/env';
+import { isCronAuthorized } from '@/lib/cron-auth';
 import { animateSingleShot, type RenderedShot } from '@/lib/storyboard';
 import { getSupabaseAdminClient } from '@/lib/supabase/admin';
 import {
@@ -22,15 +22,24 @@ export const dynamic = 'force-dynamic';
 
 // A transient Luma failure (429/5xx/network) shouldn't kill the job — the SDK
 // already backs off within a tick; we release for a few more ticks before
-// giving up. `attempts` is bumped on every claim, so this is bounded.
+// giving up. The same budget bounds a job that keeps being reclaimed because
+// the worker crashed mid-shot.
 const MAX_RENDER_ATTEMPTS = 4;
+
+/**
+ * Claims that did not complete a shot, excluding the current one. `attempts`
+ * is bumped by every claim — including the one per successful shot — so it
+ * cannot be compared with the budget directly: a healthy 6-shot job would
+ * exhaust it on successes alone.
+ */
+function unproductiveClaims(job: { attempts: number; shots_completed: number }): number {
+  return Math.max(0, job.attempts - job.shots_completed - 1);
+}
 
 /**
  * Cron worker for animate-to-video.
  *
- * Authentication: either
- *   - `Authorization: Bearer ${CRON_SECRET}` (production cron)
- *   - `Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}` (manual curl / scripts)
+ * Authentication: `Authorization: Bearer ${CRON_SECRET}`.
  *
  * Behavior per tick:
  *   1. Reclaim any job stuck > 6 min (crashed worker recovery).
@@ -42,11 +51,13 @@ const MAX_RENDER_ATTEMPTS = 4;
  *   5. When shots_completed === shots_total, mark the job completed.
  *
  * On Luma failure: refund the proportional remaining credits and flip
- * the job to `failed`. Already-rendered shots stay saved.
+ * the job to `failed`. Already-rendered shots stay saved. Refunds are keyed
+ * on the job id, not the storyboard id: 0021 allows one refund per ref, and a
+ * storyboard can be rendered (and fail) more than once.
  */
 export async function POST(req: NextRequest) {
   const authHeader = req.headers.get('authorization') ?? '';
-  if (!isAuthorized(authHeader)) {
+  if (!isCronAuthorized(authHeader)) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
 
@@ -70,6 +81,25 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ran: false, reason: 'empty queue' });
   }
 
+  // Step 2b: a job reclaimed again and again without progress (a worker that
+  // crashes mid-shot never reaches the failure path below) is failed and
+  // refunded here, before another paid render is attempted.
+  if (unproductiveClaims(job) >= MAX_RENDER_ATTEMPTS) {
+    const refundAmount = remainingCost(job.shots_total, job.shots_completed, job.cost_per_shot);
+    const reason = `Gave up after ${unproductiveClaims(job)} claims without progress.`;
+    console.error('[storyboard-animate] retry budget exhausted', { jobId: job.id, reason });
+    await markJobFailed(job.id, reason, refundAmount);
+    if (refundAmount > 0) {
+      await refundCredits({
+        workspaceId: job.workspace_id,
+        amount: refundAmount,
+        refKind: 'storyboard_render_job',
+        refId: job.id,
+      });
+    }
+    return NextResponse.json({ ran: true, jobId: job.id, status: 'failed', error: reason });
+  }
+
   // Step 3: load the storyboard. If it was deleted under us, fail the job.
   const admin = getSupabaseAdminClient();
   const { data: sb, error: sbErr } = await admin
@@ -86,8 +116,8 @@ export async function POST(req: NextRequest) {
     await refundCredits({
       workspaceId: job.workspace_id,
       amount: remainingCost(job.shots_total, job.shots_completed, job.cost_per_shot),
-      refKind: 'storyboard',
-      refId: job.storyboard_id,
+      refKind: 'storyboard_render_job',
+      refId: job.id,
     });
     return NextResponse.json({ ran: true, jobId: job.id, status: 'failed' });
   }
@@ -118,7 +148,7 @@ export async function POST(req: NextRequest) {
     // Transient upstream failure → release for a bounded retry instead of
     // failing + refunding. Only on retryable errors and under the attempt cap;
     // anything else (or an exhausted job) falls through to the fail path.
-    if (isTransientError(err) && job.attempts < MAX_RENDER_ATTEMPTS) {
+    if (isTransientError(err) && unproductiveClaims(job) + 1 < MAX_RENDER_ATTEMPTS) {
       await releaseJobClaim(job.id);
       return NextResponse.json(
         { ran: true, jobId: job.id, status: 'retry', attempts: job.attempts, error: msg },
@@ -131,8 +161,8 @@ export async function POST(req: NextRequest) {
       await refundCredits({
         workspaceId: job.workspace_id,
         amount: refundAmount,
-        refKind: 'storyboard',
-        refId: job.storyboard_id,
+        refKind: 'storyboard_render_job',
+        refId: job.id,
       });
     }
     return NextResponse.json(
@@ -178,16 +208,6 @@ export async function POST(req: NextRequest) {
     shotsCompleted: completed,
     shotsTotal: job.shots_total,
   });
-}
-
-function isAuthorized(header: string): boolean {
-  const token = header.startsWith('Bearer ') ? header.slice(7) : '';
-  if (!token) return false;
-  if (serverEnv.CRON_SECRET && token === serverEnv.CRON_SECRET) return true;
-  if (serverEnv.SUPABASE_SERVICE_ROLE_KEY && token === serverEnv.SUPABASE_SERVICE_ROLE_KEY) {
-    return true;
-  }
-  return false;
 }
 
 function remainingCost(shotsTotal: number, shotsCompleted: number, costPerShot: number): number {

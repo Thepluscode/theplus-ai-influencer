@@ -407,6 +407,7 @@ export function getDemoWebhooks(): WorkspaceWebhookRow[] {
       workspace_id: DEMO_WORKSPACE_ID,
       name: 'Ops listener',
       url: 'https://demo.theplus.ai/webhooks/social-ops',
+      signing_secret: 'demo-signing-secret-that-is-at-least-32-chars',
       events: ['post.scheduled', 'review.approved', 'comment.created'],
       active: true,
       last_delivery_at: new Date('2026-05-25T12:00:00.000Z').toISOString(),

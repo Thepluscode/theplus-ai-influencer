@@ -1,15 +1,10 @@
 import type { BrandTone, CTA, LightingStyle, Platform, PostFormat, PostGoal } from '@/types/post';
 
 // ---------------------------------------------------------------------------
-// Trend catalog — v1 of the Trend Synthesizer (STRATEGY.md §AI roadmap).
+// Curated creative-format catalog.
 // ---------------------------------------------------------------------------
-// Curated by hand for the first release. The shape is identical to what a
-// scraped feed (e.g. TikTok Creative Center / SocialContext / BuzzSumo)
-// would return, so swapping the source later means rewriting only the
-// loader — the rest of the app reads `Trend` and won't change.
-//
-// To refresh: edit this file weekly with current viral formats. Eventually
-// migrate to a Supabase-backed table + a worker that polls a trends API.
+// These are manually authored starting points, not measured live trends.
+// Keep performance claims out until a sourced trends feed is implemented.
 // ---------------------------------------------------------------------------
 
 export type TrendKind = 'audio' | 'hook' | 'format' | 'hashtag';
@@ -30,11 +25,11 @@ export interface Trend {
   platforms: Platform[];
   /** One-line summary visible on the card. */
   description: string;
-  /** Why this is breaking out right now — surfaced under the description. */
+  /** Creative rationale surfaced under the description. */
   why: string;
   /** Optional link to an example post / source article. */
   source?: string;
-  /** ISO date the trend started visibly breaking out. */
+  /** ISO date this recipe was curated. */
   trendingSince: string;
   /** When to stop showing it (UI hides past this date). */
   expiresAt?: string;
@@ -93,7 +88,7 @@ export const TRENDS: Trend[] = [
     platforms: ['tiktok', 'instagram'],
     description:
       'A wide, slightly-too-honest first frame with a timestamped POV caption — sets up a 7-second authenticity payoff.',
-    why: 'Time-stamped POVs are pulling 3-5x average watch-time across lifestyle accounts this cycle.',
+    why: 'A specific timestamp gives the opening frame context before the visual payoff.',
     trendingSince: '2026-05-01',
     prefill: {
       brief:
@@ -117,7 +112,7 @@ export const TRENDS: Trend[] = [
     platforms: ['tiktok', 'instagram'],
     description:
       'Tight cut sequence: 3 product close-ups → final reveal. Captions name each product over the shot.',
-    why: 'Sub-15-second GRWMs are outperforming the 30-second cut by 2x in saves — viewers want the pace.',
+    why: 'A compact three-beat structure keeps the product sequence easy to understand.',
     trendingSince: '2026-04-22',
     prefill: {
       brief:
@@ -141,7 +136,7 @@ export const TRENDS: Trend[] = [
     platforms: ['instagram', 'pinterest'],
     description:
       'Overhead shot of a desk setup with everything in frame — laptop, mug, plant, notebook — composed for the algorithm grid.',
-    why: 'Pinterest impressions on desk setups are up 60% MoM as remote workers refresh for fall.',
+    why: 'The overhead composition makes every object legible in one reusable frame.',
     trendingSince: '2026-04-10',
     prefill: {
       brief:
@@ -165,7 +160,7 @@ export const TRENDS: Trend[] = [
     platforms: ['tiktok', 'instagram', 'youtube'],
     description:
       'Cooking sequence with ONLY in-camera audio — sizzle, chop, pour. No music, no voice-over.',
-    why: 'Silent-cook videos are getting reshared into stories at 4x the rate of voice-over recipes.',
+    why: 'In-camera sound lets the preparation carry the story without a voice-over dependency.',
     trendingSince: '2026-03-28',
     prefill: {
       brief:
@@ -189,7 +184,7 @@ export const TRENDS: Trend[] = [
     platforms: ['tiktok', 'instagram', 'youtube'],
     description:
       'Wide shot → side shot → close-up of grip / foot placement. Text overlay calls out the form cue per cut.',
-    why: 'Form-check tutorials are converting fitness viewers into followers at the highest rate of any subgenre this month.',
+    why: 'Three camera angles isolate one form cue at a time for a practical tutorial.',
     trendingSince: '2026-04-15',
     prefill: {
       brief:
@@ -213,7 +208,7 @@ export const TRENDS: Trend[] = [
     platforms: ['instagram', 'tiktok'],
     description:
       'Persona stands in frame, slowly spins 360°. The fit speaks for itself. Caption names brand + size.',
-    why: 'Slow-spin fit-checks are running at 2.4% engagement rate vs. 1.1% for static OOTDs.',
+    why: 'A locked camera and full rotation show fit without relying on fast edits.',
     trendingSince: '2026-04-29',
     prefill: {
       brief:
@@ -237,7 +232,7 @@ export const TRENDS: Trend[] = [
     platforms: ['instagram', 'tiktok', 'pinterest'],
     description:
       'Single frame, persona half done up / half bare. Caption sells the product that did the work.',
-    why: 'Split-frame proofs are saved at 5x the rate of carousel before/afters because they fit a single grid tile.',
+    why: 'The split frame puts the comparison and product story in one grid-ready asset.',
     trendingSince: '2026-03-15',
     prefill: {
       brief:
@@ -261,7 +256,7 @@ export const TRENDS: Trend[] = [
     platforms: ['tiktok', 'youtube'],
     description:
       'Phone-camera handheld POV walking through a workspace / studio / shop. No cuts. Persona narrates over.',
-    why: 'Single-take handhelds feel "real" to algorithms — average completion rate is 78% vs. 41% for edited cuts.',
+    why: 'A single handheld take gives the viewer spatial context and a clear human point of view.',
     trendingSince: '2026-05-03',
     prefill: {
       brief:
@@ -285,7 +280,7 @@ export const TRENDS: Trend[] = [
     platforms: ['instagram', 'pinterest'],
     description:
       'Single hero shot composed as 9 tiles — 9 meals across the week. Caption breaks down ingredients + macros.',
-    why: 'Pinterest re-pins for grid-style meal preps are up 90% as macro-counting picks up.',
+    why: 'The grid turns a week of meal ideas into one scannable planning asset.',
     trendingSince: '2026-04-08',
     prefill: {
       brief:
@@ -309,7 +304,7 @@ export const TRENDS: Trend[] = [
     platforms: ['linkedin', 'twitter', 'youtube'],
     description:
       "Single-take selfie video summarizing the week's wins/losses/numbers. No edits, no music.",
-    why: 'LinkedIn impressions for first-person founder updates are up 140% post-algorithm change.',
+    why: 'A structured recap makes wins, losses, and the next decision easy to follow.',
     trendingSince: '2026-04-19',
     prefill: {
       brief:
@@ -333,8 +328,7 @@ export const TRENDS: Trend[] = [
     platforms: ['tiktok', 'instagram'],
     description:
       'Slow solo piano with rain ambience. Pairs with morning routine / journaling / book recommendations.',
-    why: 'Climbing fast on TikTok this week — 2.1M new uses in the last 7 days.',
-    source: 'https://www.tiktok.com/music/quiet-life',
+    why: 'A restrained audio bed leaves room for a quiet visual sequence without dialogue.',
     trendingSince: '2026-05-04',
     prefill: {
       brief:
@@ -352,21 +346,21 @@ export const TRENDS: Trend[] = [
   },
   {
     id: 'hashtag-2026core',
-    title: '#2026core aesthetic',
+    title: 'Soft-futurist nostalgia aesthetic',
     kind: 'hashtag',
     category: 'fashion',
     platforms: ['instagram', 'tiktok', 'pinterest'],
     description:
       'Mid-decade nostalgia revival — chrome accents, low-rise denim, futurism-but-soft.',
-    why: 'Tag impressions up 230% in 30 days; brands are starting to seed product into the trend.',
+    why: 'Chrome, denim, and soft futurism form a reusable visual direction without a performance claim.',
     trendingSince: '2026-04-01',
     prefill: {
       brief:
-        '#2026core fashion moment. Chrome-tinted backdrop, low-rise denim, soft-futurist styling. Outfit reads "this could be 2003 or 2032." Caption tags the trend explicitly.',
+        'Soft-futurist fashion moment. Chrome-tinted backdrop, low-rise denim, and styling that could read as 2003 or 2032.',
       scene: 'metallic chrome backdrop, slightly cool color cast',
       outfit: 'low-rise denim, mesh top, chunky chrome jewelry',
       props: '—',
-      hook: '#2026core. Half nostalgia, half forecast.',
+      hook: 'Half nostalgia, half forecast.',
       postGoal: 'awareness',
       lighting: 'studio',
       format: 'portrait',

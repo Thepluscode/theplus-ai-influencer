@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { formatDistanceToNow } from 'date-fns';
+import { format } from 'date-fns';
 import { ArrowUpRight, Flame, Send, TrendingUp } from 'lucide-react';
 import {
   CATEGORIES,
@@ -26,29 +26,20 @@ export default async function TrendsPage({ searchParams }: PageProps) {
       : 'all';
 
   const trends = activeCategory === 'all' ? TRENDS : filterTrends({ category: activeCategory });
-  const breakingThisWeek = getBreakingThisWeek(trends);
-
   return (
     <div className="app-page text-ink">
       <div className="app-page-inner">
         <header className="app-page-header">
           <p className="framer-eyebrow">Trends</p>
           <h1 className="mt-2 text-[28px] font-medium leading-[1.05] tracking-normal text-balance sm:text-[32px]">
-            What&apos;s breaking right now.
+            Curated creative formats.
             <br />
-            Brief it before everyone else.
+            Brief one into your campaign.
           </h1>
           <p className="mt-3 max-w-2xl text-[13px] leading-[1.5] text-ink-muted">
-            Curated audios, hooks, formats, and hashtags pulled from this week&apos;s breakout
-            content. One-click brief into the Create Post wizard.
+            Manually maintained hooks, formats, and visual recipes. Added dates show provenance, not
+            live performance or popularity.
           </p>
-          {breakingThisWeek.length > 0 ? (
-            <p className="mt-4 inline-flex items-center gap-2 rounded-full border border-[#0099ff]/30 bg-[#0099ff]/[0.07] px-3 py-1.5 text-[12px] text-[#0099ff]">
-              <Flame size={11} />
-              <span className="font-medium text-ink">{breakingThisWeek.length}</span> trends new
-              this week
-            </p>
-          ) : null}
         </header>
 
         {/* Category filter */}
@@ -89,15 +80,10 @@ export default async function TrendsPage({ searchParams }: PageProps) {
   );
 }
 
-function getBreakingThisWeek(trends: Trend[]): Trend[] {
-  const now = Date.now();
-  return trends.filter((t) => now - new Date(t.trendingSince).getTime() < 7 * 24 * 60 * 60 * 1000);
-}
-
 // ---------- subcomponents ----------
 
 function TrendCard({ trend }: { trend: Trend }) {
-  const since = formatDistanceToNow(new Date(trend.trendingSince), { addSuffix: true });
+  const curatedAt = format(new Date(trend.trendingSince), 'MMM d, yyyy');
   return (
     <li className="group relative flex flex-col gap-3 rounded-[16px] border border-[#262626] bg-surface-1 p-5 transition hover:border-[#0099ff]/40">
       <header className="flex items-start justify-between gap-3">
@@ -109,7 +95,9 @@ function TrendCard({ trend }: { trend: Trend }) {
             {CATEGORY_EMOJI[trend.category]} {trend.category}
           </span>
         </div>
-        <span className="text-[10px] uppercase tracking-wider text-[#666]">{since}</span>
+        <span className="text-[10px] uppercase tracking-wider text-[#666]">
+          Curated {curatedAt}
+        </span>
       </header>
 
       <div>
@@ -117,7 +105,7 @@ function TrendCard({ trend }: { trend: Trend }) {
         <p className="mt-1.5 text-[13px] leading-[1.5] text-ink-muted">{trend.description}</p>
         <p className="mt-2 rounded-[10px] border border-[#262626] bg-surface-2 px-3 py-2 text-[12px] leading-[1.5] text-ink-muted">
           <Flame size={10} className="-mt-px mr-1 inline text-[#ff7a3d]" />
-          <span className="text-[#ff7a3d]">Why now:</span> {trend.why}
+          <span className="text-[#ff7a3d]">Creative rationale:</span> {trend.why}
         </p>
       </div>
 

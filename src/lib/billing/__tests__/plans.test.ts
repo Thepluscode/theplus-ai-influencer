@@ -61,6 +61,14 @@ describe('plan catalog integrity', () => {
     }
   });
 
+  it('does not advertise capability flags that are not enforced', () => {
+    for (const plan of PLANS) {
+      expect(plan.multiReferenceUnlocked).toBe(false);
+      expect(plan.teamSeats).toBe(false);
+      expect(plan.shareAnalytics).toBe(false);
+    }
+  });
+
   it('throws on an unknown plan id rather than returning a default tier', () => {
     expect(() => getPlan('enterprise' as PlanId)).toThrow(/Unknown plan id/);
   });

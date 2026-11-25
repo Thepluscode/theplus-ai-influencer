@@ -1,0 +1,285 @@
+{
+  "source": "execution-report.v2.json#/verification/checks",
+  "generated_at": "2026-11-16T14:24:03Z",
+  "head_sha": "45ba43d9e1b79269bab26d1fb021cbc43c2d59d9",
+  "media_probes": [
+    {
+      "artifact": "reel-6.mp4",
+      "shots": 6,
+      "duration_s": 30.021333,
+      "video": "h264 720x1280",
+      "audio": "aac",
+      "bytes": 517136,
+      "sha256_prefix": "cf38a26347e86cfb",
+      "fixtures": "SYNTHETIC"
+    },
+    {
+      "artifact": "reel-11.mp4",
+      "shots": 11,
+      "duration_s": 55.021333,
+      "video": "h264 720x1280",
+      "audio": "aac",
+      "bytes": 934116,
+      "sha256_prefix": "9d0ef88fed2e6557",
+      "fixtures": "SYNTHETIC"
+    },
+    {
+      "artifact": "reel-12.mp4",
+      "shots": 12,
+      "duration_s": 60.021333,
+      "result": "rejected: over 60s"
+    }
+  ],
+  "checks": [
+    {
+      "check_id": "CHECK-001",
+      "name": "refund collision regression (pre-fix)",
+      "method": "unit",
+      "command": "pnpm exec vitest run src/app/api/jobs/storyboard-animate/route.test.ts",
+      "exit_code": 1,
+      "status": "FAIL",
+      "observed_result": "refIds [sb_1, sb_1]",
+      "evidence_ids": ["EV-TEST-RED"]
+    },
+    {
+      "check_id": "CHECK-002",
+      "name": "refund collision regression (post-fix)",
+      "method": "unit",
+      "command": "pnpm exec vitest run src/app/api/jobs/storyboard-animate/route.test.ts",
+      "exit_code": 0,
+      "status": "PASS",
+      "observed_result": "2 passed",
+      "evidence_ids": ["EV-TEST-GREEN"]
+    },
+    {
+      "check_id": "CHECK-003",
+      "name": "typecheck + lint + full suite",
+      "method": "unit",
+      "command": "pnpm typecheck && pnpm lint && pnpm test",
+      "exit_code": 0,
+      "status": "PASS",
+      "observed_result": "49 files, 321 tests passed",
+      "evidence_ids": ["EV-SUITE"]
+    },
+    {
+      "check_id": "CHECK-005",
+      "name": "real Luma render and export",
+      "method": "real_provider",
+      "command": null,
+      "exit_code": null,
+      "status": "NOT_TESTED",
+      "observed_result": null,
+      "evidence_ids": []
+    },
+    {
+      "check_id": "CHECK-004",
+      "name": "migration replay 0001-0034 (+0029), excl. 0031",
+      "method": "integration",
+      "command": "psql -f scripts/sql/database-boundaries.sql on scratch PG 17.11",
+      "exit_code": 0,
+      "status": "PASS",
+      "observed_result": "passed",
+      "evidence_ids": ["EV-DB-REPLAY"]
+    },
+    {
+      "check_id": "R0-G01",
+      "name": "preservation byte-compare",
+      "method": "manual",
+      "command": "git hash-object vs preserve tree",
+      "exit_code": 0,
+      "status": "PASS",
+      "observed_result": "60/60 identical",
+      "evidence_ids": ["EV-R0-MANIFEST"]
+    },
+    {
+      "check_id": "R1-G01",
+      "name": "refund and charge paths inspected",
+      "method": "manual",
+      "command": null,
+      "exit_code": null,
+      "status": "PASS",
+      "observed_result": "animate action, worker, 0021, 0023, 0034, webhook route read",
+      "evidence_ids": ["EV-SQL-0021", "EV-SQL-0023"]
+    },
+    {
+      "check_id": "R1-G02",
+      "name": "repeated-render refund collisions",
+      "method": "unit",
+      "command": "vitest storyboard-animate route.test.ts + DB harness",
+      "exit_code": 0,
+      "status": "PASS",
+      "observed_result": "distinct job refs; DB credits 50 for two jobs, 0 for a retried ref",
+      "evidence_ids": ["EV-TEST-RED", "EV-TEST-GREEN", "EV-DB-REPLAY"]
+    },
+    {
+      "check_id": "R1-G03",
+      "name": "owner refund manipulation blocked at DB",
+      "method": "integration",
+      "command": "DB harness (+ mutation without 0034)",
+      "exit_code": 0,
+      "status": "PASS",
+      "observed_result": "0034 refuses reason=refund; removing it fails the harness",
+      "evidence_ids": ["EV-DB-REPLAY", "EV-DB-MUT"]
+    },
+    {
+      "check_id": "R1-G04",
+      "name": "Stripe webhook duplicate delivery and lost-webhook recovery",
+      "method": "unit",
+      "command": "pre-push on feat/reconcile-billing-sweep-v2 (PR #14)",
+      "exit_code": 0,
+      "status": "PASS",
+      "observed_result": "duplicate delivery and lost-webhook replay verified with mocked Stripe/Supabase; 2/5 sweep tests fail with replay disabled",
+      "evidence_ids": ["EV-PR14"]
+    },
+    {
+      "check_id": "R1-G05",
+      "name": "repeated reclaim reaches a bounded terminal outcome",
+      "method": "unit",
+      "command": "vitest storyboard-animate route.test.ts",
+      "exit_code": 0,
+      "status": "PASS",
+      "observed_result": "crash-looping job failed before calling Luma",
+      "evidence_ids": ["EV-RECLAIM-TEST"]
+    },
+    {
+      "check_id": "R1-G06",
+      "name": "failed/terminal jobs refund remaining credits",
+      "method": "unit",
+      "command": "vitest storyboard-animate route.test.ts + DB harness",
+      "exit_code": 0,
+      "status": "PASS",
+      "observed_result": "refund = remaining shots x cost under job id",
+      "evidence_ids": ["EV-RECLAIM-TEST", "EV-DB-REPLAY"]
+    },
+    {
+      "check_id": "R1-G07",
+      "name": "financial constraints and migrations on scratch DB",
+      "method": "integration",
+      "command": "DB harness",
+      "exit_code": 0,
+      "status": "PASS",
+      "observed_result": "0021/0022/0023/0025/0026/0033/0034 replayed and asserted",
+      "evidence_ids": ["EV-DB-REPLAY"]
+    },
+    {
+      "check_id": "R1-G08",
+      "name": "workspace and user authorisation boundaries",
+      "method": "integration",
+      "command": "DB harness + download route unit tests",
+      "exit_code": 0,
+      "status": "PASS",
+      "observed_result": "cross-workspace credit/export/share denied",
+      "evidence_ids": ["EV-DB-REPLAY", "EV-SUITE2"]
+    },
+    {
+      "check_id": "R1-G09",
+      "name": "tests, typecheck, lint",
+      "method": "unit",
+      "command": "pnpm typecheck && pnpm lint && pnpm test",
+      "exit_code": 0,
+      "status": "PASS",
+      "observed_result": "57 files / 355 tests",
+      "evidence_ids": ["EV-SUITE2"]
+    },
+    {
+      "check_id": "R1-G10",
+      "name": "no unresolved critical/high R1 defect",
+      "method": "security",
+      "command": null,
+      "exit_code": null,
+      "status": "NOT_TESTED",
+      "observed_result": "independent review did not run",
+      "evidence_ids": ["EV-CODEX-BLOCKED"]
+    },
+    {
+      "check_id": "R2-G01",
+      "name": "export unit tests (renderer, SSRF allowlist, download auth, worker)",
+      "method": "unit",
+      "command": "pnpm test",
+      "exit_code": 0,
+      "status": "PASS",
+      "observed_result": "included in 355",
+      "evidence_ids": ["EV-SUITE2"]
+    },
+    {
+      "check_id": "R2-G02",
+      "name": "0028/0029 replay and export boundaries",
+      "method": "integration",
+      "command": "DB harness",
+      "exit_code": 0,
+      "status": "PASS",
+      "observed_result": "idempotent enqueue, approval pinning, private bucket",
+      "evidence_ids": ["EV-DB-REPLAY"]
+    },
+    {
+      "check_id": "R2-G03",
+      "name": "0031 scheduler replay",
+      "method": "integration",
+      "command": null,
+      "exit_code": null,
+      "status": "BLOCKED",
+      "observed_result": "needs pg_cron, pg_net and Vault; not available on plain Postgres",
+      "evidence_ids": []
+    },
+    {
+      "check_id": "R2-G04",
+      "name": "worker -> storage -> download against a local Supabase stack",
+      "method": "end_to_end",
+      "command": null,
+      "exit_code": null,
+      "status": "BLOCKED",
+      "observed_result": "not attempted: 2.2 GiB host disk, 2 GB Colima VM; Supabase images need several GB",
+      "evidence_ids": ["EV-DISK"]
+    },
+    {
+      "check_id": "R3-G01",
+      "name": ">=30s strategy on a probed artifact",
+      "method": "integration",
+      "command": "vitest storyboard-reel-duration.test.ts + ffprobe",
+      "exit_code": 0,
+      "status": "PASS",
+      "observed_result": "6 shots 30.02s, 11 shots 55.02s; 12 shots 60.02s rejected",
+      "evidence_ids": ["EV-REEL", "EV-REEL-MUT"]
+    },
+    {
+      "check_id": "R4-G01",
+      "name": "fixture MP4 30-60s, h264/aac, 720x1280",
+      "method": "integration",
+      "command": "vitest storyboard-reel-duration.test.ts",
+      "exit_code": 0,
+      "status": "PASS",
+      "observed_result": "two artifacts probed",
+      "evidence_ids": ["EV-REEL"]
+    },
+    {
+      "check_id": "R4-G02",
+      "name": "authorised creator through UI: brief -> render -> export -> download",
+      "method": "end_to_end",
+      "command": null,
+      "exit_code": null,
+      "status": "BLOCKED",
+      "observed_result": "not attempted: 2.2 GiB host disk, 2 GB Colima VM; Supabase images need several GB",
+      "evidence_ids": ["EV-DISK"]
+    },
+    {
+      "check_id": "R5-G01",
+      "name": "independent security/correctness review",
+      "method": "security",
+      "command": null,
+      "exit_code": null,
+      "status": "BLOCKED",
+      "observed_result": "Codex usage limit until 2026-11-18 06:48",
+      "evidence_ids": ["EV-CODEX-BLOCKED"]
+    },
+    {
+      "check_id": "R5-G02",
+      "name": "canonical report validated",
+      "method": "manual",
+      "command": "python3 scripts/validate_creative_studio_report.py",
+      "exit_code": 0,
+      "status": "PASS",
+      "observed_result": "see D06",
+      "evidence_ids": ["EV-VALIDATOR"]
+    }
+  ]
+}
