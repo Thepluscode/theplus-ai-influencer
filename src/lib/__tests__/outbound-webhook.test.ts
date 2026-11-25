@@ -83,7 +83,9 @@ describe('outbound webhook security', () => {
         lookup: pinnedLookup({ address: '100::1', family: 6 }),
       });
       req.on('error', resolve);
-      req.setTimeout(3_000, () => req.destroy(new Error('timeout')));
+      // Independent deadline: req.setTimeout only starts once a socket connects,
+      // so a network that leaves the connect pending would hang the test.
+      setTimeout(() => req.destroy(new Error('timeout')), 3_000).unref();
       req.end('{}');
     });
     expect(error.message).not.toMatch(/setServername/);
