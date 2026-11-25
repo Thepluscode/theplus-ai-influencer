@@ -21,8 +21,14 @@ Findings, each reproduced by Codex:
 Fixed in `970f820` + `408eedc` (an allowlist of 2000::/3 minus special ranges, one deadline
 covering DNS, connect and response, and a correct pinned lookup). Each fix has a regression test,
 and each test was confirmed to fail on its mutation (1, 1 and 3 tests). Pre-push: 378/378.
-**The fix has NOT been independently re-checked yet**, and items 2, 4 and 5 are still BLOCKED.
-Merge and deploy stay on hold.
+Re-review round 2 (`task-mwvy0n6l-rqc3wi`) on `408eedc` found two more issues:
+- HIGH: the synchronous lookup answer crashed the process on an immediate connect failure.
+  Reproduced by Claude on macOS.
+- MEDIUM: public NAT64 was rejected.
+Both fixed in `bb706ae`. Round 3 (`task-mwvyngg7-k5351c`) on `bb706ae`: **both closed (PASS)**,
+with no new implementation regressions. Its one LOW, a test that could hang, was fixed in `5392244`
+(test only). Items 2, 4 and 5 of the first review remain BLOCKED in Codex's sandbox (no Postgres,
+no network). Merge and deploy stay on hold for the founder.
 
 Run from the main checkout (do not run it inside this worktree):
 
