@@ -23,12 +23,6 @@ vi.mock('@/lib/env', () => ({
   serverEnv: { CRON_SECRET: 'cron_x', SUPABASE_SERVICE_ROLE_KEY: 'service_x' },
 }));
 
-vi.mock('@/lib/credits', () => ({
-  refundCredits: async (input: Record<string, unknown>) => {
-    h.refunds.push(input);
-  },
-}));
-
 vi.mock('@/lib/storyboard', () => ({
   animateSingleShot: async () => {
     h.animateCalls++;
@@ -40,11 +34,15 @@ vi.mock('@/lib/storyboard', () => ({
 vi.mock('@/lib/storyboard-jobs', () => ({
   reclaimStalledJobs: async () => {},
   claimNextRenderJob: async () => h.jobs.shift() ?? null,
-  markJobFailed: async (id: string) => {
-    h.failed.push(id);
+  // Fail + refund is one database call (0037); the refund amount is computed
+  // there and covered by scripts/sql/database-boundaries.sql.
+  failJobWithRefund: async ({ job }: { job: { id: string } }) => {
+    h.failed.push(job.id);
+    h.refunds.push({ refId: job.id });
+    return 0;
   },
-  markJobCompleted: async () => {},
-  recordShotProgress: async () => {},
+  recordRenderShot: async () => 'progress',
+  markJobCompleted: async () => true,
   releaseJobClaim: async (id: string) => {
     h.released.push(id);
   },
@@ -102,11 +100,9 @@ describe('storyboard-animate refunds', () => {
     await tick();
     await tick();
 
+    // Each failure is refunded under its own job id (the SQL keys the refund
+    // on (storyboard_render_job, job id)), so the second is not deduplicated.
     expect(h.failed).toEqual(['job_a', 'job_b']);
-    expect(h.refunds).toHaveLength(2);
-    expect(h.refunds.map((r) => r.refId)).toEqual(['job_a', 'job_b']);
-    expect(h.refunds.every((r) => r.refKind === 'storyboard_render_job')).toBe(true);
-    expect(h.refunds.every((r) => r.amount === 75)).toBe(true);
   });
 
   it('rejects an unauthenticated tick without touching the queue', async () => {
@@ -127,9 +123,6 @@ describe('storyboard-animate refunds', () => {
     expect(body.status).toBe('failed');
     expect(h.animateCalls).toBe(0);
     expect(h.failed).toEqual(['job_loop']);
-    expect(h.refunds).toEqual([
-      { workspaceId: 'ws_1', amount: 50, refKind: 'storyboard_render_job', refId: 'job_loop' },
-    ]);
   });
 
   it('still retries a transient error late in a long, healthy job', async () => {

@@ -57,7 +57,10 @@ describe('every refund carries the ref the ledger deduplicates on', () => {
       (n, f) => n + callArgs(readFileSync(f, 'utf8'), 'refundCredits').length,
       0,
     );
-    expect(total).toBeGreaterThanOrEqual(17);
+    // 16 since 0037: the animate worker's three refunds moved into
+    // fail_storyboard_render_job, which always posts under
+    // ('storyboard_render_job', job id); the SQL harness asserts that ledger row.
+    expect(total).toBeGreaterThanOrEqual(16);
   });
 
   it('no refundCredits call omits refId', () => {

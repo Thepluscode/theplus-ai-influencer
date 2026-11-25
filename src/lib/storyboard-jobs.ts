@@ -73,65 +73,110 @@ export async function claimNextRenderJob(): Promise<StoryboardRenderJobRow | nul
   return row;
 }
 
-/** Release a claim without changing status — next cron tick can re-pick. */
-export async function releaseJobClaim(jobId: string): Promise<void> {
+/**
+ * Release this worker's claim without changing status — next cron tick can
+ * re-pick. Matches on the claim token so a late worker cannot release a
+ * newer worker's claim.
+ */
+export async function releaseJobClaim(jobId: string, claimedAt: string | null): Promise<void> {
+  if (!claimedAt) return;
   const supabase = getSupabaseAdminClient();
   const { error } = await supabase
     .from('storyboard_render_jobs')
     .update({ claimed_at: null })
-    .eq('id', jobId);
+    .eq('id', jobId)
+    .eq('claimed_at', claimedAt);
   if (error) throw new Error(`Failed to release claim: ${error.message}`);
 }
 
-/** Increment shots_completed and clear the claim so the next tick continues. */
-export async function recordShotProgress(jobId: string, shotsCompleted: number): Promise<void> {
+export type RecordShotResult = 'progress' | 'completed' | 'stale' | 'missing';
+
+/**
+ * Save the storyboard's shots and advance the job in ONE transaction
+ * (migration 0037), so shots_completed always matches the saved work.
+ * Fenced by the worker's claim token: 'stale' means another worker owns the
+ * job (or it finished) and nothing was written.
+ */
+export async function recordRenderShot(
+  jobId: string,
+  claimedAt: string | null,
+  shots: unknown,
+): Promise<RecordShotResult> {
   const supabase = getSupabaseAdminClient();
-  const { error } = await supabase
-    .from('storyboard_render_jobs')
-    .update({
-      shots_completed: shotsCompleted,
-      claimed_at: null,
-    })
-    .eq('id', jobId);
+  const { data, error } = await rpc(supabase, 'record_storyboard_render_shot', {
+    p_job_id: jobId,
+    p_claimed_at: claimedAt,
+    p_shots: shots,
+  });
   if (error) throw new Error(`Failed to record shot progress: ${error.message}`);
+  if (data === 'progress' || data === 'completed' || data === 'stale' || data === 'missing') {
+    return data;
+  }
+  throw new Error(`Unexpected shot record result: ${String(data)}`);
 }
 
-/** Flip job to completed. Called after the last shot lands. */
-export async function markJobCompleted(jobId: string): Promise<void> {
+/**
+ * Flip this worker's job to completed (the no-pending-shots path). Returns
+ * false when the claim was lost or the job already finished: nothing changed.
+ */
+export async function markJobCompleted(jobId: string, claimedAt: string | null): Promise<boolean> {
+  if (!claimedAt) return false;
   const supabase = getSupabaseAdminClient();
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('storyboard_render_jobs')
     .update({
       status: 'completed',
       claimed_at: null,
       completed_at: new Date().toISOString(),
     })
-    .eq('id', jobId);
+    .eq('id', jobId)
+    // Only while this worker still holds it, and never over a failed job.
+    .eq('claimed_at', claimedAt)
+    .in('status', ['pending', 'processing'])
+    .select('id');
   if (error) throw new Error(`Failed to mark job completed: ${error.message}`);
+  return (data?.length ?? 0) > 0;
 }
 
 /**
- * Flip job to failed and record refund amount. Caller is responsible for
- * actually crediting the workspace via refundCredits() — this just
- * captures the bookkeeping on the job row.
+ * Fail the job and refund what it charged for but did not deliver, in ONE
+ * transaction (migration 0037). Returns the credits refunded, or null when
+ * this worker's claim is stale (nothing changed). Safe to repeat, so it is
+ * retried in-request; throws only if every attempt errored, leaving the job
+ * claimable for the stalled-job sweep.
  */
-export async function markJobFailed(
-  jobId: string,
-  errorMessage: string,
-  costRefunded: number,
-): Promise<void> {
+export async function failJobWithRefund(input: {
+  job: Pick<StoryboardRenderJobRow, 'id' | 'claimed_at'>;
+  error: string;
+  attempts?: number;
+}): Promise<number | null> {
+  const { job } = input;
   const supabase = getSupabaseAdminClient();
-  const { error } = await supabase
-    .from('storyboard_render_jobs')
-    .update({
-      status: 'failed',
-      claimed_at: null,
-      last_error: errorMessage.slice(0, 1000),
-      cost_refunded: costRefunded,
-      completed_at: new Date().toISOString(),
-    })
-    .eq('id', jobId);
-  if (error) throw new Error(`Failed to mark job failed: ${error.message}`);
+  let lastError = '';
+  for (let attempt = 0; attempt < (input.attempts ?? 3); attempt += 1) {
+    const { data, error } = await rpc(supabase, 'fail_storyboard_render_job', {
+      p_job_id: job.id,
+      p_claimed_at: job.claimed_at,
+      p_error: input.error,
+    });
+    if (!error) return typeof data === 'number' ? data : null;
+    lastError = error.message;
+  }
+  throw new Error(`Failed to fail and refund render job: ${lastError}`);
+}
+
+function rpc(
+  supabase: ReturnType<typeof getSupabaseAdminClient>,
+  fn: string,
+  args: Record<string, unknown>,
+): Promise<{ data: unknown; error: { message: string } | null }> {
+  return (
+    supabase.rpc as unknown as (
+      this: typeof supabase,
+      fn: string,
+      args: Record<string, unknown>,
+    ) => Promise<{ data: unknown; error: { message: string } | null }>
+  ).call(supabase, fn, args);
 }
 
 /** Unstick jobs whose worker died mid-shot (claimed_at > 6 min old). */
