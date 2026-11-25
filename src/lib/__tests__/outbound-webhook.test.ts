@@ -1,6 +1,15 @@
-import { describe, expect, it } from 'vitest';
+// @vitest-environment node
+import { createServer, request } from 'node:http';
+import type { AddressInfo } from 'node:net';
+import { describe, expect, it, vi } from 'vitest';
+
+// A resolver that never answers, to prove the delivery deadline covers DNS.
+vi.mock('node:dns/promises', () => ({ lookup: vi.fn(() => new Promise(() => {})) }));
+
 import {
   isPublicIpAddress,
+  pinnedLookup,
+  postSignedWebhook,
   resolvePublicWebhookDestination,
   signWebhookPayload,
   validateWebhookUrlSyntax,
@@ -45,6 +54,60 @@ describe('outbound webhook security', () => {
     expect(isPublicIpAddress('fec0::1')).toBe(false);
     expect(isPublicIpAddress('2606:4700:4700::1111')).toBe(true);
     expect(isPublicIpAddress('1.1.1.1')).toBe(true);
+  });
+
+  it.each(['100::1', '2001::1', '2001:2::1', '2001:db8::1', '2002:a00:1::1', '3fff::1', '64:ff9b::a00:1'])(
+    'rejects special-purpose IPv6 %s',
+    (address) => {
+      expect(isPublicIpAddress(address)).toBe(false);
+    },
+  );
+
+  it.each(['2001:4860:4860::8888', '2a00:1450:4001::1', '2606:4700:4700::1111'])(
+    'accepts global unicast IPv6 %s',
+    (address) => {
+      expect(isPublicIpAddress(address)).toBe(true);
+    },
+  );
+
+  it('connects a hostname request to the pinned address through Node itself', async () => {
+    // Real Node connect path (happy-eyeballs calls lookup with all: true).
+    const server = createServer((_req, res) => res.writeHead(204).end());
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const { port } = server.address() as AddressInfo;
+    try {
+      const status = await new Promise<number>((resolve, reject) => {
+        const req = request(
+          `http://hooks.example.com:${port}/events`,
+          { method: 'POST', lookup: pinnedLookup({ address: '127.0.0.1', family: 4 }) },
+          (res) => {
+            res.resume();
+            resolve(res.statusCode ?? 0);
+          },
+        );
+        req.on('error', reject);
+        req.end('{}');
+      });
+      expect(status).toBe(204);
+    } finally {
+      server.close();
+    }
+  });
+
+  it('times out a delivery whose DNS lookup never answers', async () => {
+    const started = Date.now();
+    await expect(
+      postSignedWebhook({
+        url: 'https://hooks.example.com/events',
+        secret: 's',
+        event: 'post.published',
+        workspaceId: 'ws',
+        deliveryId: 'd1',
+        body: '{}',
+        timeoutMs: 30,
+      }),
+    ).rejects.toThrow(/timed out/i);
+    expect(Date.now() - started).toBeLessThan(1_000);
   });
 
   it('signs the timestamp and exact serialized payload', () => {
