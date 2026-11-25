@@ -1,8 +1,28 @@
 # Codex review brief — PR #13 port (`14f1d48..f8f2627`)
 
-Status: **NOT RUN.** First attempt 2026-11-23 failed (model `gpt-6.1-sol` unsupported on a
-ChatGPT account); retry hit the Codex usage limit, resets 2026-11-25 08:03. Merge and Railway
-deploy of #13 are on hold until this review returns (founder instruction, 2026-11-23).
+Status: **RUN 2026-11-25** (Codex task `task-mwvwagkm-lbing7`, model gpt-6-astra, session
+`01a211f0-f0e0-7d22-bc4f-ba7b079273af`), pinned to `f8f2627`.
+
+| Item | Codex verdict |
+|---|---|
+| 1 webhook security | FAIL: 3 findings, below |
+| 2 migration 0030 / secret isolation | BLOCKED: sandbox Postgres `shmget` denied; static RLS read found no cross-workspace leak |
+| 3 port vs `bae1497` | PASS (source comparison) |
+| 4 Railpack ffmpeg | BLOCKED at runtime; `railpack.json` syntax correct |
+| 5 install/typecheck/lint/test/build | BLOCKED: sandbox had no network, so `pnpm install` failed |
+
+Findings, each reproduced by Codex:
+- **HIGH**: `outbound-webhook.ts:89` pinned lookup answered Node's `all: true` call with a
+  string, so every hostname delivery failed with `ERR_INVALID_IP_ADDRESS`. Claude reproduced it
+  on Node 22.23.4 against a local server. **Production's tree has the identical code.**
+- **MEDIUM**: the timeout did not cover DNS; a stalled resolver blocked the caller indefinitely.
+- **MEDIUM**: the IPv6 denylist passed `100::1`, `2001:2::1`, `3fff::1` and NAT64.
+
+Fixed in `970f820` + `408eedc` (an allowlist of 2000::/3 minus special ranges, one deadline
+covering DNS, connect and response, and a correct pinned lookup). Each fix has a regression test,
+and each test was confirmed to fail on its mutation (1, 1 and 3 tests). Pre-push: 378/378.
+**The fix has NOT been independently re-checked yet**, and items 2, 4 and 5 are still BLOCKED.
+Merge and deploy stay on hold.
 
 Run from the main checkout (do not run it inside this worktree):
 
