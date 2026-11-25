@@ -35,11 +35,19 @@
 --     amount, and a deletion can no longer lose a refund.
 --   * A null claim token never passes the fence.
 --
--- Apply BEFORE deploying the worker that calls these functions, and only
--- when no render job is pending/processing (old workers wrote the shot and
--- the counter separately, so an in-flight job could carry a lagging counter):
---   select count(*) from public.storyboard_render_jobs
---    where status in ('pending', 'processing');   -- must be 0
+-- Rollout. Old workers wrote the shot and the counter separately, so a job
+-- an old worker touches can carry a lagging counter, which the refund here
+-- would over-pay. Keep old workers off the queue from apply to deploy:
+--   1. pause the cron job:  update cron.job set active = false
+--                            where jobname = 'theplus-storyboard-animate';
+--   2. wait until  select count(*) from public.storyboard_render_jobs
+--                   where status in ('pending', 'processing')  returns 0;
+--   3. apply this migration, then deploy the new worker straight away;
+--   4. resume the cron job (active = true).
+-- Residual: the old app's enqueue action also kicks the worker directly, so
+-- a render enqueued between steps 3 and the deploy can run one old-worker
+-- tick; it over-refunds only if that tick stalls between its two writes and
+-- the job then fails or is deleted.
 -- 0035/0036 are taken on feat/finished-shorts; order is independent of both.
 -- =============================================================================
 

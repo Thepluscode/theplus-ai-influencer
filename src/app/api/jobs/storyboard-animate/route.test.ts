@@ -42,7 +42,7 @@ vi.mock('@/lib/storyboard-jobs', () => ({
     return 0;
   },
   recordRenderShot: async () => 'progress',
-  markJobCompleted: async () => {},
+  markJobCompleted: async () => true,
   releaseJobClaim: async (id: string) => {
     h.released.push(id);
   },

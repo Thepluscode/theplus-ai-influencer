@@ -17,6 +17,7 @@ const h = vi.hoisted(() => ({
   rpcError: {} as Record<string, string | undefined>,
   rpcResult: {} as Record<string, unknown>,
   animate: 'fail' as 'fail' | 'ok',
+  updatedRows: [{ id: 'job' }] as unknown[],
   rpcCalls: [] as { fn: string; args: Record<string, unknown> }[],
   jobUpdates: [] as { row: Record<string, unknown>; filters: Record<string, unknown> }[],
 }));
@@ -58,7 +59,9 @@ vi.mock('@/lib/supabase/admin', () => ({
             const builder = {
               eq: (k: string, v: unknown) => ((write.filters[k] = v), builder),
               in: (k: string, v: unknown) => ((write.filters[k] = v), builder),
-              then: (resolve: (r: { error: null }) => void) => resolve({ error: null }),
+              select: () => builder,
+              then: (resolve: (r: { error: null; data: unknown[] }) => void) =>
+                resolve({ error: null, data: h.updatedRows }),
             };
             return builder;
           },
@@ -99,6 +102,7 @@ beforeEach(() => {
   h.rpcError = {};
   h.rpcResult = {};
   h.animate = 'fail';
+  h.updatedRows = [{ id: 'job' }];
   h.rpcCalls = [];
   h.jobUpdates = [];
   vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -195,6 +199,12 @@ describe('render job failure and refund', () => {
       claimed_at: '2026-11-25T10:00:00.123456+00:00',
       status: ['pending', 'processing'],
     });
+  });
+
+  it('reports stale, not completed, when the completion matched no row', async () => {
+    h.shots = [{ index: 0, prompt: 'p', videoUrl: 'https://cdn.example/v.mp4' }];
+    h.updatedRows = []; // the claim was reclaimed by another worker
+    expect((await (await tick()).json()).status).toBe('stale');
   });
 
   it('fails and refunds a job whose shots are not a list of objects', async () => {

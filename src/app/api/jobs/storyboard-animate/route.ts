@@ -115,7 +115,9 @@ export async function POST(req: NextRequest) {
   if (!target) {
     // No pending shots — this shouldn't happen with the claim filter,
     // but be defensive and mark completed.
-    await markJobCompleted(job.id, job.claimed_at);
+    if (!(await markJobCompleted(job.id, job.claimed_at))) {
+      return NextResponse.json({ ran: true, jobId: job.id, status: 'stale' });
+    }
     return NextResponse.json({
       ran: true,
       jobId: job.id,

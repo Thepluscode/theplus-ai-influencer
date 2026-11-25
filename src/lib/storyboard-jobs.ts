@@ -115,11 +115,14 @@ export async function recordRenderShot(
   throw new Error(`Unexpected shot record result: ${String(data)}`);
 }
 
-/** Flip this worker's job to completed (the no-pending-shots path). */
-export async function markJobCompleted(jobId: string, claimedAt: string | null): Promise<void> {
-  if (!claimedAt) return;
+/**
+ * Flip this worker's job to completed (the no-pending-shots path). Returns
+ * false when the claim was lost or the job already finished: nothing changed.
+ */
+export async function markJobCompleted(jobId: string, claimedAt: string | null): Promise<boolean> {
+  if (!claimedAt) return false;
   const supabase = getSupabaseAdminClient();
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('storyboard_render_jobs')
     .update({
       status: 'completed',
@@ -129,8 +132,10 @@ export async function markJobCompleted(jobId: string, claimedAt: string | null):
     .eq('id', jobId)
     // Only while this worker still holds it, and never over a failed job.
     .eq('claimed_at', claimedAt)
-    .in('status', ['pending', 'processing']);
+    .in('status', ['pending', 'processing'])
+    .select('id');
   if (error) throw new Error(`Failed to mark job completed: ${error.message}`);
+  return (data?.length ?? 0) > 0;
 }
 
 /**
