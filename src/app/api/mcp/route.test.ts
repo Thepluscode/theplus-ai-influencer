@@ -182,6 +182,24 @@ describe('remote MCP gating', () => {
   });
 });
 
+describe('remote MCP per-IP cap keys on the proxy-appended hop', () => {
+  it('cannot be dodged by rotating a spoofed first X-Forwarded-For hop', async () => {
+    const send = (i: number) =>
+      POST(
+        new Request('https://app.example/api/mcp', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer junk-rot-${i}`,
+            'x-forwarded-for': `198.51.100.${i % 250}, 203.0.113.77`,
+          },
+          body: '{}',
+        }),
+      );
+    for (let i = 0; i < 300; i += 1) expect((await send(i)).status).toBe(401);
+    expect((await send(300)).status).toBe(429);
+  });
+});
+
 describe('protected-resource metadata', () => {
   it('names this app as the resource and Supabase Auth as the authorization server', async () => {
     const body = await metadata().json();

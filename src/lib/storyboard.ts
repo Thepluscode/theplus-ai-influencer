@@ -37,6 +37,11 @@ export interface RenderedShot extends ShotPrompt {
   /** Set when the shot has been animated to video via Dream Machine. */
   videoUrl?: string;
   videoGenerationId?: string;
+  /**
+   * Runway task created for this shot but not finished yet. Saved before the
+   * first poll so a retried worker tick resumes it instead of paying again.
+   */
+  pendingVideoGenerationId?: string;
   /** Source duration of the video clip itself (Luma returns 5s or 9s). */
   videoDurationMs?: number;
 }
@@ -310,6 +315,8 @@ export async function animateSingleShot(input: {
   shot: RenderedShot;
   format: PostFormat;
   durationSeconds?: 5 | 9;
+  /** Called with a new paid video task's id before polling (Runway only). */
+  onVideoTaskCreated?: (generationId: string) => Promise<void>;
 }): Promise<RenderedShot> {
   const duration = input.durationSeconds ?? 5;
 
@@ -330,9 +337,12 @@ export async function animateSingleShot(input: {
       durationSeconds: duration,
       timeoutMs: PER_SHOT_TIMEOUT_MS,
       pollIntervalMs: POLL_INTERVAL_MS,
+      resumeGenerationId: input.shot.pendingVideoGenerationId,
+      onTaskCreated: input.onVideoTaskCreated,
     });
     return {
       ...input.shot,
+      pendingVideoGenerationId: undefined,
       videoUrl: animated.videoUrl,
       videoGenerationId: animated.generationId,
       videoDurationMs: duration * 1000,

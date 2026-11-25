@@ -23,7 +23,9 @@ vi.mock('@/lib/supabase/admin', () => ({
           return { data: { path }, error: null };
         },
         getPublicUrl: (path: string) => ({
-          data: { publicUrl: `https://proj.supabase.co/storage/v1/object/public/${bucket}/${path}` },
+          data: {
+            publicUrl: `https://proj.supabase.co/storage/v1/object/public/${bucket}/${path}`,
+          },
         }),
       }),
     },
@@ -244,10 +246,17 @@ describe('Runway clip persistence', () => {
     const result = await animate();
 
     expect(uploads).toEqual([
-      { bucket: 'storyboard-clips', path: 'runway/keep-1.mp4', bytes: 2048, contentType: 'video/mp4' },
+      {
+        bucket: 'storyboard-clips',
+        path: 'runway/keep-1.mp4',
+        bytes: 2048,
+        contentType: 'video/mp4',
+      },
     ]);
     expect(result.videoUrl).toBe(`${STORED}keep-1.mp4`);
-    expect(fetchMock.mock.calls.map(([u]) => String(u))).toContain('https://cdn.example/keep-1.mp4');
+    expect(fetchMock.mock.calls.map(([u]) => String(u))).toContain(
+      'https://cdn.example/keep-1.mp4',
+    );
   });
 
   it('keeps the Runway URL, warns, and never re-creates the paid task when the copy fails', async () => {
@@ -259,7 +268,9 @@ describe('Runway clip persistence', () => {
       videoUrl: 'https://cdn.example/up-fail.mp4',
       generationId: 'runway:up-fail',
     });
-    expect(console.warn).toHaveBeenCalledWith(expect.stringContaining('runway_clip_persist_failed'));
+    expect(console.warn).toHaveBeenCalledWith(
+      expect.stringContaining('runway_clip_persist_failed'),
+    );
     const creates = apiCalls().filter(([u]) => String(u).endsWith('/v1/image_to_video'));
     expect(creates).toHaveLength(1);
   });
@@ -307,6 +318,29 @@ describe('Runway clip persistence', () => {
     expect(result.videoUrl).toBe('https://cdn.example/gone.mp4');
   });
 
+  it('refuses a 206 partial body instead of storing a truncated permanent clip', async () => {
+    succeed('partial');
+    clipResponse = () =>
+      new Response(new Uint8Array(16), {
+        status: 206,
+        headers: { 'content-range': 'bytes 0-15/4096', 'content-length': '16' },
+      });
+    const result = await animate();
+
+    expect(uploads).toEqual([]);
+    expect(result.videoUrl).toBe('https://cdn.example/partial.mp4');
+  });
+
+  it('refuses a body shorter than its declared Content-Length', async () => {
+    succeed('short');
+    clipResponse = () =>
+      new Response(new Uint8Array(16), { status: 200, headers: { 'content-length': '4096' } });
+    const result = await animate();
+
+    expect(uploads).toEqual([]);
+    expect(result.videoUrl).toBe('https://cdn.example/short.mp4');
+  });
+
   it('lets the MP4 export download clips from our own storage host', () => {
     expect(getAllowedStoryboardClipHosts(undefined).has('proj.supabase.co')).toBe(true);
     expect(getAllowedStoryboardClipHosts(undefined, '').has('proj.supabase.co')).toBe(false);
@@ -336,6 +370,51 @@ describe('provider dispatch', () => {
       videoGenerationId: 'runway:shot-task',
       videoDurationMs: 5000,
     });
+  });
+
+  it('exports a Runway fallback clip on an undocumented CDN host with the default allow-list', async () => {
+    replies.push({
+      body: {
+        id: 'fb',
+        status: 'SUCCEEDED',
+        output: ['https://dnznrvs05pmza.cloudfront.net/new.mp4'],
+      },
+    });
+    const workDir = await mkdtemp(path.join(tmpdir(), 'runway-fallback-'));
+    try {
+      const clipFetch = vi.fn(async () => new Response('mp4-bytes', { status: 200 }));
+      const [clip] = await downloadStoryboardClips(
+        [
+          {
+            index: 0,
+            videoUrl: 'https://dnznrvs05pmza.cloudfront.net/old.mp4',
+            videoGenerationId: 'runway:fb',
+          },
+        ],
+        workDir,
+        { fetchImpl: clipFetch as unknown as typeof fetch },
+      );
+      expect(await readFile(clip!, 'utf8')).toBe('mp4-bytes');
+      expect(clipFetch.mock.calls.map(([u]) => String(u))).toEqual([
+        'https://dnznrvs05pmza.cloudfront.net/new.mp4',
+      ]);
+    } finally {
+      await rm(workDir, { recursive: true, force: true });
+    }
+  });
+
+  it('still refuses a disallowed host on a non-Runway shot without refreshing', async () => {
+    const refreshClipUrl = vi.fn();
+    const clipFetch = vi.fn();
+    await expect(
+      downloadStoryboardClips(
+        [{ index: 0, videoUrl: 'https://evil.example/x.mp4', videoGenerationId: 'luma-gen' }],
+        tmpdir(),
+        { fetchImpl: clipFetch as unknown as typeof fetch, refreshClipUrl },
+      ),
+    ).rejects.toThrow(/not allowed/);
+    expect(refreshClipUrl).not.toHaveBeenCalled();
+    expect(clipFetch).not.toHaveBeenCalled();
   });
 
   it('refreshes an expired Runway clip URL during export', async () => {

@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { refundCredits } from '@/lib/credits';
 import { isCronAuthorized } from '@/lib/cron-auth';
+import { VideoTaskUnsavedError } from '@/lib/runway';
 import { animateSingleShot, type RenderedShot } from '@/lib/storyboard';
 import { getSupabaseAdminClient } from '@/lib/supabase/admin';
 import {
@@ -142,13 +143,35 @@ export async function POST(req: NextRequest) {
     animated = await animateSingleShot({
       shot: target,
       format: sb.format as PostFormat,
+      // Save the paid task id on the shot before polling: a retried tick then
+      // resumes that task instead of creating (and paying for) another one.
+      onVideoTaskCreated: async (generationId) => {
+        const pending = shots.map((s) =>
+          s.index === target.index ? { ...s, pendingVideoGenerationId: generationId } : s,
+        );
+        const { error } = await admin
+          .from('storyboards')
+          .update({ shots: pending })
+          .eq('id', sb.id);
+        if (error) throw new Error(error.message);
+      },
     });
   } catch (err) {
     const msg = toMessage(err);
-    // Transient upstream failure → release for a bounded retry instead of
-    // failing + refunding. Only on retryable errors and under the attempt cap;
-    // anything else (or an exhausted job) falls through to the fail path.
-    if (isTransientError(err) && unproductiveClaims(job) + 1 < MAX_RENDER_ATTEMPTS) {
+    if (err instanceof VideoTaskUnsavedError) {
+      // Retrying would bill a second task; fail loudly with the orphaned id.
+      console.error(
+        JSON.stringify({
+          event: 'video_task_unsaved',
+          jobId: job.id,
+          shotIndex: target.index,
+          generationId: err.generationId,
+        }),
+      );
+    } else if (isTransientError(err) && unproductiveClaims(job) + 1 < MAX_RENDER_ATTEMPTS) {
+      // Transient upstream failure → release for a bounded retry instead of
+      // failing + refunding. Only on retryable errors and under the attempt cap;
+      // anything else (or an exhausted job) falls through to the fail path.
       await releaseJobClaim(job.id);
       return NextResponse.json(
         { ran: true, jobId: job.id, status: 'retry', attempts: job.attempts, error: msg },

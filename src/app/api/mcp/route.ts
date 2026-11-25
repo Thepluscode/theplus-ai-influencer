@@ -90,10 +90,15 @@ export function isRemoteMcpEnabled(): boolean {
   return flag === '1' || flag?.toLowerCase() === 'true';
 }
 
-// ponytail: first X-Forwarded-For hop is only trustworthy behind our proxy
-// (Railway/Cloudflare set it); direct hits can spoof it.
+// The rightmost X-Forwarded-For hop is the one our own ingress appended; every
+// hop left of it is whatever the caller sent, so keying on the first hop let a
+// client rotate it to dodge the per-IP cap. Fails safe: if a further proxy
+// (e.g. Cloudflare) sits in front, clients share that proxy's bucket and get
+// over-limited, never under-limited.
+// ponytail: Railway's exact ingress behaviour is unverified; switch to its
+// trusted client-IP header once confirmed.
 function clientIp(req: Request): string {
-  return req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
+  return req.headers.get('x-forwarded-for')?.split(',').at(-1)?.trim() || 'unknown';
 }
 
 function allow(key: string, limit: { windowMs: number; max: number }): boolean {

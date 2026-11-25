@@ -135,12 +135,21 @@ export async function downloadStoryboardClips(
     try {
       await downloadClip(shot.videoUrl, destination, fetchImpl, allowedHosts, deadline);
     } catch (error) {
-      if (!isExpiredProviderUrl(error) || !shot.videoGenerationId) throw error;
+      // A Runway shot whose copy into our bucket failed still holds Runway's
+      // CDN URL, whose host is undocumented and not allow-listed; any failure
+      // on such a shot goes back to the API for the current URL.
+      const refreshable =
+        shot.videoGenerationId &&
+        (isExpiredProviderUrl(error) || isRunwayGenerationId(shot.videoGenerationId));
+      if (!refreshable) throw error;
       const refreshedUrl = await withTimeout(
-        refreshClipUrl(shot.videoGenerationId),
+        refreshClipUrl(shot.videoGenerationId!),
         remainingMs(deadline),
       );
-      await downloadClip(refreshedUrl, destination, fetchImpl, allowedHosts, deadline);
+      // The refreshed URL came from the provider's own API, not from stored
+      // data, so its host is trusted for this one download (still https-only).
+      const refreshedHosts = new Set([...allowedHosts, new URL(refreshedUrl).hostname]);
+      await downloadClip(refreshedUrl, destination, fetchImpl, refreshedHosts, deadline);
     }
     paths.push(destination);
   }
