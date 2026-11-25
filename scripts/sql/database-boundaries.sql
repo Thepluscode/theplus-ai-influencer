@@ -101,6 +101,7 @@ where owner_user_id = '33333333-3333-3333-3333-333333333333';
 \ir ../../supabase/migrations/0032_creations.sql
 \ir ../../supabase/migrations/0033_lock_workspace_columns.sql
 \ir ../../supabase/migrations/0034_consume_credits_spend_reasons.sql
+\ir ../../supabase/migrations/0037_fail_render_job_with_refund.sql
 
 drop trigger if exists on_auth_user_created on auth.users;
 
@@ -414,5 +415,118 @@ begin
   values (ws, 'signed', 'https://example.com/c', repeat('s', 32));
 end;
 $$;
+
+-- 0037: a render job is failed and refunded in one transaction, for only the
+-- shots still without video, at most once.
+insert into public.storyboards (id, workspace_id, name, brief, format, shots)
+values (
+  'cccccccc-0037-0000-0000-000000000001',
+  'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+  'render refund', 'refund probe', 'portrait',
+  '[{"index":0,"videoUrl":"https://storage.cdn-luma.com/done.mp4"},{"index":1}]'::jsonb
+);
+-- shots_completed is stale (0) although shot 0 was saved: the refund must
+-- follow the storyboard, not the counter.
+insert into public.storyboard_render_jobs (
+  id, workspace_id, storyboard_id, status, shots_total, shots_completed,
+  cost_charged_total, cost_per_shot
+) values
+  ('dddddddd-0037-0000-0000-000000000001', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+   'cccccccc-0037-0000-0000-000000000001', 'processing', 2, 0, 50, 25),
+  ('dddddddd-0037-0000-0000-000000000002', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+   'cccccccc-0037-0000-0000-000000000001', 'processing', 2, 0, 50, 25),
+  ('dddddddd-0037-0000-0000-000000000003', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+   'cccccccc-0037-0000-0000-000000000001', 'completed', 2, 0, 50, 25);
+
+set role authenticated;
+set request.jwt.claims = '{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}';
+do $$
+begin
+  begin
+    perform public.fail_storyboard_render_job('dddddddd-0037-0000-0000-000000000001', 'x');
+    raise exception 'authenticated could fail and refund a render job';
+  exception when insufficient_privilege then null;
+  end;
+end;
+$$;
+reset role;
+
+set role service_role;
+set request.jwt.claims = '{"role":"service_role"}';
+do $$
+declare
+  ws uuid := 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+  job1 uuid := 'dddddddd-0037-0000-0000-000000000001';
+  job2 uuid := 'dddddddd-0037-0000-0000-000000000002';
+  before_credits int;
+  refunded int;
+  j public.storyboard_render_jobs%rowtype;
+begin
+  select credits into before_credits from public.workspaces where id = ws;
+
+  refunded := public.fail_storyboard_render_job(job1, 'provider rejected the shot');
+  if refunded <> 25 then
+    raise exception 'refunded % for one unproduced shot, expected 25', refunded;
+  end if;
+  select * into j from public.storyboard_render_jobs where id = job1;
+  if j.status <> 'failed' or j.cost_refunded <> 25 or j.claimed_at is not null then
+    raise exception 'job not recorded as failed with its refund: % %', j.status, j.cost_refunded;
+  end if;
+  if (select credits from public.workspaces where id = ws) <> before_credits + 25 then
+    raise exception 'workspace was not credited the refund';
+  end if;
+
+  -- A repeat (lost response, reclaim) changes nothing.
+  if public.fail_storyboard_render_job(job1, 'again') <> 25 then
+    raise exception 'repeat call reported a different refund';
+  end if;
+  if (select credits from public.workspaces where id = ws) <> before_credits + 25
+     or (select count(*) from public.credit_transactions
+          where ref_kind = 'storyboard_render_job' and ref_id = job1::text) <> 1 then
+    raise exception 'repeat call refunded twice';
+  end if;
+
+  -- A job that already completed is never refunded or re-labelled.
+  if public.fail_storyboard_render_job('dddddddd-0037-0000-0000-000000000003', 'late') <> 0
+     or (select status from public.storyboard_render_jobs
+          where id = 'dddddddd-0037-0000-0000-000000000003') <> 'completed' then
+    raise exception 'a completed job was failed or refunded';
+  end if;
+end;
+$$;
+reset role;
+
+-- Atomicity: if the refund cannot be posted, the job is NOT marked failed.
+create function pg_temp.block_refund() returns trigger language plpgsql as $$
+begin
+  if new.ref_id = 'dddddddd-0037-0000-0000-000000000002' then
+    raise exception 'ledger unavailable';
+  end if;
+  return new;
+end;
+$$;
+create trigger block_refund before insert on public.credit_transactions
+  for each row execute function pg_temp.block_refund();
+
+set role service_role;
+set request.jwt.claims = '{"role":"service_role"}';
+do $$
+declare
+  j public.storyboard_render_jobs%rowtype;
+begin
+  begin
+    perform public.fail_storyboard_render_job('dddddddd-0037-0000-0000-000000000002', 'x');
+    raise exception 'fail_storyboard_render_job succeeded although the refund failed';
+  exception when others then
+    if sqlerrm <> 'ledger unavailable' then raise; end if;
+  end;
+  select * into j from public.storyboard_render_jobs where id = 'dddddddd-0037-0000-0000-000000000002';
+  if j.status <> 'processing' or j.cost_refunded <> 0 then
+    raise exception 'refund failed but job recorded as % with cost_refunded %', j.status, j.cost_refunded;
+  end if;
+end;
+$$;
+reset role;
+drop trigger block_refund on public.credit_transactions;
 
 \echo 'database boundary tests passed'

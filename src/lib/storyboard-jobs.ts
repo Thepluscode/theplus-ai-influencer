@@ -111,27 +111,23 @@ export async function markJobCompleted(jobId: string): Promise<void> {
 }
 
 /**
- * Flip job to failed and record refund amount. Caller is responsible for
- * actually crediting the workspace via refundCredits() — this just
- * captures the bookkeeping on the job row.
+ * Fail the job and refund its unproduced shots in one database transaction
+ * (migration 0037). Throws if it could not be recorded; the job then stays
+ * claimable, so the stalled-job sweep retries it. Safe to repeat: a job that
+ * is already failed returns its recorded refund and nothing changes.
+ * Returns the credits refunded.
  */
-export async function markJobFailed(
-  jobId: string,
-  errorMessage: string,
-  costRefunded: number,
-): Promise<void> {
+export async function failJobWithRefund(jobId: string, errorMessage: string): Promise<number> {
   const supabase = getSupabaseAdminClient();
-  const { error } = await supabase
-    .from('storyboard_render_jobs')
-    .update({
-      status: 'failed',
-      claimed_at: null,
-      last_error: errorMessage.slice(0, 1000),
-      cost_refunded: costRefunded,
-      completed_at: new Date().toISOString(),
-    })
-    .eq('id', jobId);
-  if (error) throw new Error(`Failed to mark job failed: ${error.message}`);
+  const { data, error } = await (
+    supabase.rpc as unknown as (
+      this: typeof supabase,
+      fn: string,
+      args: Record<string, unknown>,
+    ) => Promise<{ data: unknown; error: { message: string } | null }>
+  ).call(supabase, 'fail_storyboard_render_job', { p_job_id: jobId, p_error: errorMessage });
+  if (error) throw new Error(`Failed to fail and refund render job: ${error.message}`);
+  return typeof data === 'number' ? data : 0;
 }
 
 /** Unstick jobs whose worker died mid-shot (claimed_at > 6 min old). */

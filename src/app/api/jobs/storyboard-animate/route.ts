@@ -1,12 +1,11 @@
 import { type NextRequest, NextResponse } from 'next/server';
-import { refundCredits } from '@/lib/credits';
 import { isCronAuthorized } from '@/lib/cron-auth';
 import { animateSingleShot, type RenderedShot } from '@/lib/storyboard';
 import { getSupabaseAdminClient } from '@/lib/supabase/admin';
 import {
   claimNextRenderJob,
   markJobCompleted,
-  markJobFailed,
+  failJobWithRefund,
   reclaimStalledJobs,
   recordShotProgress,
   releaseJobClaim,
@@ -85,19 +84,9 @@ export async function POST(req: NextRequest) {
   // crashes mid-shot never reaches the failure path below) is failed and
   // refunded here, before another paid render is attempted.
   if (unproductiveClaims(job) >= MAX_RENDER_ATTEMPTS) {
-    const refundAmount = remainingCost(job.shots_total, job.shots_completed, job.cost_per_shot);
     const reason = `Gave up after ${unproductiveClaims(job)} claims without progress.`;
     console.error('[storyboard-animate] retry budget exhausted', { jobId: job.id, reason });
-    await markJobFailed(job.id, reason, refundAmount);
-    if (refundAmount > 0) {
-      await refundCredits({
-        workspaceId: job.workspace_id,
-        amount: refundAmount,
-        refKind: 'storyboard_render_job',
-        refId: job.id,
-      });
-    }
-    return NextResponse.json({ ran: true, jobId: job.id, status: 'failed', error: reason });
+    return failAndRefund(job.id, reason);
   }
 
   // Step 3: load the storyboard. If it was deleted under us, fail the job.
@@ -108,18 +97,7 @@ export async function POST(req: NextRequest) {
     .eq('id', job.storyboard_id)
     .maybeSingle();
   if (sbErr || !sb) {
-    await markJobFailed(
-      job.id,
-      `Storyboard ${job.storyboard_id} not found.`,
-      remainingCost(job.shots_total, job.shots_completed, job.cost_per_shot),
-    );
-    await refundCredits({
-      workspaceId: job.workspace_id,
-      amount: remainingCost(job.shots_total, job.shots_completed, job.cost_per_shot),
-      refKind: 'storyboard_render_job',
-      refId: job.id,
-    });
-    return NextResponse.json({ ran: true, jobId: job.id, status: 'failed' });
+    return failAndRefund(job.id, `Storyboard ${job.storyboard_id} not found.`);
   }
 
   const shots = (Array.isArray(sb.shots) ? sb.shots : []) as RenderedShot[];
@@ -155,20 +133,7 @@ export async function POST(req: NextRequest) {
         { status: 200 },
       );
     }
-    const refundAmount = remainingCost(job.shots_total, job.shots_completed, job.cost_per_shot);
-    await markJobFailed(job.id, msg, refundAmount);
-    if (refundAmount > 0) {
-      await refundCredits({
-        workspaceId: job.workspace_id,
-        amount: refundAmount,
-        refKind: 'storyboard_render_job',
-        refId: job.id,
-      });
-    }
-    return NextResponse.json(
-      { ran: true, jobId: job.id, status: 'failed', error: msg },
-      { status: 200 },
-    );
+    return failAndRefund(job.id, msg);
   }
 
   // Step 5: merge back, save, advance progress.
@@ -210,8 +175,25 @@ export async function POST(req: NextRequest) {
   });
 }
 
-function remainingCost(shotsTotal: number, shotsCompleted: number, costPerShot: number): number {
-  return Math.max(0, (shotsTotal - shotsCompleted) * costPerShot);
+/**
+ * Fail the job and refund its unproduced shots atomically. If that cannot be
+ * recorded, answer 500 and write nothing else: the job stays claimed, the
+ * stalled-job sweep reclaims it, and the attempt cap routes it back here
+ * without another render.
+ */
+async function failAndRefund(jobId: string, reason: string): Promise<NextResponse> {
+  try {
+    const refunded = await failJobWithRefund(jobId, reason);
+    return NextResponse.json({ ran: true, jobId, status: 'failed', error: reason, refunded });
+  } catch (err) {
+    console.error(
+      JSON.stringify({ event: 'render_job_fail_unrecorded', jobId, reason, error: toMessage(err) }),
+    );
+    return NextResponse.json(
+      { ran: true, jobId, status: 'fail_unrecorded', error: reason },
+      { status: 500 },
+    );
+  }
 }
 
 /**
