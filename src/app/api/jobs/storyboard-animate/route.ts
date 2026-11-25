@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { refundCredits } from '@/lib/credits';
 import { isCronAuthorized } from '@/lib/cron-auth';
-import { VideoTaskUnsavedError } from '@/lib/runway';
+import { UnretryableVideoTaskError } from '@/lib/runway';
 import { animateSingleShot, type RenderedShot } from '@/lib/storyboard';
 import { getSupabaseAdminClient } from '@/lib/supabase/admin';
 import {
@@ -158,14 +158,15 @@ export async function POST(req: NextRequest) {
     });
   } catch (err) {
     const msg = toMessage(err);
-    if (err instanceof VideoTaskUnsavedError) {
-      // Retrying would bill a second task; fail loudly with the orphaned id.
+    if (err instanceof UnretryableVideoTaskError) {
+      // Retrying could bill a second task; fail loudly with what we know of it.
       console.error(
         JSON.stringify({
-          event: 'video_task_unsaved',
+          event: 'video_task_unretryable',
           jobId: job.id,
           shotIndex: target.index,
-          generationId: err.generationId,
+          generationId: err.generationId ?? null,
+          error: msg,
         }),
       );
     } else if (isTransientError(err) && unproductiveClaims(job) + 1 < MAX_RENDER_ATTEMPTS) {

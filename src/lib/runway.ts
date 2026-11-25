@@ -36,21 +36,40 @@ type RunwayTask =
   | { id: string; status: 'FAILED'; failure?: string; failureCode?: string };
 
 /**
- * A paid Runway task was created but its id could not be saved, so a retry
- * would create (and bill) a second task. The worker fails the job instead.
+ * The worker must fail the job, not retry it: a retry could create (and bill)
+ * a second paid task for the same shot.
  */
-export class VideoTaskUnsavedError extends Error {
+export class UnretryableVideoTaskError extends Error {
   constructor(
-    readonly generationId: string,
-    cause: unknown,
+    message: string,
+    readonly generationId?: string,
   ) {
+    super(message);
+    this.name = 'UnretryableVideoTaskError';
+  }
+}
+
+/** The task was created but its id could not be saved for the next tick. */
+export class VideoTaskUnsavedError extends UnretryableVideoTaskError {
+  constructor(generationId: string, cause: unknown) {
     super(
-      `Video task ${generationId} was created but its id could not be saved: ${
-        cause instanceof Error ? cause.message : String(cause)
-      }`,
+      `Video task ${generationId} was created but its id could not be saved: ${toMessage(cause)}`,
+      generationId,
     );
     this.name = 'VideoTaskUnsavedError';
   }
+}
+
+/** The create call failed in a way that may still have started a paid task. */
+export class VideoTaskUnconfirmedError extends UnretryableVideoTaskError {
+  constructor(cause: unknown) {
+    super(`Runway may have started a task whose id we never received: ${toMessage(cause)}`);
+    this.name = 'VideoTaskUnconfirmedError';
+  }
+}
+
+function toMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
 }
 
 export function isRunwayGenerationId(id: string): boolean {
@@ -69,8 +88,9 @@ export async function animateWithRunway(input: {
   /** Persist the new task's id before polling, so a retry resumes it. */
   onTaskCreated?: (generationId: string) => Promise<void>;
 }): Promise<{ videoUrl: string; generationId: string }> {
-  const taskId = input.resumeGenerationId?.startsWith(ID_PREFIX)
-    ? input.resumeGenerationId.slice(ID_PREFIX.length)
+  let resumed = input.resumeGenerationId?.startsWith(ID_PREFIX) ?? false;
+  let taskId = resumed
+    ? input.resumeGenerationId!.slice(ID_PREFIX.length)
     : await createTask(input);
   const deadline = Date.now() + input.timeoutMs;
   while (Date.now() < deadline) {
@@ -84,6 +104,14 @@ export async function animateWithRunway(input: {
       };
     }
     if (task.status === 'FAILED' || task.status === 'CANCELLED') {
+      // A saved id that already ended badly belongs to an earlier, finished
+      // attempt (this job is a re-run). Start a fresh task rather than failing
+      // every later job on the same dead id.
+      if (resumed) {
+        resumed = false;
+        taskId = await createTask(input);
+        continue;
+      }
       const reason = task.status === 'FAILED' ? (task.failureCode ?? task.failure) : 'cancelled';
       throw new Error(`Runway task ${taskId} ${task.status.toLowerCase()}: ${reason ?? 'unknown'}`);
     }
@@ -129,7 +157,11 @@ async function persistRunwayClip(taskId: string, runwayUrl: string): Promise<str
       chunks.push(value);
     }
     if (bytes === 0) throw new Error('Runway clip download was empty.');
-    if (declaredBytes !== null && bytes !== Number(declaredBytes)) {
+    // Content-Length counts the encoded bytes; fetch hands us decoded ones, so
+    // the comparison only holds for an unencoded body.
+    const encoding = response.headers.get('content-encoding');
+    const unencoded = !encoding || encoding.toLowerCase() === 'identity';
+    if (unencoded && declaredBytes !== null && bytes !== Number(declaredBytes)) {
       throw new Error(`Runway clip was truncated (${bytes} of ${declaredBytes} bytes).`);
     }
 
@@ -173,23 +205,34 @@ async function createTask(input: {
   durationSeconds: number;
   onTaskCreated?: (generationId: string) => Promise<void>;
 }): Promise<string> {
-  const created = await runwayRequest<{ id?: string }>(
-    '/v1/image_to_video',
-    {
-      method: 'POST',
-      body: JSON.stringify({
-        model: serverEnv.RUNWAY_VIDEO_MODEL,
-        promptImage: input.imageUrl,
-        promptText: input.prompt.slice(0, 1000),
-        ratio: RATIO[input.format],
-        duration: input.durationSeconds,
-      }),
-    },
-    // Never retry the create: a dropped response or 5xx may still have started
-    // a paid task, and a retry would start (and bill) a second one.
-    0,
-  );
-  if (!created.id) throw new Error('Runway image-to-video returned no task id.');
+  let created: { id?: string };
+  try {
+    created = await runwayRequest<{ id?: string }>(
+      '/v1/image_to_video',
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          model: serverEnv.RUNWAY_VIDEO_MODEL,
+          promptImage: input.imageUrl,
+          promptText: input.prompt.slice(0, 1000),
+          ratio: RATIO[input.format],
+          duration: input.durationSeconds,
+        }),
+      },
+      // Never retry the create: a dropped response or 5xx may still have started
+      // a paid task, and a retry would start (and bill) a second one.
+      0,
+    );
+  } catch (err) {
+    // A 4xx is Runway refusing the request: nothing started, so the worker may
+    // retry a 429 or fail a 400 as usual. A 5xx, timeout or dropped connection
+    // may have started a task we have no id for; the worker must not retry.
+    const status = (err as { status?: unknown }).status;
+    if (typeof status === 'number' && status < 500) throw err;
+    throw new VideoTaskUnconfirmedError(err);
+  }
+  if (!created.id)
+    throw new VideoTaskUnconfirmedError('Runway image-to-video returned no task id.');
   try {
     await input.onTaskCreated?.(`${ID_PREFIX}${created.id}`);
   } catch (err) {
@@ -226,8 +269,11 @@ async function runwayRequest<T>(pathname: string, init: RequestInit, retries = 2
     { retries },
   );
   if (!response.ok) {
-    throw new Error(
-      `Runway ${init.method} ${pathname.split('/').slice(0, 3).join('/')} failed (${response.status}).`,
+    throw Object.assign(
+      new Error(
+        `Runway ${init.method} ${pathname.split('/').slice(0, 3).join('/')} failed (${response.status}).`,
+      ),
+      { status: response.status },
     );
   }
   return (await response.json()) as T;

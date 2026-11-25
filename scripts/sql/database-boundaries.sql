@@ -429,6 +429,9 @@ begin
 end;
 $$;
 
+-- 0036 must be safe to re-run (policies exist from the first application).
+\ir ../../supabase/migrations/0036_oauth_clients_read_only.sql
+
 -- 0036: a token issued to an OAuth client (claim client_id) is read-only and
 -- reads only what the MCP tools read. Every RLS table must carry the policies.
 do $$
@@ -489,6 +492,18 @@ begin
   end;
 end;
 $$;
+
+-- Older PostgREST sets one GUC per claim; that form is classified too.
+set request.jwt.claims = '{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}';
+set request.jwt.claim.client_id = 'mcp-client';
+do $$
+begin
+  if (select count(*) from public.workspace_webhooks) <> 0 then
+    raise exception 'legacy per-claim client_id evaded the OAuth classification';
+  end if;
+end;
+$$;
+reset request.jwt.claim.client_id;
 
 -- Positive twin: the same user's app session (no client_id) still writes.
 set request.jwt.claims = '{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}';

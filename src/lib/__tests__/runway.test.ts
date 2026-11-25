@@ -38,7 +38,12 @@ vi.mock('@/lib/luma', () => ({
   },
 }));
 
-import { animateWithRunway, isRunwayGenerationId, refreshRunwayVideoUrl } from '@/lib/runway';
+import {
+  animateWithRunway,
+  isRunwayGenerationId,
+  refreshRunwayVideoUrl,
+  VideoTaskUnconfirmedError,
+} from '@/lib/runway';
 import { animateSingleShot } from '@/lib/storyboard';
 import { downloadStoryboardClips, getAllowedStoryboardClipHosts } from '@/lib/storyboard-export';
 
@@ -339,6 +344,47 @@ describe('Runway clip persistence', () => {
 
     expect(uploads).toEqual([]);
     expect(result.videoUrl).toBe('https://cdn.example/short.mp4');
+  });
+
+  it('stores a complete gzip-encoded clip whose Content-Length counts encoded bytes', async () => {
+    succeed('gz');
+    clipResponse = () =>
+      new Response(new Uint8Array(2048), {
+        status: 200,
+        headers: { 'content-encoding': 'gzip', 'content-length': '35' },
+      });
+    const result = await animate();
+
+    expect(uploads).toMatchObject([{ path: 'runway/gz.mp4', bytes: 2048 }]);
+    expect(result.videoUrl).toBe(`${STORED}gz.mp4`);
+  });
+
+  it('starts a fresh task when the saved one had already failed', async () => {
+    replies.push(
+      { body: { id: 'dead', status: 'FAILED', failureCode: 'INTERNAL' } },
+      { body: { id: 'fresh' } },
+      { body: { id: 'fresh', status: 'SUCCEEDED', output: ['https://cdn.example/fresh.mp4'] } },
+    );
+    const result = await animateWithRunway({
+      imageUrl: 'https://img.example/a.png',
+      prompt: 'p',
+      format: 'portrait',
+      durationSeconds: 5,
+      resumeGenerationId: 'runway:dead',
+      ...fast,
+    });
+
+    expect(result.generationId).toBe('runway:fresh');
+    expect(apiCalls().filter(([u]) => String(u).endsWith('/v1/image_to_video'))).toHaveLength(1);
+  });
+
+  it('marks a create that fails with a 5xx as unconfirmed, and a 429 as an ordinary error', async () => {
+    replies.push({ status: 503, body: {} });
+    await expect(animate()).rejects.toBeInstanceOf(VideoTaskUnconfirmedError);
+    replies.push({ status: 429, body: {} });
+    const refused = await animate().catch((e: unknown) => e);
+    expect(refused).not.toBeInstanceOf(VideoTaskUnconfirmedError);
+    expect(refused).toMatchObject({ status: 429 });
   });
 
   it('lets the MP4 export download clips from our own storage host', () => {

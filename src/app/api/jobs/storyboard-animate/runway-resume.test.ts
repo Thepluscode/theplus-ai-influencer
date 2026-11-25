@@ -81,6 +81,7 @@ const { POST } = await import('./route');
 let creates = 0;
 let taskPolls: string[] = [];
 let pollStatus = 503;
+let createStatus = 200;
 
 beforeEach(() => {
   h.attempts = 0;
@@ -100,6 +101,7 @@ beforeEach(() => {
   creates = 0;
   taskPolls = [];
   pollStatus = 503;
+  createStatus = 200;
   vi.spyOn(console, 'error').mockImplementation(() => {});
   vi.stubGlobal(
     'fetch',
@@ -107,6 +109,7 @@ beforeEach(() => {
       const u = String(url);
       if (init?.method === 'POST') {
         creates++;
+        if (createStatus !== 200) return Response.json({}, { status: createStatus });
         return Response.json({ id: `task-${creates}` });
       }
       if (u.includes('/v1/tasks/')) {
@@ -150,6 +153,26 @@ describe('storyboard-animate with Runway', () => {
     expect(second.status).toBe('completed');
     expect(h.shots[0]).toMatchObject({ videoGenerationId: 'runway:task-1' });
     expect(JSON.parse(JSON.stringify(h.shots[0]))).not.toHaveProperty('pendingVideoGenerationId');
+  });
+
+  it('fails the job instead of retrying when the create may have started a task', async () => {
+    // A 503 (or dropped response) on create can still have started a paid task
+    // whose id we never saw; retrying would pay for a second one.
+    createStatus = 503;
+    const result = await tick();
+
+    expect(creates).toBe(1);
+    expect(result.status).toBe('failed');
+    expect(h.released).toEqual([]);
+    expect(h.failed).toEqual(['job']);
+  });
+
+  it('still retries a create Runway refused with 429', async () => {
+    createStatus = 429;
+    const result = await tick();
+
+    expect(result.status).toBe('retry');
+    expect(h.released).toEqual(['job']);
   });
 
   it('fails the job instead of retrying when the new task id cannot be saved', async () => {

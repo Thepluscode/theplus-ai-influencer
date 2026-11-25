@@ -20,6 +20,7 @@
 --     would not cover them).
 -- App session tokens carry no client_id and are unaffected.
 --
+-- Safe to re-run (policies are dropped and recreated by name).
 -- Must be applied BEFORE the Supabase OAuth server is enabled. A new table
 -- needs the same policies; scripts/sql/database-boundaries.sql fails when one
 -- is missing.
@@ -31,8 +32,10 @@ language sql
 stable
 set search_path = public, pg_temp
 as $$
+  -- PostgREST sets request.jwt.claims; older releases set one GUC per claim.
   select coalesce(
     nullif(current_setting('request.jwt.claims', true), '')::jsonb ->> 'client_id',
+    nullif(current_setting('request.jwt.claim.client_id', true), ''),
     ''
   ) <> ''
 $$;
@@ -52,19 +55,23 @@ begin
        and c.relkind in ('r', 'p')
        and c.relrowsecurity
   loop
+    execute format('drop policy if exists oauth_clients_no_insert on public.%I', t.relname);
     execute format(
       'create policy oauth_clients_no_insert on public.%I as restrictive for insert to authenticated with check (not public.is_oauth_client_request())',
       t.relname
     );
+    execute format('drop policy if exists oauth_clients_no_update on public.%I', t.relname);
     execute format(
       'create policy oauth_clients_no_update on public.%I as restrictive for update to authenticated using (not public.is_oauth_client_request())',
       t.relname
     );
+    execute format('drop policy if exists oauth_clients_no_delete on public.%I', t.relname);
     execute format(
       'create policy oauth_clients_no_delete on public.%I as restrictive for delete to authenticated using (not public.is_oauth_client_request())',
       t.relname
     );
     if t.relname not in ('ai_models', 'creations', 'posts', 'workspaces') then
+      execute format('drop policy if exists oauth_clients_no_select on public.%I', t.relname);
       execute format(
         'create policy oauth_clients_no_select on public.%I as restrictive for select to authenticated using (not public.is_oauth_client_request())',
         t.relname
@@ -74,6 +81,7 @@ begin
 end;
 $$;
 
+drop policy if exists oauth_clients_no_storage on storage.objects;
 create policy oauth_clients_no_storage on storage.objects
   as restrictive for all to authenticated
   using (not public.is_oauth_client_request())
