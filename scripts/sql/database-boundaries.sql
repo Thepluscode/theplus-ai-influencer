@@ -416,35 +416,61 @@ begin
 end;
 $$;
 
--- 0037: a render job is failed and refunded in one transaction, for only the
--- shots still without video, at most once.
-insert into public.storyboards (id, workspace_id, name, brief, format, shots)
-values (
-  'cccccccc-0037-0000-0000-000000000001',
-  'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
-  'render refund', 'refund probe', 'portrait',
-  '[{"index":0,"videoUrl":"https://storage.cdn-luma.com/done.mp4"},{"index":1}]'::jsonb
-);
--- shots_completed is stale (0) although shot 0 was saved: the refund must
--- follow the storyboard, not the counter.
+-- 0037: render progress and failure are each one transaction, fenced by the
+-- worker's claim; the refund comes from the job's own counters.
+insert into public.storyboards (id, workspace_id, name, brief, format, shots) values
+  ('cccccccc-0037-0000-0000-000000000001', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+   'render refund', 'refund probe', 'portrait', '[{"index":0},{"index":1}]'::jsonb),
+  ('cccccccc-0037-0000-0000-000000000002', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+   'deleted mid-render', 'refund probe', 'portrait', '[{"index":0},{"index":1}]'::jsonb);
 insert into public.storyboard_render_jobs (
   id, workspace_id, storyboard_id, status, shots_total, shots_completed,
-  cost_charged_total, cost_per_shot
+  cost_charged_total, cost_per_shot, claimed_at
 ) values
+  -- j1: progress then failure
   ('dddddddd-0037-0000-0000-000000000001', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
-   'cccccccc-0037-0000-0000-000000000001', 'processing', 2, 0, 50, 25),
+   'cccccccc-0037-0000-0000-000000000001', 'processing', 2, 0, 50, 25, '2026-11-25 10:00:00+00'),
+  -- j2: ledger blocked with P0001; j3: ledger blocked with 23505
   ('dddddddd-0037-0000-0000-000000000002', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
-   'cccccccc-0037-0000-0000-000000000001', 'processing', 2, 0, 50, 25),
+   'cccccccc-0037-0000-0000-000000000001', 'processing', 2, 0, 50, 25, '2026-11-25 10:00:00+00'),
   ('dddddddd-0037-0000-0000-000000000003', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
-   'cccccccc-0037-0000-0000-000000000001', 'completed', 2, 0, 50, 25);
+   'cccccccc-0037-0000-0000-000000000001', 'processing', 2, 0, 50, 25, '2026-11-25 10:00:00+00'),
+  -- j4: already completed
+  ('dddddddd-0037-0000-0000-000000000004', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+   'cccccccc-0037-0000-0000-000000000001', 'completed', 2, 2, 50, 25, null),
+  -- j5: a refund was already posted for it by the old worker path
+  ('dddddddd-0037-0000-0000-000000000005', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+   'cccccccc-0037-0000-0000-000000000001', 'processing', 2, 0, 50, 25, '2026-11-25 10:00:00+00'),
+  -- j6: its storyboard is deleted while claimed (cascade removes the job)
+  ('dddddddd-0037-0000-0000-000000000006', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+   'cccccccc-0037-0000-0000-000000000002', 'processing', 2, 0, 50, 25, '2026-11-25 10:00:00+00');
+
+select public.grant_credits(
+  'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 50, 'refund', 'storyboard_render_job',
+  'dddddddd-0037-0000-0000-000000000005'
+);
 
 set role authenticated;
 set request.jwt.claims = '{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}';
 do $$
 begin
   begin
-    perform public.fail_storyboard_render_job('dddddddd-0037-0000-0000-000000000001', 'x');
+    perform public.fail_storyboard_render_job(
+      'dddddddd-0037-0000-0000-000000000001', '2026-11-25 10:00:00+00', 'x',
+      'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 50);
     raise exception 'authenticated could fail and refund a render job';
+  exception when insufficient_privilege then null;
+  end;
+  begin
+    perform public.record_storyboard_render_shot(
+      'dddddddd-0037-0000-0000-000000000001', '2026-11-25 10:00:00+00', '[]'::jsonb);
+    raise exception 'authenticated could record render progress';
+  exception when insufficient_privilege then null;
+  end;
+  begin
+    perform public.post_storyboard_render_refund(
+      'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'dddddddd-0037-0000-0000-000000000001', 999);
+    raise exception 'authenticated could post a render refund directly';
   exception when insufficient_privilege then null;
   end;
 end;
@@ -456,51 +482,140 @@ set request.jwt.claims = '{"role":"service_role"}';
 do $$
 declare
   ws uuid := 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
-  job1 uuid := 'dddddddd-0037-0000-0000-000000000001';
-  job2 uuid := 'dddddddd-0037-0000-0000-000000000002';
-  before_credits int;
-  refunded int;
+  t timestamptz := '2026-11-25 10:00:00+00';
+  j1 uuid := 'dddddddd-0037-0000-0000-000000000001';
   j public.storyboard_render_jobs%rowtype;
+  credits_before int;
+  r int;
+  rec text;
 begin
-  select credits into before_credits from public.workspaces where id = ws;
-
-  refunded := public.fail_storyboard_render_job(job1, 'provider rejected the shot');
-  if refunded <> 25 then
-    raise exception 'refunded % for one unproduced shot, expected 25', refunded;
+  -- A stale claim token records nothing.
+  if public.record_storyboard_render_shot(j1, t + interval '1 second',
+       '[{"index":0,"videoUrl":"https://x/stale.mp4"},{"index":1}]') <> 'stale' then
+    raise exception 'stale claim recorded progress';
   end if;
-  select * into j from public.storyboard_render_jobs where id = job1;
-  if j.status <> 'failed' or j.cost_refunded <> 25 or j.claimed_at is not null then
-    raise exception 'job not recorded as failed with its refund: % %', j.status, j.cost_refunded;
-  end if;
-  if (select credits from public.workspaces where id = ws) <> before_credits + 25 then
-    raise exception 'workspace was not credited the refund';
+  if (select shots_completed from public.storyboard_render_jobs where id = j1) <> 0
+     or (select shots -> 0 ->> 'videoUrl' from public.storyboards
+          where id = 'cccccccc-0037-0000-0000-000000000001') is not null then
+    raise exception 'stale claim wrote shots or progress';
   end if;
 
-  -- A repeat (lost response, reclaim) changes nothing.
-  if public.fail_storyboard_render_job(job1, 'again') <> 25 then
-    raise exception 'repeat call reported a different refund';
+  -- The current claim saves the shot and advances the counter together.
+  rec := public.record_storyboard_render_shot(j1, t,
+       '[{"index":0,"videoUrl":"https://x/0.mp4"},{"index":1}]');
+  if rec <> 'progress' then
+    raise exception 'shot progress not recorded';
   end if;
-  if (select credits from public.workspaces where id = ws) <> before_credits + 25
+  select * into j from public.storyboard_render_jobs where id = j1;
+  if j.shots_completed <> 1 or j.claimed_at is not null
+     or (select shots -> 0 ->> 'videoUrl' from public.storyboards
+          where id = 'cccccccc-0037-0000-0000-000000000001') <> 'https://x/0.mp4' then
+    raise exception 'shot save and counter did not move together';
+  end if;
+
+  -- The owner appends a blank shot: the refund must not change (Codex S1).
+  update public.storyboards
+     set shots = shots || '[{"index":2}]'::jsonb
+   where id = 'cccccccc-0037-0000-0000-000000000001';
+  update public.storyboard_render_jobs set claimed_at = t where id = j1; -- re-claimed
+
+  select credits into credits_before from public.workspaces where id = ws;
+  r := public.fail_storyboard_render_job(j1, t, 'provider rejected the shot', ws, 999);
+  if r <> 25 then
+    raise exception 'refunded % for one undelivered shot, expected 25', r;
+  end if;
+  select * into j from public.storyboard_render_jobs where id = j1;
+  if j.status <> 'failed' or j.cost_refunded <> 25 or j.claimed_at is not null
+     or (select credits from public.workspaces where id = ws) <> credits_before + 25 then
+    raise exception 'failure and refund were not recorded together';
+  end if;
+
+  -- Repeat: no-op.
+  r := public.fail_storyboard_render_job(j1, t, 'again', ws, 999);
+  if r <> 25
      or (select count(*) from public.credit_transactions
-          where ref_kind = 'storyboard_render_job' and ref_id = job1::text) <> 1 then
-    raise exception 'repeat call refunded twice';
+          where ref_kind = 'storyboard_render_job' and ref_id = j1::text) <> 1
+     or (select credits from public.workspaces where id = ws) <> credits_before + 25 then
+    raise exception 'repeat call changed the refund';
   end if;
 
-  -- A job that already completed is never refunded or re-labelled.
-  if public.fail_storyboard_render_job('dddddddd-0037-0000-0000-000000000003', 'late') <> 0
+  -- A late worker cannot complete (or progress) a failed job.
+  rec := public.record_storyboard_render_shot(j1, null, '[]');
+  if rec <> 'stale'
+     or (select status from public.storyboard_render_jobs where id = j1) <> 'failed' then
+    raise exception 'a failed job was overwritten by a late worker';
+  end if;
+
+  -- A completed job is never refunded.
+  r := public.fail_storyboard_render_job('dddddddd-0037-0000-0000-000000000004', null, 'late', ws, 999);
+  if r <> 0
+     or (select count(*) from public.credit_transactions
+          where ref_id = 'dddddddd-0037-0000-0000-000000000004') <> 0
      or (select status from public.storyboard_render_jobs
-          where id = 'dddddddd-0037-0000-0000-000000000003') <> 'completed' then
+          where id = 'dddddddd-0037-0000-0000-000000000004') <> 'completed' then
     raise exception 'a completed job was failed or refunded';
+  end if;
+
+  -- Another worker's claim: nothing changes.
+  r := public.fail_storyboard_render_job('dddddddd-0037-0000-0000-000000000002',
+       t + interval '1 second', 'x', ws, 999);
+  if r is not null
+     or (select count(*) from public.credit_transactions
+          where ref_id = 'dddddddd-0037-0000-0000-000000000002') <> 0
+     or (select status from public.storyboard_render_jobs
+          where id = 'dddddddd-0037-0000-0000-000000000002') <> 'processing' then
+    raise exception 'a stale claim failed the job';
+  end if;
+
+  -- An existing refund for the job is reused, never doubled.
+  select credits into credits_before from public.workspaces where id = ws;
+  r := public.fail_storyboard_render_job('dddddddd-0037-0000-0000-000000000005', t, 'x', ws, 999);
+  if r <> 50
+     or (select credits from public.workspaces where id = ws) <> credits_before
+     or (select count(*) from public.credit_transactions
+          where ref_id = 'dddddddd-0037-0000-0000-000000000005') <> 1 then
+    raise exception 'an existing refund was posted again';
   end if;
 end;
 $$;
 reset role;
 
--- Atomicity: if the refund cannot be posted, the job is NOT marked failed.
+-- The storyboard is deleted while j6 is claimed: the cascade removes the job,
+-- and the worker settles from its claimed row (shots_total 2 * 25 = 50).
+delete from public.storyboards where id = 'cccccccc-0037-0000-0000-000000000002';
+set role service_role;
+set request.jwt.claims = '{"role":"service_role"}';
+do $$
+declare
+  ws uuid := 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+  j6 uuid := 'dddddddd-0037-0000-0000-000000000006';
+  credits_before int;
+  first_r int;
+  second_r int;
+begin
+  select credits into credits_before from public.workspaces where id = ws;
+  first_r := public.fail_storyboard_render_job(j6, '2026-11-25 10:00:00+00', 'gone', ws, 50);
+  second_r := public.fail_storyboard_render_job(j6, '2026-11-25 10:00:00+00', 'gone', ws, 50);
+  if first_r <> 50 or second_r <> 50
+     or (select credits from public.workspaces where id = ws) <> credits_before + 50
+     or (select count(*) from public.credit_transactions where ref_id = j6::text) <> 1 then
+    raise exception 'refund for a job deleted with its storyboard was lost or doubled: % % % % %',
+      first_r, second_r, credits_before,
+      (select credits from public.workspaces where id = ws),
+      (select count(*) from public.credit_transactions where ref_id = j6::text);
+  end if;
+end;
+$$;
+reset role;
+
+-- Atomicity: if the ledger write fails, for ANY reason, the job is not failed.
+-- 23505 is the code grant_credits used to swallow as "already refunded".
 create function pg_temp.block_refund() returns trigger language plpgsql as $$
 begin
   if new.ref_id = 'dddddddd-0037-0000-0000-000000000002' then
     raise exception 'ledger unavailable';
+  elsif new.ref_id = 'dddddddd-0037-0000-0000-000000000003' then
+    raise exception 'unrelated key collision' using errcode = '23505';
   end if;
   return new;
 end;
@@ -512,18 +627,25 @@ set role service_role;
 set request.jwt.claims = '{"role":"service_role"}';
 do $$
 declare
+  job uuid;
   j public.storyboard_render_jobs%rowtype;
 begin
-  begin
-    perform public.fail_storyboard_render_job('dddddddd-0037-0000-0000-000000000002', 'x');
-    raise exception 'fail_storyboard_render_job succeeded although the refund failed';
-  exception when others then
-    if sqlerrm <> 'ledger unavailable' then raise; end if;
-  end;
-  select * into j from public.storyboard_render_jobs where id = 'dddddddd-0037-0000-0000-000000000002';
-  if j.status <> 'processing' or j.cost_refunded <> 0 then
-    raise exception 'refund failed but job recorded as % with cost_refunded %', j.status, j.cost_refunded;
-  end if;
+  foreach job in array array[
+    'dddddddd-0037-0000-0000-000000000002'::uuid,
+    'dddddddd-0037-0000-0000-000000000003'::uuid
+  ] loop
+    begin
+      perform public.fail_storyboard_render_job(job, '2026-11-25 10:00:00+00', 'x',
+        'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 999);
+      raise exception 'job % was settled although its refund could not be posted', job;
+    exception when others then
+      if sqlerrm not in ('ledger unavailable', 'unrelated key collision') then raise; end if;
+    end;
+    select * into j from public.storyboard_render_jobs where id = job;
+    if j.status <> 'processing' or j.cost_refunded <> 0 then
+      raise exception 'refund failed but job % recorded as % / %', job, j.status, j.cost_refunded;
+    end if;
+  end loop;
 end;
 $$;
 reset role;

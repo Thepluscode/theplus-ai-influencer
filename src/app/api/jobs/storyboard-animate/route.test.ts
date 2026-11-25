@@ -36,13 +36,13 @@ vi.mock('@/lib/storyboard-jobs', () => ({
   claimNextRenderJob: async () => h.jobs.shift() ?? null,
   // Fail + refund is one database call (0037); the refund amount is computed
   // there and covered by scripts/sql/database-boundaries.sql.
-  failJobWithRefund: async (id: string) => {
-    h.failed.push(id);
-    h.refunds.push({ refId: id });
+  failJobWithRefund: async ({ job }: { job: { id: string } }) => {
+    h.failed.push(job.id);
+    h.refunds.push({ refId: job.id });
     return 0;
   },
+  recordRenderShot: async () => 'progress',
   markJobCompleted: async () => {},
-  recordShotProgress: async () => {},
   releaseJobClaim: async (id: string) => {
     h.released.push(id);
   },

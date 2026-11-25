@@ -1,30 +1,103 @@
 -- =============================================================================
--- 0037 — Fail a storyboard render job and refund it in ONE transaction.
+-- 0037 — Render job progress and failure are each ONE transaction, and the
+-- refund is computed from the job's own counters.
 --
--- The animate worker used to do two separate writes: mark the job failed with
--- cost_refunded, then call grant_credits. If the grant failed (or the worker
--- died between them) the job sat at status=failed with cost_refunded > 0 and
--- no credit ever posted, and a failed job is never claimed again: the refund
--- was stranded. It also computed the refund from shots_completed, which lags
--- when a shot's video was saved but the progress write failed, so a later
--- failure refunded a shot the user had already received.
--- Both reproduced against the worker (Codex review task-mwvzeif8-pa30zn).
+-- Defects (Codex task-mwvzeif8-pa30zn, then task-mwwcjltg-wr29p1; reproduced
+-- on Postgres 17 before this version):
+--   * The worker marked a job failed with cost_refunded, then called
+--     grant_credits separately; refundCredits swallows errors. A failed grant
+--     stranded the refund on a job that is never claimed again.
+--   * The refund trusted shots_completed, which lagged when a shot's video was
+--     saved but the separate progress write failed (over-refund). Counting the
+--     storyboard's blank shots instead was worse: users can edit the shot list,
+--     so appending or removing a blank shot over- or under-refunded.
+--   * A late worker could mark a failed job completed (no status check).
+--   * Deleting the storyboard cascades away its job, so a worker that then
+--     fails the job found nothing to settle.
 --
--- fail_storyboard_render_job(job, error):
---   * locks the job row; a job already failed/completed returns its recorded
---     refund and changes nothing (safe to call again after a lost response);
---   * refunds only shots that still have no video in the storyboard, capped
---     by the job's own shots_total - shots_completed and by what was charged;
---   * posts the refund through grant_credits under (storyboard_render_job,
---     job id), whose unique index makes a repeat a no-op;
---   * marks the job failed in the same transaction. If any step raises,
---     nothing is written and the job stays claimable for the stalled sweep.
+-- Design:
+--   * record_storyboard_render_shot saves the storyboard shots AND advances
+--     shots_completed (completing the job on the last shot) in one
+--     transaction. shots_completed can no longer lag or lead the saved work,
+--     so (shots_total - shots_completed) * cost_per_shot is exactly what this
+--     job charged for and did not deliver.
+--   * Both functions are fenced by the worker's claim token (claimed_at from
+--     claim_storyboard_render_job): a worker whose claim was reclaimed, or a
+--     job already finished, gets 'stale' / its recorded refund and nothing
+--     changes.
+--   * fail_storyboard_render_job posts the refund and marks the job failed in
+--     one transaction, writing the ledger directly: an existing refund row for
+--     this job is reused, anything else that goes wrong aborts the whole call
+--     (grant_credits treats every unique_violation as "already refunded").
+--   * If the job row is already gone (its storyboard was deleted while the job
+--     was claimed), the worker supplies the amount from its claimed row; the
+--     per-job ledger ref keeps that refund once-only.
 --
--- Note: 0035/0036 are taken on feat/finished-shorts; this number avoids a
--- collision when the branches meet. Order is independent of both.
+-- Apply BEFORE deploying the worker that calls these functions.
+-- 0035/0036 are taken on feat/finished-shorts; order is independent of both.
 -- =============================================================================
 
-create or replace function public.fail_storyboard_render_job(p_job_id uuid, p_error text)
+-- Posts this job's refund once. Returns the amount on the ledger for the job.
+create or replace function public.post_storyboard_render_refund(
+  p_workspace_id uuid,
+  p_job_id uuid,
+  p_amount integer
+)
+returns integer
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_existing integer;
+  v_balance integer;
+begin
+  select delta into v_existing
+    from public.credit_transactions
+   where workspace_id = p_workspace_id
+     and reason = 'refund'
+     and ref_kind = 'storyboard_render_job'
+     and ref_id = p_job_id::text;
+  if found then
+    return v_existing;
+  end if;
+  if p_amount is null or p_amount <= 0 then
+    return 0;
+  end if;
+
+  update public.workspaces
+     set credits = credits + p_amount,
+         updated_at = now()
+   where id = p_workspace_id
+  returning credits into v_balance;
+  if v_balance is null then
+    -- The workspace itself is gone; there is nobody to refund.
+    return 0;
+  end if;
+
+  insert into public.credit_transactions (
+    workspace_id, delta, reason, ref_kind, ref_id, balance_after
+  ) values (
+    p_workspace_id, p_amount, 'refund', 'storyboard_render_job', p_job_id::text, v_balance
+  );
+  return p_amount;
+end;
+$$;
+
+revoke execute on function public.post_storyboard_render_refund(uuid, uuid, integer)
+  from public, anon, authenticated, service_role;
+
+drop function if exists public.fail_storyboard_render_job(uuid, text);
+
+-- Returns the credits refunded for the job, or null when the caller's claim is
+-- stale (another worker owns the job now) and nothing was changed.
+create or replace function public.fail_storyboard_render_job(
+  p_job_id uuid,
+  p_claimed_at timestamptz,
+  p_error text,
+  p_workspace_id uuid,
+  p_refund_if_job_missing integer
+)
 returns integer
 language plpgsql
 security definer
@@ -32,42 +105,29 @@ set search_path = public, pg_temp
 as $$
 declare
   v_job public.storyboard_render_jobs%rowtype;
-  v_shots jsonb;
-  v_unproduced integer;
   v_refund integer;
 begin
   select * into v_job
     from public.storyboard_render_jobs
    where id = p_job_id
      for update;
+
   if not found then
-    raise exception 'render job % not found', p_job_id using errcode = 'P0002';
+    -- Deleted with its storyboard while this worker held the claim.
+    return public.post_storyboard_render_refund(p_workspace_id, p_job_id, p_refund_if_job_missing);
   end if;
   if v_job.status in ('failed', 'completed') then
     return v_job.cost_refunded;
   end if;
-
-  select shots into v_shots from public.storyboards where id = v_job.storyboard_id;
-  if v_shots is null or jsonb_typeof(v_shots) <> 'array' then
-    -- No storyboard to inspect: fall back to the job's own count.
-    v_unproduced := v_job.shots_total - v_job.shots_completed;
-  else
-    select count(*) into v_unproduced
-      from jsonb_array_elements(v_shots) as shot
-     where coalesce(shot ->> 'videoUrl', '') = '';
+  if v_job.claimed_at is distinct from p_claimed_at then
+    return null;
   end if;
 
   v_refund := least(
-    greatest(0, least(v_unproduced, v_job.shots_total - v_job.shots_completed))
-      * v_job.cost_per_shot,
+    greatest(0, v_job.shots_total - v_job.shots_completed) * v_job.cost_per_shot,
     v_job.cost_charged_total
   );
-
-  if v_refund > 0 then
-    perform public.grant_credits(
-      v_job.workspace_id, v_refund, 'refund', 'storyboard_render_job', p_job_id::text
-    );
-  end if;
+  v_refund := public.post_storyboard_render_refund(v_job.workspace_id, p_job_id, v_refund);
 
   update public.storyboard_render_jobs
      set status = 'failed',
@@ -82,5 +142,68 @@ begin
 end;
 $$;
 
-revoke execute on function public.fail_storyboard_render_job(uuid, text) from public, anon, authenticated;
-grant execute on function public.fail_storyboard_render_job(uuid, text) to service_role;
+-- Saves the storyboard's shots and advances the job in one transaction.
+-- Returns 'progress', 'completed', 'stale' (claim lost or job finished:
+-- nothing written) or 'missing' (job or storyboard gone).
+create or replace function public.record_storyboard_render_shot(
+  p_job_id uuid,
+  p_claimed_at timestamptz,
+  p_shots jsonb
+)
+returns text
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_job public.storyboard_render_jobs%rowtype;
+  v_completed integer;
+begin
+  select * into v_job
+    from public.storyboard_render_jobs
+   where id = p_job_id
+     for update;
+  if not found then
+    return 'missing';
+  end if;
+  if v_job.status not in ('pending', 'processing')
+     or v_job.claimed_at is distinct from p_claimed_at then
+    return 'stale';
+  end if;
+
+  update public.storyboards set shots = p_shots where id = v_job.storyboard_id;
+  if not found then
+    return 'missing';
+  end if;
+
+  -- +1 is safe: only the holder of this claim token gets here, and clearing
+  -- claimed_at below spends the token.
+  v_completed := v_job.shots_completed + 1;
+  if v_completed >= v_job.shots_total then
+    update public.storyboard_render_jobs
+       set shots_completed = v_completed,
+           status = 'completed',
+           claimed_at = null,
+           completed_at = now(),
+           updated_at = now()
+     where id = p_job_id;
+    return 'completed';
+  end if;
+
+  update public.storyboard_render_jobs
+     set shots_completed = v_completed,
+         claimed_at = null,
+         updated_at = now()
+   where id = p_job_id;
+  return 'progress';
+end;
+$$;
+
+revoke execute on function public.fail_storyboard_render_job(uuid, timestamptz, text, uuid, integer)
+  from public, anon, authenticated;
+grant execute on function public.fail_storyboard_render_job(uuid, timestamptz, text, uuid, integer)
+  to service_role;
+revoke execute on function public.record_storyboard_render_shot(uuid, timestamptz, jsonb)
+  from public, anon, authenticated;
+grant execute on function public.record_storyboard_render_shot(uuid, timestamptz, jsonb)
+  to service_role;

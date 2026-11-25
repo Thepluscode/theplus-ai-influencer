@@ -15,12 +15,15 @@ const h = vi.hoisted(() => ({
   job: null as Record<string, unknown> | null,
   shots: [] as Record<string, unknown>[],
   rpcError: {} as Record<string, string | undefined>,
+  rpcResult: {} as Record<string, unknown>,
+  animate: 'fail' as 'fail' | 'ok',
   rpcCalls: [] as { fn: string; args: Record<string, unknown> }[],
   jobUpdates: [] as Record<string, unknown>[],
 }));
 
 vi.mock('@/lib/storyboard', () => ({
-  animateSingleShot: async () => {
+  animateSingleShot: async ({ shot }: { shot: Record<string, unknown> }) => {
+    if (h.animate === 'ok') return { ...shot, videoUrl: 'https://cdn.example/new.mp4' };
     throw Object.assign(new Error('bad request'), { status: 400 });
   },
 }));
@@ -35,7 +38,8 @@ vi.mock('@/lib/supabase/admin', () => ({
         if (fn === 'reclaim_stalled_storyboard_render_jobs')
           return Promise.resolve({ data: 0, error: null });
         const message = h.rpcError[fn];
-        return Promise.resolve({ data: message ? null : 0, error: message ? { message } : null });
+        if (message) return Promise.resolve({ data: null, error: { message } });
+        return Promise.resolve({ data: fn in h.rpcResult ? h.rpcResult[fn] : 0, error: null });
       },
       from(table: string) {
         return {
@@ -84,39 +88,92 @@ beforeEach(() => {
     shots_completed: 0,
     cost_per_shot: 25,
     attempts: 1,
+    claimed_at: '2026-11-25T10:00:00.123456+00:00',
   };
   h.shots = [shot(0, false), shot(1, false)];
   h.rpcError = {};
+  h.rpcResult = {};
+  h.animate = 'fail';
   h.rpcCalls = [];
   h.jobUpdates = [];
   vi.spyOn(console, 'error').mockImplementation(() => {});
 });
 
-const failedWrites = () => h.jobUpdates.filter((u) => u.status === 'failed');
+const calls = (fn: string) => h.rpcCalls.filter((c) => c.fn === fn);
 
 describe('render job failure and refund', () => {
   it('never records a job as failed-and-refunded when the refund did not happen', async () => {
-    h.rpcError = {
-      grant_credits: 'database unavailable',
-      fail_storyboard_render_job: 'database unavailable',
-    };
+    h.rpcError = { fail_storyboard_render_job: 'database unavailable' };
     const res = await tick();
 
-    // The failure is not swallowed: the tick reports an error and the job is
-    // left claimed, so the stalled-job sweep retries the whole fail+refund.
-    expect(res.status).toBeGreaterThanOrEqual(500);
-    expect(failedWrites()).toEqual([]);
+    // Retried in-request, then reported: the job is left claimed, so the
+    // stalled-job sweep retries the whole fail+refund. Nothing else is written.
+    expect(res.status).toBe(500);
+    expect((await res.json()).status).toBe('fail_unrecorded');
+    expect(calls('fail_storyboard_render_job')).toHaveLength(3);
+    expect(h.jobUpdates).toEqual([]);
+    expect(calls('grant_credits')).toEqual([]);
   });
 
-  it('fails and refunds in one database call, keyed to the job', async () => {
+  it('fails and refunds in one call, fenced by the claim, with the deleted-job fallback amount', async () => {
+    h.rpcResult = { fail_storyboard_render_job: 50 };
     const res = await tick();
 
-    expect((await res.json()).status).toBe('failed');
-    expect(failedWrites()).toEqual([]); // no separate status write
-    const fail = h.rpcCalls.filter((c) => c.fn === 'fail_storyboard_render_job');
-    expect(fail).toEqual([
-      { fn: 'fail_storyboard_render_job', args: { p_job_id: 'job', p_error: 'bad request' } },
+    expect(await res.json()).toMatchObject({ status: 'failed', refunded: 50 });
+    expect(calls('fail_storyboard_render_job').map((c) => c.args)).toEqual([
+      {
+        p_job_id: 'job',
+        p_claimed_at: '2026-11-25T10:00:00.123456+00:00',
+        p_error: 'bad request',
+        p_workspace_id: 'ws',
+        p_refund_if_job_missing: 50,
+      },
     ]);
-    expect(h.rpcCalls.some((c) => c.fn === 'grant_credits')).toBe(false);
+    expect(h.jobUpdates).toEqual([]);
+    expect(calls('grant_credits')).toEqual([]);
+  });
+
+  it('reports a stale claim without claiming the job failed', async () => {
+    h.rpcResult = { fail_storyboard_render_job: null };
+    expect((await (await tick()).json()).status).toBe('stale');
+  });
+
+  it('saves a shot and advances the job in one fenced call', async () => {
+    h.animate = 'ok';
+    h.rpcResult = { record_storyboard_render_shot: 'progress' };
+    const body = await (await tick()).json();
+
+    expect(body.status).toBe('processing');
+    const [record] = calls('record_storyboard_render_shot');
+    expect(record?.args).toMatchObject({
+      p_job_id: 'job',
+      p_claimed_at: '2026-11-25T10:00:00.123456+00:00',
+    });
+    expect((record?.args.p_shots as { videoUrl?: string }[])[0]?.videoUrl).toBe(
+      'https://cdn.example/new.mp4',
+    );
+    expect(h.jobUpdates).toEqual([]);
+  });
+
+  it('writes nothing more when the claim went stale before the save', async () => {
+    h.animate = 'ok';
+    h.rpcResult = { record_storyboard_render_shot: 'stale' };
+    expect((await (await tick()).json()).status).toBe('stale');
+    expect(calls('fail_storyboard_render_job')).toEqual([]);
+    expect(h.jobUpdates).toEqual([]);
+  });
+
+  it('settles the job when its storyboard vanished before the save', async () => {
+    h.animate = 'ok';
+    h.rpcResult = { record_storyboard_render_shot: 'missing', fail_storyboard_render_job: 50 };
+    expect((await (await tick()).json()).status).toBe('failed');
+    expect(calls('fail_storyboard_render_job')).toHaveLength(1);
+  });
+
+  it('fails and refunds a job whose shots are not a list of objects', async () => {
+    h.shots = { not: 'an array' } as unknown as Record<string, unknown>[];
+    h.rpcResult = { fail_storyboard_render_job: 50 };
+    expect((await (await tick()).json()).status).toBe('failed');
+    expect(calls('fail_storyboard_render_job')[0]?.args.p_error).toMatch(/malformed/);
   });
 });
