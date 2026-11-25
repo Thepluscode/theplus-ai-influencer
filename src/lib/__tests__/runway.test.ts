@@ -382,7 +382,7 @@ describe('provider dispatch', () => {
     });
     const workDir = await mkdtemp(path.join(tmpdir(), 'runway-fallback-'));
     try {
-      const clipFetch = vi.fn(async () => new Response('mp4-bytes', { status: 200 }));
+      const clipFetch = vi.fn<typeof fetch>(async () => new Response('mp4-bytes', { status: 200 }));
       const [clip] = await downloadStoryboardClips(
         [
           {
