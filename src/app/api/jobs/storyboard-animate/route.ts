@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { refundCredits } from '@/lib/credits';
 import { isCronAuthorized } from '@/lib/cron-auth';
-import { UnretryableVideoTaskError } from '@/lib/runway';
+import { UnretryableVideoTaskError, VideoTaskDeadError } from '@/lib/runway';
 import { animateSingleShot, type RenderedShot } from '@/lib/storyboard';
 import { getSupabaseAdminClient } from '@/lib/supabase/admin';
 import {
@@ -158,7 +158,20 @@ export async function POST(req: NextRequest) {
     });
   } catch (err) {
     const msg = toMessage(err);
-    if (err instanceof UnretryableVideoTaskError) {
+    if (err instanceof VideoTaskDeadError) {
+      // Forget the dead task so a later job starts afresh. Best effort: if this
+      // write fails, the next job re-polls the dead id and fails again, which
+      // costs nothing; it never creates a replacement inside this job.
+      const cleared = shots.map((s) =>
+        s.index === target.index ? { ...s, pendingVideoGenerationId: undefined } : s,
+      );
+      const { error } = await admin.from('storyboards').update({ shots: cleared }).eq('id', sb.id);
+      if (error) {
+        console.error(
+          JSON.stringify({ event: 'video_task_clear_failed', jobId: job.id, error: error.message }),
+        );
+      }
+    } else if (err instanceof UnretryableVideoTaskError) {
       // Retrying could bill a second task; fail loudly with what we know of it.
       console.error(
         JSON.stringify({

@@ -68,6 +68,21 @@ export class VideoTaskUnconfirmedError extends UnretryableVideoTaskError {
   }
 }
 
+/**
+ * The task ended FAILED or CANCELLED. The worker fails the job and clears the
+ * saved id, so a later (separately paid) job starts a fresh task instead of
+ * re-polling a dead one; nothing inside this job creates a replacement.
+ */
+export class VideoTaskDeadError extends Error {
+  constructor(
+    readonly generationId: string,
+    message: string,
+  ) {
+    super(message);
+    this.name = 'VideoTaskDeadError';
+  }
+}
+
 function toMessage(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
 }
@@ -88,9 +103,8 @@ export async function animateWithRunway(input: {
   /** Persist the new task's id before polling, so a retry resumes it. */
   onTaskCreated?: (generationId: string) => Promise<void>;
 }): Promise<{ videoUrl: string; generationId: string }> {
-  let resumed = input.resumeGenerationId?.startsWith(ID_PREFIX) ?? false;
-  let taskId = resumed
-    ? input.resumeGenerationId!.slice(ID_PREFIX.length)
+  const taskId = input.resumeGenerationId?.startsWith(ID_PREFIX)
+    ? input.resumeGenerationId.slice(ID_PREFIX.length)
     : await createTask(input);
   const deadline = Date.now() + input.timeoutMs;
   while (Date.now() < deadline) {
@@ -104,16 +118,11 @@ export async function animateWithRunway(input: {
       };
     }
     if (task.status === 'FAILED' || task.status === 'CANCELLED') {
-      // A saved id that already ended badly belongs to an earlier, finished
-      // attempt (this job is a re-run). Start a fresh task rather than failing
-      // every later job on the same dead id.
-      if (resumed) {
-        resumed = false;
-        taskId = await createTask(input);
-        continue;
-      }
       const reason = task.status === 'FAILED' ? (task.failureCode ?? task.failure) : 'cancelled';
-      throw new Error(`Runway task ${taskId} ${task.status.toLowerCase()}: ${reason ?? 'unknown'}`);
+      throw new VideoTaskDeadError(
+        `${ID_PREFIX}${taskId}`,
+        `Runway task ${taskId} ${task.status.toLowerCase()}: ${reason ?? 'unknown'}`,
+      );
     }
     await new Promise((resolve) => setTimeout(resolve, input.pollIntervalMs));
   }
@@ -131,13 +140,23 @@ async function persistRunwayClip(taskId: string, runwayUrl: string): Promise<str
   try {
     const source = new URL(runwayUrl);
     if (source.protocol !== 'https:') throw new Error('Runway output URL is not https.');
+    // Ask for the bytes as stored: an encoded body's Content-Length counts the
+    // encoded form, and a truncated gzip can decode "successfully" to fewer
+    // bytes, so only an unencoded body can be checked for completeness.
     const response = await fetch(source, {
+      headers: { 'accept-encoding': 'identity' },
       signal: AbortSignal.timeout(CLIP_DOWNLOAD_TIMEOUT_MS),
     });
     // Exactly 200: a 206 partial body would otherwise be stored as a permanent,
     // truncated clip and reported as success.
     if (response.status !== 200 || !response.body) {
       throw new Error(`Runway clip download failed (${response.status}).`);
+    }
+    const encoding = response.headers.get('content-encoding');
+    if (encoding && encoding.toLowerCase() !== 'identity') {
+      throw new Error(
+        `Runway clip arrived ${encoding}-encoded; its completeness cannot be checked.`,
+      );
     }
     const declaredBytes = response.headers.get('content-length');
     if (Number(declaredBytes ?? 0) > MAX_CLIP_BYTES) {
@@ -157,11 +176,7 @@ async function persistRunwayClip(taskId: string, runwayUrl: string): Promise<str
       chunks.push(value);
     }
     if (bytes === 0) throw new Error('Runway clip download was empty.');
-    // Content-Length counts the encoded bytes; fetch hands us decoded ones, so
-    // the comparison only holds for an unencoded body.
-    const encoding = response.headers.get('content-encoding');
-    const unencoded = !encoding || encoding.toLowerCase() === 'identity';
-    if (unencoded && declaredBytes !== null && bytes !== Number(declaredBytes)) {
+    if (declaredBytes !== null && bytes !== Number(declaredBytes)) {
       throw new Error(`Runway clip was truncated (${bytes} of ${declaredBytes} bytes).`);
     }
 

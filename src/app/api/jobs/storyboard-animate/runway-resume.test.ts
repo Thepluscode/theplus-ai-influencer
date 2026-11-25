@@ -114,9 +114,14 @@ beforeEach(() => {
       }
       if (u.includes('/v1/tasks/')) {
         taskPolls.push(u.split('/v1/tasks/')[1]!);
-        return pollStatus === 200
-          ? Response.json({ id: 'x', status: 'SUCCEEDED', output: ['https://cdn.example/v.mp4'] })
-          : Response.json({}, { status: pollStatus });
+        if (pollStatus === 200)
+          return Response.json({
+            id: 'x',
+            status: 'SUCCEEDED',
+            output: ['https://cdn.example/v.mp4'],
+          });
+        if (pollStatus === 0) return Response.json({ id: 'x', status: 'FAILED', failureCode: 'X' });
+        return Response.json({}, { status: pollStatus });
       }
       return new Response(new Uint8Array(64), { status: 200 });
     }),
@@ -153,6 +158,28 @@ describe('storyboard-animate with Runway', () => {
     expect(second.status).toBe('completed');
     expect(h.shots[0]).toMatchObject({ videoGenerationId: 'runway:task-1' });
     expect(JSON.parse(JSON.stringify(h.shots[0]))).not.toHaveProperty('pendingVideoGenerationId');
+  });
+
+  it('fails the job, never re-creating, when its own task dies between ticks', async () => {
+    expect((await tick()).status).toBe('retry'); // created task-1, poll 503
+    pollStatus = 0; // task-1 is now FAILED
+    const second = await tick();
+
+    expect(creates).toBe(1);
+    expect(second.status).toBe('failed');
+    expect(h.failed).toEqual(['job']);
+    expect(JSON.parse(JSON.stringify(h.shots[0]))).not.toHaveProperty('pendingVideoGenerationId');
+  });
+
+  it('lets a later job start a fresh task once the dead id was cleared', async () => {
+    h.shots[0] = { ...h.shots[0], pendingVideoGenerationId: 'runway:old-dead' };
+    pollStatus = 0;
+    expect((await tick()).status).toBe('failed');
+    expect(creates).toBe(0);
+
+    pollStatus = 200; // a new, separately paid job
+    expect((await tick()).status).toBe('completed');
+    expect(creates).toBe(1);
   });
 
   it('fails the job instead of retrying when the create may have started a task', async () => {

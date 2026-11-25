@@ -42,6 +42,7 @@ import {
   animateWithRunway,
   isRunwayGenerationId,
   refreshRunwayVideoUrl,
+  VideoTaskDeadError,
   VideoTaskUnconfirmedError,
 } from '@/lib/runway';
 import { animateSingleShot } from '@/lib/storyboard';
@@ -346,36 +347,35 @@ describe('Runway clip persistence', () => {
     expect(result.videoUrl).toBe('https://cdn.example/short.mp4');
   });
 
-  it('stores a complete gzip-encoded clip whose Content-Length counts encoded bytes', async () => {
+  it('asks for an unencoded clip and refuses an encoded one it cannot verify', async () => {
     succeed('gz');
     clipResponse = () =>
-      new Response(new Uint8Array(2048), {
+      new Response(new Uint8Array(1550), {
         status: 200,
-        headers: { 'content-encoding': 'gzip', 'content-length': '35' },
+        headers: { 'content-encoding': 'gzip' }, // chunked: no length to check
       });
     const result = await animate();
 
-    expect(uploads).toMatchObject([{ path: 'runway/gz.mp4', bytes: 2048 }]);
-    expect(result.videoUrl).toBe(`${STORED}gz.mp4`);
+    expect(uploads).toEqual([]);
+    expect(result.videoUrl).toBe('https://cdn.example/gz.mp4');
+    const clipCall = fetchMock.mock.calls.find(([u]) => String(u) === 'https://cdn.example/gz.mp4');
+    expect(new Headers(clipCall?.[1]?.headers).get('accept-encoding')).toBe('identity');
   });
 
-  it('starts a fresh task when the saved one had already failed', async () => {
-    replies.push(
-      { body: { id: 'dead', status: 'FAILED', failureCode: 'INTERNAL' } },
-      { body: { id: 'fresh' } },
-      { body: { id: 'fresh', status: 'SUCCEEDED', output: ['https://cdn.example/fresh.mp4'] } },
-    );
-    const result = await animateWithRunway({
+  it('reports a dead resumed task without creating a replacement', async () => {
+    replies.push({ body: { id: 'dead', status: 'FAILED', failureCode: 'INTERNAL' } });
+    const error = await animateWithRunway({
       imageUrl: 'https://img.example/a.png',
       prompt: 'p',
       format: 'portrait',
       durationSeconds: 5,
       resumeGenerationId: 'runway:dead',
       ...fast,
-    });
+    }).catch((e: unknown) => e);
 
-    expect(result.generationId).toBe('runway:fresh');
-    expect(apiCalls().filter(([u]) => String(u).endsWith('/v1/image_to_video'))).toHaveLength(1);
+    expect(error).toBeInstanceOf(VideoTaskDeadError);
+    expect(error).toMatchObject({ generationId: 'runway:dead' });
+    expect(apiCalls().filter(([u]) => String(u).endsWith('/v1/image_to_video'))).toHaveLength(0);
   });
 
   it('marks a create that fails with a 5xx as unconfirmed, and a 429 as an ordinary error', async () => {
