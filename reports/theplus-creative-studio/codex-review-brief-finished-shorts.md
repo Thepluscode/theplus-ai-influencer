@@ -20,10 +20,31 @@ Every finding was reproduced by Claude outside the sandbox at `a18cbfc` before b
 | MED | rotating the first X-Forwarded-For hop dodges the per-IP cap | `583cec7`: rightmost hop |
 | MED | a 206 partial body is stored as a permanent clip | `583cec7`: exactly 200 and Content-Length match |
 
-Implementer-run, not independent: 7 code mutations and 6 migration mutations, each killed. The SQL
-harness passes on a fresh Postgres 17. Pre-push: 412/412 (`f16beca`). **The fixes need an
-independent re-review** of `a18cbfc..f16beca`. This branch does not yet carry PR #13's webhook fix
-(`970f820`, `408eedc`).
+### Re-review rounds (2026-11-25)
+
+| Round | Codex task | Reviewed | Result | Fix |
+|---|---|---|---|---|
+| 2 | `task-mwvy0n9x-5mrvp9` | `a18cbfc..f16beca` | lost create response → retry → 2nd paid task (HIGH); dead id poisons later jobs; gzip false reject; 0036 not re-runnable; legacy claim GUC | `dd13313` |
+| 3 | `task-mwvyngnf-f1rbua` | `dd13313` | in-job replacement of dead task could repeat (HIGH); truncated gzip stored | `c493cd2` |
+| 4 | `task-mwvz5ugv-2uzbim` | `c493cd2` | clear-dead-id write: lost markJobFailed → re-create (HIGH); whole-array clear overwrote concurrent edits (HIGH) | `d05857e` (id scoped to its job, no clear) |
+| 5 | `task-mwvzeif8-pa30zn` | `d05857e` | job scoping PASS; no other job can resume another's task PASS; shot writers keep the field PASS | see below |
+
+Round 5 items **not** fixed, and why:
+- **"Regression": a c493cd2-era pending id without a job id is discarded.** Not applicable: no commit of
+  this branch has ever run against a database (on hold since 2026-11-23), so no stored shot has that shape.
+- **Pre-existing, also on the parent:** (a) the task-id save AND markJobFailed both fail, or the worker
+  dies before the save, and a reclaim creates again. This can't be closed without a provider
+  idempotency key. (b) **HIGH, predates this branch, Luma too:** the job is marked failed with
+  `cost_refunded` before the credit grant runs. If the grant fails or is interrupted, the job is never
+  retried and the user is never refunded. (c) MEDIUM, predates this branch: if the `shots_completed`
+  write fails after a saved clip, a later failure over-refunds (50 instead of 25). (b) and (c) need a
+  separate fix to the render job's fail-and-refund ordering (one transactional RPC). That is a founder
+  decision, not part of this branch.
+
+Implementer evidence: every fix has a regression test killed by its mutation (5 code + 2 SQL in
+round 2, 4 in round 3, 3 in round 4). The SQL harness passes on a fresh Postgres 17, including
+re-applying 0036. Pre-push at `d05857e`: 419/419. Codex's sandbox could not run the SQL harness,
+the build, or the socket tests.
 
 Run from the main checkout:
 
