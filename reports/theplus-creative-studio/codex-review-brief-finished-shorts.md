@@ -1,8 +1,29 @@
 # Codex review brief — `feat/finished-shorts` (`207b06b..a18cbfc`)
 
-Status: **NOT RUN.** Codex usage limit resets 2026-11-25 08:03. This branch is
-stacked on PR #13 (`feat/creative-studio-slice`), which has its own pending brief
-(`codex-review-brief-pr13.md`). Nothing here merges or deploys before both reviews.
+Status: **RUN 2026-11-25** (Codex task `task-mwvwobr8-iwxtp5`, model gpt-6-astra, session
+`01a211fa-d112-7f62-8965-35ecc36e8988`), pinned to `a18cbfc`. Codex verdict: **NOT DEMO-READY**.
+
+| Item | Codex verdict |
+|---|---|
+| 1 captions, audio, voice failure | PASS: 346 glyphs rendered with zero network requests; real ffmpeg 8.1.2 concat gave 48 kHz stereo AAC |
+| 2 Runway + persistence | FAIL (3 findings); SQL harness BLOCKED in the sandbox |
+| 3 remote MCP + consent | FAIL (2 findings) |
+| 4 checks | typecheck/lint PASS; test/build BLOCKED (sandbox denies sockets and network) |
+
+Every finding was reproduced by Claude outside the sandbox at `a18cbfc` before being fixed:
+
+| Sev | Finding | Fix |
+|---|---|---|
+| HIGH | OAuth-client token reads webhook secrets and deletes posts directly via PostgREST | `0036` (`e9a52ad`); **not applied, apply before enabling the OAuth server** |
+| HIGH | transient poll failure → second paid Runway task | `583cec7`: id saved on the shot before polling and resumed next tick |
+| MED | fallback Runway CDN clip cannot export (host not allow-listed) | `583cec7`: refresh via API; trust only the API-returned host |
+| MED | rotating the first X-Forwarded-For hop dodges the per-IP cap | `583cec7`: rightmost hop |
+| MED | a 206 partial body is stored as a permanent clip | `583cec7`: exactly 200 and Content-Length match |
+
+Implementer-run, not independent: 7 code mutations and 6 migration mutations, each killed. The SQL
+harness passes on a fresh Postgres 17. Pre-push: 412/412 (`f16beca`). **The fixes need an
+independent re-review** of `a18cbfc..f16beca`. This branch does not yet carry PR #13's webhook fix
+(`970f820`, `408eedc`).
 
 Run from the main checkout:
 
