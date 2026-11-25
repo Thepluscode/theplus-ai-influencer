@@ -73,13 +73,19 @@ export async function claimNextRenderJob(): Promise<StoryboardRenderJobRow | nul
   return row;
 }
 
-/** Release a claim without changing status — next cron tick can re-pick. */
-export async function releaseJobClaim(jobId: string): Promise<void> {
+/**
+ * Release this worker's claim without changing status — next cron tick can
+ * re-pick. Matches on the claim token so a late worker cannot release a
+ * newer worker's claim.
+ */
+export async function releaseJobClaim(jobId: string, claimedAt: string | null): Promise<void> {
+  if (!claimedAt) return;
   const supabase = getSupabaseAdminClient();
   const { error } = await supabase
     .from('storyboard_render_jobs')
     .update({ claimed_at: null })
-    .eq('id', jobId);
+    .eq('id', jobId)
+    .eq('claimed_at', claimedAt);
   if (error) throw new Error(`Failed to release claim: ${error.message}`);
 }
 
@@ -109,8 +115,9 @@ export async function recordRenderShot(
   throw new Error(`Unexpected shot record result: ${String(data)}`);
 }
 
-/** Flip job to completed. Called after the last shot lands. */
-export async function markJobCompleted(jobId: string): Promise<void> {
+/** Flip this worker's job to completed (the no-pending-shots path). */
+export async function markJobCompleted(jobId: string, claimedAt: string | null): Promise<void> {
+  if (!claimedAt) return;
   const supabase = getSupabaseAdminClient();
   const { error } = await supabase
     .from('storyboard_render_jobs')
@@ -120,7 +127,8 @@ export async function markJobCompleted(jobId: string): Promise<void> {
       completed_at: new Date().toISOString(),
     })
     .eq('id', jobId)
-    // Never overwrite a job another worker already failed (and refunded).
+    // Only while this worker still holds it, and never over a failed job.
+    .eq('claimed_at', claimedAt)
     .in('status', ['pending', 'processing']);
   if (error) throw new Error(`Failed to mark job completed: ${error.message}`);
 }
@@ -133,10 +141,7 @@ export async function markJobCompleted(jobId: string): Promise<void> {
  * claimable for the stalled-job sweep.
  */
 export async function failJobWithRefund(input: {
-  job: Pick<
-    StoryboardRenderJobRow,
-    'id' | 'claimed_at' | 'workspace_id' | 'shots_total' | 'shots_completed' | 'cost_per_shot'
-  >;
+  job: Pick<StoryboardRenderJobRow, 'id' | 'claimed_at'>;
   error: string;
   attempts?: number;
 }): Promise<number | null> {
@@ -148,10 +153,6 @@ export async function failJobWithRefund(input: {
       p_job_id: job.id,
       p_claimed_at: job.claimed_at,
       p_error: input.error,
-      p_workspace_id: job.workspace_id,
-      // Used only if the job row is already gone (its storyboard was deleted).
-      p_refund_if_job_missing:
-        Math.max(0, job.shots_total - job.shots_completed) * job.cost_per_shot,
     });
     if (!error) return typeof data === 'number' ? data : null;
     lastError = error.message;

@@ -18,7 +18,7 @@ const h = vi.hoisted(() => ({
   rpcResult: {} as Record<string, unknown>,
   animate: 'fail' as 'fail' | 'ok',
   rpcCalls: [] as { fn: string; args: Record<string, unknown> }[],
-  jobUpdates: [] as Record<string, unknown>[],
+  jobUpdates: [] as { row: Record<string, unknown>; filters: Record<string, unknown> }[],
 }));
 
 vi.mock('@/lib/storyboard', () => ({
@@ -51,12 +51,17 @@ vi.mock('@/lib/supabase/admin', () => ({
               }),
             }),
           }),
-          update: (row: Record<string, unknown>) => ({
-            eq: async () => {
-              if (table === 'storyboard_render_jobs') h.jobUpdates.push(row);
-              return { error: null };
-            },
-          }),
+          update: (row: Record<string, unknown>) => {
+            // Records the row and every filter, so tests can see the fence.
+            const write = { row, filters: {} as Record<string, unknown> };
+            if (table === 'storyboard_render_jobs') h.jobUpdates.push(write);
+            const builder = {
+              eq: (k: string, v: unknown) => ((write.filters[k] = v), builder),
+              in: (k: string, v: unknown) => ((write.filters[k] = v), builder),
+              then: (resolve: (r: { error: null }) => void) => resolve({ error: null }),
+            };
+            return builder;
+          },
         };
       },
     };
@@ -115,7 +120,7 @@ describe('render job failure and refund', () => {
     expect(calls('grant_credits')).toEqual([]);
   });
 
-  it('fails and refunds in one call, fenced by the claim, with the deleted-job fallback amount', async () => {
+  it('fails and refunds in one call, fenced by the claim, never passing an amount', async () => {
     h.rpcResult = { fail_storyboard_render_job: 50 };
     const res = await tick();
 
@@ -125,8 +130,6 @@ describe('render job failure and refund', () => {
         p_job_id: 'job',
         p_claimed_at: '2026-11-25T10:00:00.123456+00:00',
         p_error: 'bad request',
-        p_workspace_id: 'ws',
-        p_refund_if_job_missing: 50,
       },
     ]);
     expect(h.jobUpdates).toEqual([]);
@@ -168,6 +171,30 @@ describe('render job failure and refund', () => {
     h.rpcResult = { record_storyboard_render_shot: 'missing', fail_storyboard_render_job: 50 };
     expect((await (await tick()).json()).status).toBe('failed');
     expect(calls('fail_storyboard_render_job')).toHaveLength(1);
+  });
+
+  it('releases only its own claim when the save errors', async () => {
+    h.animate = 'ok';
+    h.rpcError = { record_storyboard_render_shot: 'database unavailable' };
+    const res = await tick();
+
+    expect(res.status).toBe(500);
+    expect(h.jobUpdates).toEqual([
+      {
+        row: { claimed_at: null },
+        filters: { id: 'job', claimed_at: '2026-11-25T10:00:00.123456+00:00' },
+      },
+    ]);
+  });
+
+  it('completes an all-delivered job only under its own claim and active status', async () => {
+    h.shots = [{ index: 0, prompt: 'p', videoUrl: 'https://cdn.example/v.mp4' }];
+    expect((await (await tick()).json()).status).toBe('completed');
+    expect(h.jobUpdates[0]?.filters).toEqual({
+      id: 'job',
+      claimed_at: '2026-11-25T10:00:00.123456+00:00',
+      status: ['pending', 'processing'],
+    });
   });
 
   it('fails and refunds a job whose shots are not a list of objects', async () => {

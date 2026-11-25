@@ -29,11 +29,17 @@
 --     one transaction, writing the ledger directly: an existing refund row for
 --     this job is reused, anything else that goes wrong aborts the whole call
 --     (grant_credits treats every unique_violation as "already refunded").
---   * If the job row is already gone (its storyboard was deleted while the job
---     was claimed), the worker supplies the amount from its claimed row; the
---     per-job ledger ref keeps that refund once-only.
+--   * Deleting an unfinished job (directly, or by cascade when its storyboard
+--     is deleted) settles its refund in the same transaction, from the job's
+--     own counters, via a BEFORE DELETE trigger. No worker ever supplies an
+--     amount, and a deletion can no longer lose a refund.
+--   * A null claim token never passes the fence.
 --
--- Apply BEFORE deploying the worker that calls these functions.
+-- Apply BEFORE deploying the worker that calls these functions, and only
+-- when no render job is pending/processing (old workers wrote the shot and
+-- the counter separately, so an in-flight job could carry a lagging counter):
+--   select count(*) from public.storyboard_render_jobs
+--    where status in ('pending', 'processing');   -- must be 0
 -- 0035/0036 are taken on feat/finished-shorts; order is independent of both.
 -- =============================================================================
 
@@ -88,15 +94,14 @@ revoke execute on function public.post_storyboard_render_refund(uuid, uuid, inte
   from public, anon, authenticated, service_role;
 
 drop function if exists public.fail_storyboard_render_job(uuid, text);
+drop function if exists public.fail_storyboard_render_job(uuid, timestamptz, text, uuid, integer);
 
 -- Returns the credits refunded for the job, or null when the caller's claim is
 -- stale (another worker owns the job now) and nothing was changed.
 create or replace function public.fail_storyboard_render_job(
   p_job_id uuid,
   p_claimed_at timestamptz,
-  p_error text,
-  p_workspace_id uuid,
-  p_refund_if_job_missing integer
+  p_error text
 )
 returns integer
 language plpgsql
@@ -113,13 +118,19 @@ begin
      for update;
 
   if not found then
-    -- Deleted with its storyboard while this worker held the claim.
-    return public.post_storyboard_render_refund(p_workspace_id, p_job_id, p_refund_if_job_missing);
+    -- Deleted (e.g. with its storyboard); the delete trigger already settled
+    -- it. Report what is on the ledger for the job.
+    return coalesce((
+      select delta from public.credit_transactions
+       where reason = 'refund'
+         and ref_kind = 'storyboard_render_job'
+         and ref_id = p_job_id::text
+    ), 0);
   end if;
   if v_job.status in ('failed', 'completed') then
     return v_job.cost_refunded;
   end if;
-  if v_job.claimed_at is distinct from p_claimed_at then
+  if p_claimed_at is null or v_job.claimed_at is distinct from p_claimed_at then
     return null;
   end if;
 
@@ -167,6 +178,7 @@ begin
     return 'missing';
   end if;
   if v_job.status not in ('pending', 'processing')
+     or p_claimed_at is null
      or v_job.claimed_at is distinct from p_claimed_at then
     return 'stale';
   end if;
@@ -199,11 +211,40 @@ begin
 end;
 $$;
 
-revoke execute on function public.fail_storyboard_render_job(uuid, timestamptz, text, uuid, integer)
+revoke execute on function public.fail_storyboard_render_job(uuid, timestamptz, text)
   from public, anon, authenticated;
-grant execute on function public.fail_storyboard_render_job(uuid, timestamptz, text, uuid, integer)
+grant execute on function public.fail_storyboard_render_job(uuid, timestamptz, text)
   to service_role;
 revoke execute on function public.record_storyboard_render_shot(uuid, timestamptz, jsonb)
   from public, anon, authenticated;
 grant execute on function public.record_storyboard_render_shot(uuid, timestamptz, jsonb)
   to service_role;
+
+-- Deleting an unfinished job settles it in the same transaction. Covers the
+-- cascade from a storyboard delete (claimed or not). When the whole workspace
+-- is being deleted its row is already gone, so nothing is posted.
+create or replace function public.settle_render_job_on_delete()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+begin
+  if old.status in ('pending', 'processing') then
+    perform public.post_storyboard_render_refund(
+      old.workspace_id,
+      old.id,
+      least(greatest(0, old.shots_total - old.shots_completed) * old.cost_per_shot,
+            old.cost_charged_total)
+    );
+  end if;
+  return old;
+end;
+$$;
+
+revoke execute on function public.settle_render_job_on_delete() from public, anon, authenticated;
+
+drop trigger if exists settle_render_job_on_delete on public.storyboard_render_jobs;
+create trigger settle_render_job_on_delete
+  before delete on public.storyboard_render_jobs
+  for each row execute function public.settle_render_job_on_delete();

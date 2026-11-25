@@ -115,7 +115,7 @@ export async function POST(req: NextRequest) {
   if (!target) {
     // No pending shots — this shouldn't happen with the claim filter,
     // but be defensive and mark completed.
-    await markJobCompleted(job.id);
+    await markJobCompleted(job.id, job.claimed_at);
     return NextResponse.json({
       ran: true,
       jobId: job.id,
@@ -137,7 +137,7 @@ export async function POST(req: NextRequest) {
     // failing + refunding. Only on retryable errors and under the attempt cap;
     // anything else (or an exhausted job) falls through to the fail path.
     if (isTransientError(err) && unproductiveClaims(job) + 1 < MAX_RENDER_ATTEMPTS) {
-      await releaseJobClaim(job.id);
+      await releaseJobClaim(job.id, job.claimed_at);
       return NextResponse.json(
         { ran: true, jobId: job.id, status: 'retry', attempts: job.attempts, error: msg },
         { status: 200 },
@@ -156,7 +156,7 @@ export async function POST(req: NextRequest) {
     // Not saved, and the provider already charged us for this render. Release
     // the claim so the next tick retries: the stored shots still have the same
     // target shot pending, and the job's counter did not move.
-    await releaseJobClaim(job.id);
+    await releaseJobClaim(job.id, job.claimed_at);
     return NextResponse.json(
       { ran: true, jobId: job.id, status: 'save_failed', error: toMessage(err) },
       { status: 500 },
