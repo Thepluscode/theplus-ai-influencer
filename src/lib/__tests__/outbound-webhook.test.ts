@@ -1,5 +1,6 @@
 // @vitest-environment node
 import { createServer, request } from 'node:http';
+import { request as httpsRequest } from 'node:https';
 import type { AddressInfo } from 'node:net';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -56,12 +57,37 @@ describe('outbound webhook security', () => {
     expect(isPublicIpAddress('1.1.1.1')).toBe(true);
   });
 
-  it.each(['100::1', '2001::1', '2001:2::1', '2001:db8::1', '2002:a00:1::1', '3fff::1', '64:ff9b::a00:1'])(
-    'rejects special-purpose IPv6 %s',
-    (address) => {
-      expect(isPublicIpAddress(address)).toBe(false);
-    },
-  );
+  it.each([
+    '100::1',
+    '2001::1',
+    '2001:2::1',
+    '2001:db8::1',
+    '2002:a00:1::1',
+    '3fff::1',
+    '64:ff9b::a00:1',
+  ])('rejects special-purpose IPv6 %s', (address) => {
+    expect(isPublicIpAddress(address)).toBe(false);
+  });
+
+  it('judges a NAT64 address by the IPv4 address it embeds', () => {
+    expect(isPublicIpAddress('64:ff9b::5db8:d822')).toBe(true); // 93.184.216.34
+    expect(isPublicIpAddress('64:ff9b::a00:1')).toBe(false); // 10.0.0.1
+    expect(isPublicIpAddress('64:ff9b::7f00:1')).toBe(false); // 127.0.0.1
+  });
+
+  it('turns an immediate connect failure into a request error, not a crash', async () => {
+    // 100::1 is the discard prefix: unroutable, so connect fails at once.
+    const error = await new Promise<NodeJS.ErrnoException>((resolve) => {
+      const req = httpsRequest('https://hooks.example.com/events', {
+        method: 'POST',
+        lookup: pinnedLookup({ address: '100::1', family: 6 }),
+      });
+      req.on('error', resolve);
+      req.setTimeout(3_000, () => req.destroy(new Error('timeout')));
+      req.end('{}');
+    });
+    expect(error.message).not.toMatch(/setServername/);
+  });
 
   it.each(['2001:4860:4860::8888', '2a00:1450:4001::1', '2606:4700:4700::1111'])(
     'accepts global unicast IPv6 %s',

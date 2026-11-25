@@ -124,8 +124,13 @@ export function pinnedLookup(address: ResolvedAddress): NonNullable<RequestOptio
     family?: number,
   ) => void;
   return ((_hostname: string, options: { all?: boolean }, callback: Callback) => {
-    if (options?.all) callback(null, [address]);
-    else callback(null, address.address, address.family);
+    // Answer asynchronously like dns.lookup does: a synchronous answer lets an
+    // immediate connect failure (EHOSTUNREACH) fire before the HTTPS socket is
+    // wired up, which surfaced as an uncaught exception that killed the process.
+    process.nextTick(() => {
+      if (options?.all) callback(null, [address]);
+      else callback(null, address.address, address.family);
+    });
   }) as NonNullable<RequestOptions['lookup']>;
 }
 
@@ -163,14 +168,17 @@ export function isPublicIpAddress(value: string): boolean {
   if (version === 6) {
     const numericAddress = ipv6ToBigInt(address);
     if (numericAddress <= BigInt(1)) return false;
-    if (numericAddress >> BigInt(32) === BigInt('0xffff')) {
+    // IPv4-mapped (::ffff:0:0/96) and well-known NAT64 (64:ff9b::/96, what
+    // DNS64 hands IPv6-only hosts): judge the embedded IPv4 address.
+    const prefix96 = numericAddress >> BigInt(32);
+    if (prefix96 === BigInt('0xffff') || prefix96 === BigInt('0x64ff9b0000000000000000')) {
       const mapped = Number(numericAddress & BigInt('0xffffffff'));
       return isPublicIpAddress(
         `${mapped >>> 24}.${(mapped >>> 16) & 255}.${(mapped >>> 8) & 255}.${mapped & 255}`,
       );
     }
     // Allowlist, not denylist: only global unicast 2000::/3 is public. That
-    // alone rejects ::/8 (incl. 100:: discard), 64:ff9b:: NAT64, fc00::/7,
+    // alone rejects ::/8 (incl. 100:: discard), other NAT64 prefixes, fc00::/7,
     // fe80::/10, fec0::/10 and ff00::/8. Then carve out the special ranges
     // inside 2000::/3 (IANA IPv6 special-purpose registry).
     return (
