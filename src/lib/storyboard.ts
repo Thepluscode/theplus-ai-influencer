@@ -42,6 +42,8 @@ export interface RenderedShot extends ShotPrompt {
    * first poll so a retried worker tick resumes it instead of paying again.
    */
   pendingVideoGenerationId?: string;
+  /** Render job that created the pending task; only that job may resume it. */
+  pendingVideoJobId?: string;
   /** Source duration of the video clip itself (Luma returns 5s or 9s). */
   videoDurationMs?: number;
 }
@@ -343,6 +345,7 @@ export async function animateSingleShot(input: {
     return {
       ...input.shot,
       pendingVideoGenerationId: undefined,
+      pendingVideoJobId: undefined,
       videoUrl: animated.videoUrl,
       videoGenerationId: animated.generationId,
       videoDurationMs: duration * 1000,

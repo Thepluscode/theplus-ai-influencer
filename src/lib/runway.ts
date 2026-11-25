@@ -69,16 +69,12 @@ export class VideoTaskUnconfirmedError extends UnretryableVideoTaskError {
 }
 
 /**
- * The task ended FAILED or CANCELLED. The worker fails the job and clears the
- * saved id, so a later (separately paid) job starts a fresh task instead of
- * re-polling a dead one; nothing inside this job creates a replacement.
+ * The task ended FAILED or CANCELLED. The job fails; nothing inside it creates
+ * a replacement (a later, separately paid job starts its own task).
  */
-export class VideoTaskDeadError extends Error {
-  constructor(
-    readonly generationId: string,
-    message: string,
-  ) {
-    super(message);
+export class VideoTaskDeadError extends UnretryableVideoTaskError {
+  constructor(generationId: string, message: string) {
+    super(message, generationId);
     this.name = 'VideoTaskDeadError';
   }
 }
