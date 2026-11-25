@@ -102,6 +102,7 @@ where owner_user_id = '33333333-3333-3333-3333-333333333333';
 \ir ../../supabase/migrations/0033_lock_workspace_columns.sql
 \ir ../../supabase/migrations/0034_consume_credits_spend_reasons.sql
 \ir ../../supabase/migrations/0035_storyboard_clips_bucket.sql
+\ir ../../supabase/migrations/0036_oauth_clients_read_only.sql
 
 drop trigger if exists on_auth_user_created on auth.users;
 
@@ -427,5 +428,89 @@ begin
   values (ws, 'signed', 'https://example.com/c', repeat('s', 32));
 end;
 $$;
+
+-- 0036: a token issued to an OAuth client (claim client_id) is read-only and
+-- reads only what the MCP tools read. Every RLS table must carry the policies.
+do $$
+declare
+  rls_tables int;
+  covered int;
+begin
+  select count(*) into rls_tables
+    from pg_class c join pg_namespace n on n.oid = c.relnamespace
+   where n.nspname = 'public' and c.relkind in ('r', 'p') and c.relrowsecurity;
+  select count(distinct tablename) into covered
+    from pg_policies
+   where schemaname = 'public'
+     and policyname in ('oauth_clients_no_insert', 'oauth_clients_no_update', 'oauth_clients_no_delete')
+   group by schemaname;
+  if rls_tables < 27 then
+    raise exception 'expected at least 27 RLS tables, found %', rls_tables;
+  end if;
+  if covered <> rls_tables then
+    raise exception 'OAuth write-deny policies cover % of % RLS tables', covered, rls_tables;
+  end if;
+end;
+$$;
+
+insert into public.workspace_webhooks (workspace_id, name, url, signing_secret)
+values ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'oauth probe', 'https://example.com/o', repeat('o', 32));
+insert into storage.objects (bucket_id, name)
+values ('post-uploads', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa/oauth-probe.png');
+-- Hosted Supabase grants these; the harness bootstrap does not.
+grant usage on schema storage to authenticated;
+grant select on storage.objects to authenticated;
+
+set role authenticated;
+set request.jwt.claims = '{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated","client_id":"mcp-client"}';
+do $$
+declare
+  n int;
+begin
+  if (select count(*) from public.posts) < 1 or (select count(*) from public.workspaces) <> 1 then
+    raise exception 'OAuth client lost the reads the MCP tools need';
+  end if;
+  if (select count(*) from public.workspace_webhooks) <> 0 then
+    raise exception 'OAuth client read webhook signing secrets';
+  end if;
+  if (select count(*) from storage.objects) <> 0 then
+    raise exception 'OAuth client read storage objects';
+  end if;
+  update public.posts set name = 'oauth wrote' where workspace_id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+  get diagnostics n = row_count;
+  if n <> 0 then raise exception 'OAuth client updated % posts', n; end if;
+  delete from public.posts where workspace_id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+  get diagnostics n = row_count;
+  if n <> 0 then raise exception 'OAuth client deleted % posts', n; end if;
+  begin
+    perform public.consume_credits('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 1, 'caption_generation', 'probe', 'oauth');
+    raise exception 'OAuth client spent credits';
+  exception when insufficient_privilege then null;
+  end;
+end;
+$$;
+
+-- Positive twin: the same user's app session (no client_id) still writes.
+set request.jwt.claims = '{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}';
+do $$
+declare
+  n int;
+begin
+  if (select count(*) from public.workspace_webhooks) < 1 then
+    raise exception 'app session lost its own webhooks';
+  end if;
+  if (select count(*) from storage.objects) < 1 then
+    raise exception 'app session lost its own storage objects';
+  end if;
+  begin
+    update public.posts set name = 'session wrote' where workspace_id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+    get diagnostics n = row_count;
+    if n < 1 then raise exception 'app session could not update its own post'; end if;
+    raise exception using errcode = 'P0099', message = 'rollback';
+  exception when sqlstate 'P0099' then null;
+  end;
+end;
+$$;
+reset role;
 
 \echo 'database boundary tests passed'
