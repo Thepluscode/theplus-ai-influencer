@@ -118,7 +118,12 @@ export async function postSignedWebhook(input: {
 // rebinding). Node's happy-eyeballs connect calls lookup with `all: true` and
 // then expects an array; answering with a bare string fails every delivery.
 export function pinnedLookup(address: ResolvedAddress): NonNullable<RequestOptions['lookup']> {
-  return ((_hostname: string, options: { all?: boolean }, callback: Function) => {
+  type Callback = (
+    error: NodeJS.ErrnoException | null,
+    address: string | ResolvedAddress[],
+    family?: number,
+  ) => void;
+  return ((_hostname: string, options: { all?: boolean }, callback: Callback) => {
     if (options?.all) callback(null, [address]);
     else callback(null, address.address, address.family);
   }) as NonNullable<RequestOptions['lookup']>;
